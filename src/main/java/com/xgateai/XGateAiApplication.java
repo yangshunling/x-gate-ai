@@ -1,0 +1,26 @@
+package com.xgateai;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
+
+/**
+ * <p>
+ * XGateAiApplication 应用启动类
+ * </p>
+ *
+ * @author xgateai
+ * @since 2026/9/4
+ */
+@SpringBootApplication
+@EnableScheduling
+public class XGateAiApplication {
+
+    /**
+     * 启动 XGateAiApplication 应用
+     */
+    public static void main(String[] args) {
+        SpringApplication.run(XGateAiApplication.class, args);
+    }
+
+}

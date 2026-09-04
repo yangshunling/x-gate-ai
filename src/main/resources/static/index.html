@@ -1,0 +1,1302 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>X-Gate-AI 统一模型网关 · 管理控制台</title>
+<style>
+/* ============ 全局基础 ============ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --primary: #3b82f6;
+  --primary-hover: #2f6fe0;
+  --primary-soft: #eef4ff;
+  --danger: #ef4444;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --text: #1f2937;
+  --text-sub: #6b7280;
+  --border: #e5e7eb;
+  --bg: #f4f6fb;
+  --card: #ffffff;
+  --radius: 10px;
+  --shadow: 0 1px 3px rgba(16, 24, 40, .08), 0 1px 2px rgba(16, 24, 40, .04);
+  --shadow-lg: 0 12px 32px rgba(16, 24, 40, .16);
+}
+html, body { height: 100%; }
+body {
+  font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, -apple-system, sans-serif;
+  background: var(--bg); color: var(--text); font-size: 14px; -webkit-font-smoothing: antialiased;
+}
+[hidden] { display: none !important; }
+
+/* ============ 登录页 ============ */
+.login-wrap {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(1200px 600px at 20% 0%, #e8f0ff 0%, transparent 60%),
+              radial-gradient(1000px 500px at 90% 100%, #e7f7f1 0%, transparent 60%), var(--bg);
+}
+.login-card {
+  width: 400px; background: var(--card); border-radius: 16px; box-shadow: var(--shadow-lg);
+  padding: 40px 36px 32px;
+}
+.login-logo {
+  width: 56px; height: 56px; border-radius: 14px; margin: 0 auto 18px;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 20px;
+  box-shadow: 0 8px 18px rgba(59, 130, 246, .35);
+}
+.login-title { text-align: center; font-size: 20px; font-weight: 700; letter-spacing: .5px; }
+.login-sub { text-align: center; color: var(--text-sub); margin: 6px 0 28px; font-size: 13px; }
+.form-item { margin-bottom: 16px; }
+.form-item label { display: block; font-size: 13px; color: var(--text-sub); margin-bottom: 6px; }
+.input {
+  width: 100%; height: 40px; padding: 0 12px; border: 1px solid var(--border);
+  border-radius: 8px; font-size: 14px; background: #fff; color: var(--text);
+  transition: border-color .15s, box-shadow .15s; outline: none;
+}
+.input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59, 130, 246, .15); }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 38px; padding: 0 18px; border: none; border-radius: 8px; font-size: 14px;
+  cursor: pointer; transition: background .15s, opacity .15s; white-space: nowrap;
+}
+.btn:disabled { opacity: .6; cursor: not-allowed; }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+.btn-ghost { background: #fff; color: var(--text-sub); border: 1px solid var(--border); }
+.btn-ghost:hover:not(:disabled) { color: var(--primary); border-color: var(--primary); }
+.btn-danger-ghost { background: #fff; color: var(--danger); border: 1px solid #fecaca; }
+.btn-danger-ghost:hover:not(:disabled) { background: #fef2f2; }
+.btn-sm { height: 30px; padding: 0 12px; font-size: 13px; border-radius: 6px; }
+.btn-block { width: 100%; height: 42px; font-size: 15px; }
+.login-error {
+  background: #fef2f2; color: var(--danger); border: 1px solid #fecaca; border-radius: 8px;
+  padding: 8px 12px; font-size: 13px; margin-bottom: 14px; text-align: center;
+}
+
+/* ============ 整体布局 ============ */
+#app { height: 100vh; display: flex; }
+.main-shell { display: flex; width: 100%; height: 100vh; }
+.sidebar {
+  width: 208px; flex-shrink: 0; background: #1e293b; color: #cbd5e1;
+  display: flex; flex-direction: column;
+}
+.sidebar-brand {
+  height: 60px; display: flex; align-items: center; gap: 10px; padding: 0 18px;
+  color: #fff; font-weight: 700; font-size: 15px; border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.sidebar-brand .logo-mini {
+  width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  display: flex; align-items: center; justify-content: center; font-size: 13px;
+}
+.sidebar .menu { flex: 1; padding: 10px 0; overflow-y: auto; }
+.sidebar .menu-item {
+  display: flex; align-items: center; gap: 10px; padding: 11px 18px; cursor: pointer;
+  color: #94a3b8; font-size: 14px; border-left: 3px solid transparent; transition: all .15s;
+  user-select: none;
+}
+.sidebar .menu-item:hover { color: #e2e8f0; background: rgba(255,255,255,.04); }
+.sidebar .menu-item.active { color: #fff; background: rgba(59,130,246,.18); border-left-color: var(--primary); }
+.sidebar .menu-item .ico { width: 18px; text-align: center; flex-shrink: 0; }
+.sidebar .user-box {
+  padding: 14px 16px; border-top: 1px solid rgba(255,255,255,.08); display: flex;
+  align-items: center; gap: 10px;
+}
+.sidebar .user-avatar {
+  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+  background: var(--primary); color: #fff; font-size: 13px;
+  display: flex; align-items: center; justify-content: center; font-weight: 600;
+}
+.sidebar .user-info { flex: 1; min-width: 0; }
+.sidebar .user-name { color: #fff; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar .user-role { color: #64748b; font-size: 11px; }
+.sidebar .logout-btn {
+  border: 1px solid rgba(255,255,255,.2); background: transparent; color: #cbd5e1;
+  cursor: pointer; border-radius: 6px; padding: 4px 8px; font-size: 12px; flex-shrink: 0;
+  transition: all .15s;
+}
+.sidebar .logout-btn:hover { color: #fff; border-color: rgba(255,255,255,.45); }
+
+.content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.content-head {
+  height: 60px; background: var(--card); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; padding: 0 24px;
+  flex-shrink: 0;
+}
+.content-head h2 { font-size: 17px; font-weight: 600; }
+.content-body { flex: 1; overflow-y: auto; padding: 22px 24px; }
+
+/* ============ 卡片通用 ============ */
+.card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); }
+.page { max-width: 1180px; }
+.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
+.stat-card { padding: 18px 20px; position: relative; overflow: hidden; }
+.stat-card .stat-icon {
+  position: absolute; right: -8px; top: -8px; width: 64px; height: 64px; border-radius: 50%;
+  opacity: .12; display: flex; align-items: center; justify-content: center; font-size: 30px;
+}
+.stat-card .stat-label { color: var(--text-sub); font-size: 13px; margin-bottom: 8px; }
+.stat-card .stat-value { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+.stat-card .stat-value small { font-size: 13px; color: var(--text-sub); font-weight: 400; margin-left: 4px; }
+.stat-card.t1 .stat-icon { background: var(--primary); color: #fff; }
+.stat-card.t2 .stat-icon { background: var(--success); color: #fff; }
+.stat-card.t3 .stat-icon { background: var(--danger); color: #fff; }
+.stat-card.t4 .stat-icon { background: #8b5cf6; color: #fff; }
+.stat-card.t5 .stat-icon { background: #f59e0b; color: #fff; }
+.stat-card.t6 .stat-icon { background: #06b6d4; color: #fff; }
+.stat-card.t7 .stat-icon { background: #ec4899; color: #fff; }
+.stat-card.t8 .stat-icon { background: #6366f1; color: #fff; }
+.stat-card.ok .stat-value { color: var(--success); }
+.stat-card.bad .stat-value { color: var(--danger); }
+
+/* ============ 表格与卡片工具条 ============ */
+.panel { margin-bottom: 18px; }
+.panel-head {
+  padding: 14px 18px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+}
+.panel-head .panel-title { font-size: 15px; font-weight: 600; }
+.panel-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.table-wrap { overflow-x: auto; padding: 4px; }
+table.tbl { width: 100%; border-collapse: collapse; min-width: 640px; }
+.tbl th, .tbl td { text-align: left; padding: 11px 14px; border-bottom: 1px solid #f1f3f6; font-size: 13px; }
+.tbl th { color: var(--text-sub); font-weight: 500; background: #fafbfd; white-space: nowrap; }
+.tbl th:first-child, .tbl td:first-child { padding-left: 18px; }
+.tbl tr:last-child td { border-bottom: none; }
+.tbl tbody tr:hover td { background: #f8fafc; }
+.tbl .mono { font-family: Consolas, "Courier New", monospace; font-size: 12px; }
+.tbl .ops { display: flex; gap: 6px; white-space: nowrap; }
+.tag {
+  display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; line-height: 18px;
+}
+.tag-on { background: #ecfdf5; color: #059669; }
+.tag-off { background: #f3f4f6; color: #9ca3af; }
+.tag-blue { background: var(--primary-soft); color: var(--primary); }
+.remark-cell { color: var(--text-sub); font-size: 12px; }
+.empty-row td { text-align: center; color: var(--text-sub); padding: 40px 0 !important; }
+.row-link { color: var(--primary); cursor: pointer; }
+.row-link.danger { color: var(--danger); }
+.row-link:hover { text-decoration: underline; }
+.link-list { display: flex; flex-wrap: wrap; gap: 4px; }
+.provider-pill {
+  background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 999px;
+  font-size: 12px; padding: 1px 9px; color: #475569; line-height: 18px;
+}
+.provider-pill.off { background: #fafafa; border-color: #f1f1f1; color: #c0c4cc; }
+
+/* ============ 分页 ============ */
+.pagination {
+  display: flex; align-items: center; justify-content: space-between; padding: 12px 18px;
+  border-top: 1px solid var(--border); color: var(--text-sub); font-size: 13px;
+}
+.pagination .page-op { display: flex; align-items: center; gap: 8px; }
+
+/* ============ 开关 ============ */
+.switch { position: relative; width: 40px; height: 22px; display: inline-block; flex-shrink: 0; cursor: pointer; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch .slider {
+  position: absolute; inset: 0; border-radius: 999px; background: #d1d5db; transition: background .18s;
+}
+.switch .slider::before {
+  content: ""; position: absolute; width: 18px; height: 18px; border-radius: 50%; background: #fff;
+  left: 2px; top: 2px; transition: transform .18s; box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+.switch input:checked + .slider { background: var(--primary); }
+.switch input:checked + .slider::before { transform: translateX(18px); }
+.switch input:disabled + .slider { opacity: .5; cursor: not-allowed; }
+
+/* ============ 弹窗 ============ */
+.modal-mask {
+  position: fixed; inset: 0; background: rgba(15, 23, 42, .45); z-index: 100;
+  display: flex; align-items: flex-start; justify-content: center; padding: 60px 16px;
+  overflow-y: auto; animation: fadeIn .15s ease;
+}
+.modal {
+  background: var(--card); border-radius: 14px; box-shadow: var(--shadow-lg);
+  width: 100%; max-width: 540px; animation: popIn .16s ease;
+}
+.modal-head {
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.modal-head .modal-title { font-size: 16px; font-weight: 600; }
+.modal-close { border: none; background: transparent; font-size: 20px; cursor: pointer; color: var(--text-sub); line-height: 1; }
+.modal-close:hover { color: var(--text); }
+.modal-body { padding: 18px 20px; max-height: 62vh; overflow-y: auto; }
+.modal-foot { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+.modal-foot.pending-btn { justify-content: space-between; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+.form-grid .full { grid-column: 1 / -1; }
+.checkbox-line { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text-sub); cursor: pointer; }
+textarea.input { height: auto; padding: 9px 12px; resize: vertical; font-family: inherit; }
+
+/* Key 复制弹窗 */
+.key-modal .modal { max-width: 460px; }
+.key-box {
+  background: #0f172a; color: #7dd3fc; font-family: Consolas, monospace; font-size: 13px;
+  padding: 14px; border-radius: 8px; word-break: break-all; margin: 12px 0;
+}
+.key-tip { background: #fffbeb; border: 1px solid #fde68a; color: #b45309; padding: 8px 12px; border-radius: 8px; font-size: 13px; }
+
+/* ============ Provider 多选列表 ============ */
+.provider-check-group {
+  border: 1px solid var(--border); border-radius: 8px; max-height: 220px; overflow-y: auto; margin-top: 8px;
+}
+.provider-check-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; cursor: pointer; }
+.provider-check-item:hover { background: #f8fafc; }
+.provider-check-item input { accent-color: var(--primary); width: 15px; height: 15px; flex-shrink: 0; }
+.provider-check-item .pc-name { font-size: 13px; }
+.provider-check-item .pc-model { color: var(--text-sub); font-size: 12px; margin-left: auto; }
+
+/* ============ Toast ============ */
+.toast-wrap { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 200; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.toast {
+  background: #fff; border-radius: 8px; box-shadow: var(--shadow-lg); padding: 10px 16px;
+  font-size: 13px; display: flex; align-items: center; gap: 8px; min-width: 200px; max-width: 460px;
+  animation: slideDown .2s ease;
+}
+.toast .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.toast.success .dot { background: var(--success); }
+.toast.error .dot { background: var(--danger); }
+.toast.warn .dot { background: var(--warning); }
+.toast.info .dot { background: var(--primary); }
+.toast.success { border-left: 3px solid var(--success); }
+.toast.error { border-left: 3px solid var(--danger); }
+.toast.warn { border-left: 3px solid var(--warning); }
+.toast.info { border-left: 3px solid var(--primary); }
+
+/* ============ Loading ============ */
+.spinner {
+  width: 15px; height: 15px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff;
+  border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0;
+}
+.spinner.dark { border-color: #cbd5e1; border-top-color: var(--primary); }
+.loading-mask {
+  position: absolute; inset: 0; background: rgba(255,255,255,.72); z-index: 50;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  color: var(--text-sub); font-size: 13px; border-radius: var(--radius);
+}
+.page-loading { min-height: 60vh; display: flex; align-items: center; justify-content: center; color: var(--text-sub); font-size: 14px; gap: 10px; }
+.page-loading .spinner.dark { width: 20px; height: 20px; border-width: 2.5px; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes popIn { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ============ 工具类 ============ */
+.flex { display: flex; align-items: center; gap: 10px; }
+.fill { width: 100%; }
+.muted { color: var(--text-sub); }
+.w-64 { width: 240px; }
+.right { margin-left: auto; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ==================== 登录视图 ==================== -->
+  <div v-if="!loggedIn" class="login-wrap">
+    <div class="login-card">
+      <div class="login-logo">XG</div>
+      <div class="login-title">X-Gate-AI 统一模型网关</div>
+      <div class="login-sub">管理控制台 · 请登录后继续操作</div>
+
+      <div v-if="loginError" class="login-error">{{ loginError }}</div>
+
+      <div class="form-item">
+        <label>用户名</label>
+        <input class="input" v-model.trim="loginForm.username" @keyup.enter="doLogin"
+               placeholder="请输入管理员用户名" autocomplete="username">
+      </div>
+      <div class="form-item">
+        <label>密码</label>
+        <input class="input" type="password" v-model.trim="loginForm.password" @keyup.enter="doLogin"
+               placeholder="请输入密码" autocomplete="current-password">
+      </div>
+      <button class="btn btn-primary btn-block" :disabled="loggingIn" @click="doLogin">
+        <span v-if="loggingIn" class="spinner"></span>{{ loggingIn ? '登录中…' : '登 录' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== 主界面 ==================== -->
+  <div v-else class="main-shell">
+    <!-- 左侧边栏 -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="logo-mini">XG</div>
+        <span>X-Gate-AI 网关</span>
+      </div>
+      <nav class="menu">
+        <div class="menu-item" v-for="m in menus" :key="m.key"
+             :class="{active: tab === m.key}" @click="switchTab(m.key)">
+          <span class="ico">{{ m.ico }}</span>{{ m.label }}
+        </div>
+      </nav>
+      <div class="user-box">
+        <div class="user-avatar">{{ (session.username || 'A')[0].toUpperCase() }}</div>
+        <div class="user-info">
+          <div class="user-name">{{ session.username }}</div>
+          <div class="user-role">管理员</div>
+        </div>
+        <button class="logout-btn" @click="doLogout">退出</button>
+      </div>
+    </aside>
+
+    <!-- 右侧内容 -->
+    <div class="content">
+      <div class="content-head">
+        <h2>{{ currentMenu.label }}</h2>
+        <span class="muted" style="font-size:12px">统一大模型网关管理控制台</span>
+      </div>
+
+      <div class="content-body">
+        <div class="page">
+
+          <!-- ========== 仪表盘 ========== -->
+          <div v-if="tab === 'dashboard'">
+            <div v-if="dashLoading" class="page-loading">
+              <div class="spinner dark"></div>加载中…
+            </div>
+            <template v-else>
+              <div class="stat-grid">
+                <div class="card stat-card t1"><div class="stat-icon">📞</div>
+                  <div class="stat-label">今日调用</div><div class="stat-value">{{ dash.todayCalls }}</div></div>
+                <div class="card stat-card t2 ok"><div class="stat-icon">✅</div>
+                  <div class="stat-label">今日成功</div><div class="stat-value">{{ dash.todaySuccess }}</div></div>
+                <div class="card stat-card t3 bad"><div class="stat-icon">❌</div>
+                  <div class="stat-label">今日失败</div><div class="stat-value">{{ dash.todayFail }}</div></div>
+                <div class="card stat-card t4"><div class="stat-icon">▲</div>
+                  <div class="stat-label">今日输入 Token</div>
+                  <div class="stat-value"><small>{{ fmtTokens(dash.todayInputTokens) }}</small></div></div>
+                <div class="card stat-card t5"><div class="stat-icon">▼</div>
+                  <div class="stat-label">今日输出 Token</div>
+                  <div class="stat-value"><small>{{ fmtTokens(dash.todayOutputTokens) }}</small></div></div>
+                <div class="card stat-card t6"><div class="stat-icon">🔀</div>
+                  <div class="stat-label">启用通道</div><div class="stat-value">{{ dash.enabledChannels }}</div></div>
+                <div class="card stat-card t7"><div class="stat-icon">🖧</div>
+                  <div class="stat-label">启用 Provider</div><div class="stat-value">{{ dash.enabledProviders }}</div></div>
+                <div class="card stat-card t8"><div class="stat-icon">🔑</div>
+                  <div class="stat-label">启用 Key</div><div class="stat-value">{{ dash.enabledKeys }}</div></div>
+              </div>
+
+              <div class="card panel">
+                <div class="panel-head"><span class="panel-title">💡 使用提示</span></div>
+                <div class="panel-body" style="padding:16px 18px;line-height:2;color:var(--text-sub);font-size:13px">
+                  <p>1. 在「上游管理」中添加真实的大模型服务商 Provider，并填写其 API Key，可随时「测试连通」校验。</p>
+                  <p>2. 在「模型通道」中新建对外模型名，并绑定一个或多个启用的 Provider（支持多路、轮询负载均衡）。</p>
+                  <p>3. 在「API Key」中创建对外访问密钥，客户端调用 <code style="background:#f1f5f9;padding:1px 6px;border-radius:4px">POST /v1/chat/completions</code> 时携带该 Key。</p>
+                  <p>4. 「调用日志」记录每一次上游转发的明细，可在仪表盘查看今日整体概况。</p>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <!-- ========== 模型通道 ========== -->
+          <div v-if="tab === 'channels'">
+            <div class="card panel">
+              <div class="panel-head">
+                <span class="panel-title">🔀 模型通道（共 {{ channels.length }} 个）</span>
+                <div class="panel-toolbar">
+                  <button class="btn btn-ghost btn-sm" @click="loadChannels">刷新</button>
+                  <button class="btn btn-primary btn-sm" @click="openChannelModal()">＋ 新建通道</button>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table class="tbl">
+                  <thead>
+                    <tr>
+                      <th>对外模型名</th><th>状态</th><th>绑定上游</th>
+                      <th>策略</th><th>备注</th><th style="width:130px">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-if="channelsLoading"><td colspan="6" class="empty-row"><div class="flex" style="justify-content:center"><div class="spinner dark"></div>加载中…</div></td></tr>
+                    <tr v-else-if="channels.length === 0"><td colspan="6" class="empty-row">暂无通道，点击右上角「新建通道」创建</td></tr>
+                    <tr v-for="c in channels" :key="c.id">
+                      <td><code class="mono">{{ c.public_model_name }}</code></td>
+                      <td><span class="tag" :class="c.enabled ? 'tag-on' : 'tag-off'">{{ c.enabled ? '启用' : '停用' }}</span></td>
+                      <td>
+                        <div class="link-list">
+                          <template v-if="c.providers.length">
+                            <span class="provider-pill" v-for="p in c.providers" :key="p.id" :class="{off: !p.enabled}">
+                              {{ p.name }}{{ p.enabled ? '' : '（停用）' }}
+                            </span>
+                          </template>
+                          <span v-else class="muted">未绑定</span>
+                        </div>
+                      </td>
+                      <td><span class="tag tag-blue">{{ c.strategy || 'ROUND_ROBIN' }}</span></td>
+                      <td class="remark-cell">{{ c.remark || '—' }}</td>
+                      <td>
+                        <div class="ops">
+                          <a class="row-link" @click="openChannelModal(c)">编辑</a>
+                          <a class="row-link danger" @click="delChannel(c)">删除</a>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ========== 上游管理 ========== -->
+          <div v-if="tab === 'providers'">
+            <div class="card panel">
+              <div class="panel-head">
+                <span class="panel-title">🖧 上游 Provider（共 {{ providers.length }} 个）</span>
+                <div class="panel-toolbar">
+                  <button class="btn btn-ghost btn-sm" @click="loadProviders">刷新</button>
+                  <button class="btn btn-primary btn-sm" @click="openProviderModal()">＋ 新增 Provider</button>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table class="tbl">
+                  <thead>
+                    <tr>
+                      <th>名称</th><th>Base URL</th><th>模型名</th>
+                      <th>状态</th><th>备注</th><th style="width:190px">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-if="providersLoading"><td colspan="6" class="empty-row"><div class="flex" style="justify-content:center"><div class="spinner dark"></div>加载中…</div></td></tr>
+                    <tr v-else-if="providers.length === 0"><td colspan="6" class="empty-row">暂无 Provider，点击右上角「新增 Provider」</td></tr>
+                    <tr v-for="p in providers" :key="p.id">
+                      <td>{{ p.name }}</td>
+                      <td><code class="mono">{{ p.baseUrl }}</code></td>
+                      <td><code class="mono">{{ p.modelName }}</code></td>
+                      <td>
+                        <label class="switch" :title="p.enabled ? '点击停用' : '点击启用'">
+                          <input type="checkbox" :checked="p.enabled" @change="toggleProvider(p)">
+                          <span class="slider"></span>
+                        </label>
+                      </td>
+                      <td class="remark-cell">{{ p.remark || '—' }}</td>
+                      <td>
+                        <div class="ops">
+                          <button class="btn btn-ghost btn-sm" @click="testProvider(p)">测试连通</button>
+                          <a class="row-link" @click="openProviderModal(p)">编辑</a>
+                          <a class="row-link danger" @click="delProvider(p)">删除</a>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ========== API Key ========== -->
+          <div v-if="tab === 'keys'">
+            <div class="card panel">
+              <div class="panel-head">
+                <span class="panel-title">🔑 对外 API Key（共 {{ keys.length }} 个）</span>
+                <div class="panel-toolbar">
+                  <button class="btn btn-ghost btn-sm" @click="loadKeys">刷新</button>
+                  <button class="btn btn-primary btn-sm" @click="keyModal.open = true">＋ 新建 Key</button>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table class="tbl">
+                  <thead>
+                    <tr>
+                      <th>名称</th><th>Key（脱敏）</th><th>状态</th>
+                      <th>创建时间</th><th>最后使用</th><th style="width:120px">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-if="keysLoading"><td colspan="6" class="empty-row"><div class="flex" style="justify-content:center"><div class="spinner dark"></div>加载中…</div></td></tr>
+                    <tr v-else-if="keys.length === 0"><td colspan="6" class="empty-row">暂无 Key，点击右上角「新建 Key」</td></tr>
+                    <tr v-for="k in keys" :key="k.id">
+                      <td>{{ k.name }}</td>
+                      <td><code class="mono">{{ k.key }}</code></td>
+                      <td>
+                        <label class="switch" :title="k.enabled ? '点击停用' : '点击启用'">
+                          <input type="checkbox" :checked="k.enabled" @change="toggleKey(k)">
+                          <span class="slider"></span>
+                        </label>
+                      </td>
+                      <td class="muted">{{ k.createdAt }}</td>
+                      <td class="muted">{{ k.lastUsedAt || '从未使用' }}</td>
+                      <td>
+                        <div class="ops">
+                          <a class="row-link danger" @click="delKey(k)">删除</a>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ========== 调用日志 ========== -->
+          <div v-if="tab === 'logs'">
+            <div class="card panel">
+              <div class="panel-head">
+                <span class="panel-title">📋 调用日志（第 {{ log.page }} / {{ log.totalPages || 1 }} 页 · 共 {{ log.total }} 条）</span>
+                <div class="panel-toolbar">
+                  <input class="input" style="width:170px;height:32px" v-model.trim="log.publicModel" placeholder="对外模型">
+                  <input class="input" style="width:170px;height:32px" v-model.trim="log.apiKeyName" placeholder="API Key 名称">
+                  <button class="btn btn-primary btn-sm" @click="searchLogs(1)">查询</button>
+                  <button class="btn btn-ghost btn-sm" @click="resetLogs">重置</button>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table class="tbl">
+                  <thead>
+                    <tr>
+                      <th>API Key</th><th>对外模型</th><th>上游 URL</th><th>上游模型</th>
+                      <th>输入 Token</th><th>输出 Token</th><th>耗时(ms)</th><th>状态</th><th>时间</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-if="logsLoading"><td colspan="9" class="empty-row"><div class="flex" style="justify-content:center"><div class="spinner dark"></div>加载中…</div></td></tr>
+                    <tr v-else-if="logs.list.length === 0"><td colspan="9" class="empty-row">暂无日志记录</td></tr>
+                    <tr v-for="l in logs.list" :key="l.id">
+                      <td class="mono">{{ l.api_key }}</td>
+                      <td><code class="mono">{{ l.public_model }}</code></td>
+                      <td class="mono" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" :title="l.upstream_url">{{ l.upstream_url }}</td>
+                      <td class="mono">{{ l.upstream_model }}</td>
+                      <td>{{ fmtTokens(l.input_tokens) }}</td>
+                      <td>{{ fmtTokens(l.output_tokens) }}</td>
+                      <td>{{ l.latency_ms }}</td>
+                      <td><span class="tag" :class="l.http_status < 400 ? 'tag-on' : 'tag-off'">{{ l.http_status }}</span></td>
+                      <td class="muted" style="white-space:nowrap">{{ l.created_at }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="pagination">
+                <span>共 {{ log.total }} 条记录，每页 {{ log.pageSize }} 条</span>
+                <div class="page-op">
+                  <button class="btn btn-ghost btn-sm" :disabled="log.page <= 1 || logsLoading" @click="searchLogs(log.page - 1)">‹ 上一页</button>
+                  <span>第 {{ log.page }} / {{ log.totalPages || 1 }} 页</span>
+                  <button class="btn btn-ghost btn-sm" :disabled="log.page >= log.totalPages || logsLoading" @click="searchLogs(log.page + 1)">下一页 ›</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ========== 修改密码 ========== -->
+          <div v-if="tab === 'password'">
+            <div class="card" style="max-width:520px">
+              <div class="panel-head"><span class="panel-title">🔒 修改密码</span></div>
+              <div style="padding:20px 20px 24px">
+                <div class="form-item">
+                  <label>旧密码</label>
+                  <input class="input" type="password" v-model.trim="pw.oldPassword" placeholder="请输入当前密码">
+                </div>
+                <div class="form-item">
+                  <label>新密码</label>
+                  <input class="input" type="password" v-model.trim="pw.newPassword" placeholder="至少 6 位" @keyup.enter="doChangePassword">
+                </div>
+                <div class="form-item">
+                  <label>确认新密码</label>
+                  <input class="input" type="password" v-model.trim="pw.confirm" placeholder="再次输入新密码" @keyup.enter="doChangePassword">
+                </div>
+                <button class="btn btn-primary" style="margin-top:6px" :disabled="pwSaving" @click="doChangePassword">
+                  <span v-if="pwSaving" class="spinner"></span>{{ pwSaving ? '提交中…' : '确认修改' }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 通道新增/编辑弹窗 ==================== -->
+  <div v-if="channelModal.open" class="modal-mask" @click.self="closeChannelModal">
+    <div class="modal">
+      <div class="modal-head">
+        <span class="modal-title">{{ channelModal.editId ? '编辑通道' : '新建通道' }}</span>
+        <button class="modal-close" @click="closeChannelModal">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-item">
+          <label>对外模型名（客户端调用时使用的 model）</label>
+          <input class="input" v-model.trim="channelModal.form.publicModelName"
+                 :disabled="!!channelModal.editId" placeholder="如：gpt-4o 或 my-model-1">
+        </div>
+        <div class="form-grid">
+          <div class="form-item">
+            <label>调度策略</label>
+            <input class="input" value="ROUND_ROBIN" disabled title="当前版本固定轮询策略">
+          </div>
+          <div class="form-item">
+            <label>状态</label>
+            <label class="checkbox-line" style="margin-top:11px">
+              <input type="checkbox" v-model="channelModal.form.enabled"> 启用该通道
+            </label>
+          </div>
+        </div>
+        <div class="form-item">
+          <label>备注</label>
+          <textarea class="input" rows="2" v-model.trim="channelModal.form.remark" placeholder="选填"></textarea>
+        </div>
+        <div class="form-item" style="margin-bottom:0">
+          <label>绑定上游 Provider（勾选顺序即转发顺序，当前仅启用中的 Provider 可选）</label>
+          <div class="provider-check-group">
+            <label class="provider-check-item" v-for="p in enabledProviders" :key="p.id">
+              <input type="checkbox" :value="p.id" v-model="channelModal.selectedIds">
+              <span class="pc-name">{{ p.name }}</span>
+              <span class="pc-model">{{ p.modelName }}</span>
+            </label>
+            <div v-if="!enabledProviders.length" style="padding:24px;text-align:center;color:var(--text-sub)">
+              暂无启用中的 Provider，请先到「上游管理」添加并启用
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" @click="closeChannelModal">取消</button>
+        <button class="btn btn-primary" :disabled="channelModal.saving" @click="saveChannel">
+          <span v-if="channelModal.saving" class="spinner"></span>保存
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== Provider 新增/编辑弹窗 ==================== -->
+  <div v-if="providerModal.open" class="modal-mask" @click.self="closeProviderModal">
+    <div class="modal">
+      <div class="modal-head">
+        <span class="modal-title">{{ providerModal.editId ? '编辑 Provider' : '新增 Provider' }}</span>
+        <button class="modal-close" @click="closeProviderModal">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-item">
+            <label>名称</label>
+            <input class="input" v-model.trim="providerModal.form.name" placeholder="如：OpenAI-主站">
+          </div>
+          <div class="form-item">
+            <label>模型名（上游模型）</label>
+            <input class="input" v-model.trim="providerModal.form.modelName" placeholder="如：gpt-4o">
+          </div>
+        </div>
+        <div class="form-item">
+          <label>Base URL（上游地址）</label>
+          <input class="input" v-model.trim="providerModal.form.baseUrl" placeholder="如：https://api.openai.com">
+        </div>
+        <div class="form-item">
+          <label>API Key（{{ providerModal.editId ? '留空表示不修改' : '' }}）</label>
+          <input class="input" type="password" v-model.trim="providerModal.form.apiKey"
+                 :placeholder="providerModal.editId ? '留空保持不变' : '请输入上游 API Key'">
+        </div>
+        <div class="form-grid">
+          <div class="form-item">
+            <label>状态</label>
+            <label class="checkbox-line" style="margin-top:11px">
+              <input type="checkbox" v-model="providerModal.form.enabled"> 启用
+            </label>
+          </div>
+          <div class="form-item">
+            <label>备注</label>
+            <input class="input" v-model.trim="providerModal.form.remark" placeholder="选填">
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" @click="closeProviderModal">取消</button>
+        <button class="btn btn-primary" :disabled="providerModal.saving" @click="saveProvider">
+          <span v-if="providerModal.saving" class="spinner"></span>保存
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 新建 Key 弹窗 ==================== -->
+  <div v-if="keyModal.open" class="modal-mask" @click.self="closeKeyModal">
+    <div class="modal">
+      <div class="modal-head">
+        <span class="modal-title">新建 API Key</span>
+        <button class="modal-close" @click="closeKeyModal">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-item">
+          <label>Key 名称（便于识别用途）</label>
+          <input class="input" v-model.trim="keyModal.name" placeholder="如：生产环境 / 测试环境"
+                 @keyup.enter="doCreateKey">
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button class="btn btn-ghost" @click="closeKeyModal">取消</button>
+        <button class="btn btn-primary" :disabled="keyModal.saving" @click="doCreateKey">
+          <span v-if="keyModal.saving" class="spinner"></span>创建
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== Key 明文展示弹窗（仅此一次） ==================== -->
+  <div v-if="keyResultModal.open" class="modal-mask key-modal">
+    <div class="modal">
+      <div class="modal-head">
+        <span class="modal-title">🎉 Key 创建成功</span>
+        <button class="modal-close" @click="closeKeyResultModal">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="key-tip">⚠️ 完整 Key 仅本次展示，关闭后将无法再次查看，请立即复制并妥善保存！</div>
+        <div class="key-box" ref="keyBox">{{ keyResultModal.key }}</div>
+      </div>
+      <div class="modal-foot pending-btn">
+        <button class="btn btn-ghost" @click="closeKeyResultModal">关闭</button>
+        <button class="btn btn-primary" @click="copyKey">
+          <span v-if="keyResultModal.copying" class="spinner"></span>复制 Key
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== Toast 容器 ==================== -->
+  <div class="toast-wrap">
+    <div v-for="t in toasts" :key="t.id" class="toast" :class="t.type">
+      <span class="dot"></span>{{ t.message }}
+    </div>
+  </div>
+
+</div>
+
+<script src="lib/vue.global.prod.js"></script>
+<script>
+const { createApp } = Vue;
+
+const app = createApp({
+  data() {
+    return {
+      /* 登录态 */
+      loggedIn: false,
+      session: { username: '' },
+      loginForm: { username: '', password: '' },
+      loginError: '',
+      loggingIn: false,
+
+      /* 布局菜单 */
+      tab: 'dashboard',
+      menus: [
+        { key: 'dashboard', label: '仪表盘', ico: '📊' },
+        { key: 'channels',  label: '模型通道', ico: '🔀' },
+        { key: 'providers', label: '上游管理', ico: '🖧' },
+        { key: 'keys',      label: 'API Key', ico: '🔑' },
+        { key: 'logs',      label: '调用日志', ico: '📋' },
+        { key: 'password',  label: '修改密码', ico: '🔒' },
+      ],
+
+      /* 仪表盘 */
+      dash: {},
+      dashLoading: false,
+
+      /* 通道 */
+      channels: [],
+      channelsLoading: false,
+      enabledProviders: [],
+      channelModal: { open: false, editId: null, saving: false, form: { publicModelName: '', enabled: true, remark: '', strategy: 'ROUND_ROBIN' }, selectedIds: [] },
+
+      /* Provider */
+      providers: [],
+      providersLoading: false,
+      providerModal: { open: false, editId: null, saving: false, form: { name: '', baseUrl: '', apiKey: '', modelName: '', enabled: true, remark: '' } },
+
+      /* API Key */
+      keys: [],
+      keysLoading: false,
+      keyModal: { open: false, name: '', saving: false },
+      keyResultModal: { open: false, key: '', copying: false },
+
+      /* 日志 */
+      log: { publicModel: '', apiKeyName: '', page: 1, pageSize: 10, total: 0, totalPages: 1 },
+      logs: { list: [] },
+      logsLoading: false,
+
+      /* 修改密码 */
+      pw: { oldPassword: '', newPassword: '', confirm: '' },
+      pwSaving: false,
+
+      /* Toast */
+      toasts: [],
+      toastSeq: 0,
+    };
+  },
+
+  computed: {
+    currentMenu() {
+      return this.menus.find(m => m.key === this.tab) || this.menus[0];
+    },
+  },
+
+  watch: {
+    // 切换菜单时懒加载对应数据
+    tab() {
+      this.onTabChange();
+    },
+  },
+
+  created() {
+    this.checkSession();
+  },
+
+  methods: {
+    /* ================= 通用请求封装 ================= */
+    async request(url, options = {}) {
+      // 包装统一格式：默认带 JSON 头，错误统一抛 message
+      const opts = { method: options.method || 'GET', headers: {} };
+      if (options.body !== undefined) {
+        opts.headers['Content-Type'] = 'application/json';
+        opts.body = JSON.stringify(options.body);
+      }
+      let resp;
+      try {
+        resp = await fetch(url, opts);
+      } catch (e) {
+        throw new Error('网络请求失败，请检查服务是否可用');
+      }
+      // 401 视为未登录：清理会话并抛特殊错误，交给调用方处理
+      if (resp.status === 401) {
+        this.loggedIn = false;
+        throw new Error('未登录或登录已过期，请重新登录');
+      }
+      let data = null;
+      try { data = await resp.json(); } catch (e) { /* 无 JSON 体 */ }
+      if (!resp.ok) {
+        // 后端或网关层错误，尽量取 message
+        throw new Error((data && data.message) || ('请求失败：HTTP ' + resp.status));
+      }
+      if (data && data.code !== undefined && data.code !== 200) {
+        throw new Error(data.message || '操作失败');
+      }
+      return data ? data.result : undefined;
+    },
+
+    /* ================= Toast 提示 ================= */
+    message(msg, type = 'success') {
+      const id = ++this.toastSeq;
+      this.toasts.push({ id, message: msg, type });
+      setTimeout(() => {
+        this.toasts = this.toasts.filter(t => t.id !== id);
+      }, 2600);
+    },
+    toastError(err) {
+      // 统一错误提示（兼容 Error 对象 / 字符串 / 含 message 的对象）
+      const m = (err && err.message) ? err.message : String(err || '未知错误');
+      this.message(m, 'error');
+    },
+
+    /* ================= 登录 / 会话 ================= */
+    async checkSession() {
+      // 页面刷新时确认登录态；401 表示未登录，停留登录页
+      try {
+        const r = await this.request('/admin/session', { method: 'GET' });
+        this.session = r || {};
+        this.loggedIn = true;
+      } catch (e) {
+        if (e && e.message && e.message.indexOf('登录已过期') >= 0) {
+          // 已由 request 置为未登录
+        } else {
+          this.message(e.message, 'error');
+        }
+      }
+    },
+
+    async doLogin() {
+      if (this.loggingIn) return;
+      if (!this.loginForm.username || !this.loginForm.password) {
+        this.loginError = '请输入用户名和密码';
+        return;
+      }
+      this.loginError = '';
+      this.loggingIn = true;
+      try {
+        const r = await this.request('/admin/login', { method: 'POST', body: this.loginForm });
+        this.session = r || { username: this.loginForm.username };
+        this.loggedIn = true;
+        this.loginForm.password = '';
+        this.message('登录成功，欢迎回来');
+      } catch (e) {
+        this.loginError = e.message || '登录失败';
+      } finally {
+        this.loggingIn = false;
+      }
+    },
+
+    async doLogout() {
+      if (!confirm('确定要退出登录吗？')) return;
+      try {
+        await this.request('/admin/logout', { method: 'POST' });
+      } catch (e) { /* 忽略登出错误 */ }
+      this.loggedIn = false;
+      this.session = { username: '' };
+      this.tab = 'dashboard';
+      this.message('已安全退出');
+    },
+
+    /* ================= 菜单切换 ================= */
+    switchTab(key) {
+      if (this.tab !== key) this.tab = key;
+    },
+    onTabChange() {
+      // 懒加载各 tab 数据
+      if (this.tab === 'dashboard' && this.loggedIn) this.loadDashboard();
+      else if (this.tab === 'channels') { this.loadChannels(); this.loadEnabledProviders(); }
+      else if (this.tab === 'providers') this.loadProviders();
+      else if (this.tab === 'keys') this.loadKeys();
+      else if (this.tab === 'logs') this.searchLogs(1);
+    },
+
+    /* ================= 仪表盘 ================= */
+    async loadDashboard() {
+      this.dashLoading = true;
+      try {
+        this.dash = await this.request('/admin/dashboard') || {};
+      } catch (e) {
+        this.toastError(e);
+      } finally {
+        this.dashLoading = false;
+      }
+    },
+
+    /* ================= 模型通道 ================= */
+    async loadChannels() {
+      this.channelsLoading = true;
+      try {
+        this.channels = await this.request('/admin/channels') || [];
+      } catch (e) {
+        this.toastError(e);
+      } finally {
+        this.channelsLoading = false;
+      }
+    },
+
+    async loadEnabledProviders() {
+      // 通道弹窗所需：仅启用中的 Provider，key 恒为 null
+      try {
+        this.enabledProviders = await this.request('/admin/providers/enabled') || [];
+      } catch (e) {
+        this.toastError(e);
+      }
+    },
+
+    openChannelModal(c) {
+      this.channelModal.saving = false;
+      if (c) {
+        this.channelModal.editId = c.id;
+        this.channelModal.form = {
+          publicModelName: c.public_model_name,
+          enabled: !!c.enabled,
+          remark: c.remark || '',
+          strategy: c.strategy || 'ROUND_ROBIN',
+        };
+        // 勾选顺序 = providerIds 顺序
+        this.channelModal.selectedIds = (c.provider_ids || []).slice();
+      } else {
+        this.channelModal.editId = null;
+        this.channelModal.form = { publicModelName: '', enabled: true, remark: '', strategy: 'ROUND_ROBIN' };
+        this.channelModal.selectedIds = [];
+      }
+      this.channelModal.open = true;
+    },
+    closeChannelModal() {
+      if (this.channelModal.saving) return;
+      this.channelModal.open = false;
+    },
+
+    async saveChannel() {
+      const f = this.channelModal.form;
+      if (!f.publicModelName) { this.message('请输入对外模型名', 'warn'); return; }
+      if (!this.channelModal.selectedIds.length) { this.message('请至少绑定一个启用的上游 Provider', 'warn'); return; }
+      const body = {
+        publicModelName: f.publicModelName,
+        enabled: !!f.enabled,
+        strategy: 'ROUND_ROBIN',
+        remark: f.remark || '',
+        providerIds: this.channelModal.selectedIds.slice(), // 按勾选顺序提交
+      };
+      if (this.channelModal.editId) body.id = this.channelModal.editId;
+      this.channelModal.saving = true;
+      try {
+        await this.request('/admin/channel', { method: this.channelModal.editId ? 'PUT' : 'POST', body });
+        this.message(this.channelModal.editId ? '通道已更新' : '通道创建成功');
+        this.channelModal.open = false;
+        await this.loadChannels();
+      } catch (e) {
+        this.toastError(e);
+      } finally {
+        this.channelModal.saving = false;
+      }
+    },
+
+    async delChannel(c) {
+      if (!confirm(`确定删除通道「${c.public_model_name}」吗？删除后客户端将无法调用该模型。`)) return;
+      try {
+        await this.request('/admin/channel/' + c.id, { method: 'DELETE' });
+        this.message('通道已删除');
+        await this.loadChannels();
+      } catch (e) {
+        this.toastError(e);
+      }
+    },
+
+    /* ================= 上游 Provider ================= */
+    async loadProviders() {
+      this.providersLoading = true;
+      try {
+        this.providers = await this.request('/admin/providers') || [];
+      } catch (e) {
+        this.toastError(e);
+      } finally {
+        this.providersLoading = false;
+      }
+    },
+
+    openProviderModal(p) {
+      this.providerModal.saving = false;
+      if (p) {
+        this.providerModal.editId = p.id;
+        this.providerModal.form = {
+          name: p.name, baseUrl: p.baseUrl, apiKey: '', // 编辑时列表恒不返回 key，留空=不修改
+          modelName: p.modelName, enabled: !!p.enabled, remark: p.remark || '',
+        };
+      } else {
+        this.providerModal.editId = null;
+        this.providerModal.form = { name: '', baseUrl: '', apiKey: '', modelName: '', enabled: true, remark: '' };
+      }
+      this.providerModal.open = true;
+    },
+    closeProviderModal() {
+      if (this.providerModal.saving) return;
+      this.providerModal.open = false;
+    },
+
+    async saveProvider() {
+      const f = this.providerModal.form;
+      if (!f.name) { this.message('请输入名称', 'warn'); return; }
+      if (!f.baseUrl) { this.message('请输入 Base URL', 'warn'); return; }
+      if (!f.modelName) { this.message('请输入上游模型名', 'warn'); return; }
+      const editing = !!this.providerModal.editId;
+      // 编辑时留空 apiKey = 不修改（后端语义）；新增时必须填写
+      if (!editing && !f.apiKey) { this.message('请填写上游 API Key', 'warn'); return; }
+      const body = {
+        name: f.name, baseUrl: f.baseUrl, apiKey: editing ? (f.apiKey || '') : f.apiKey,
+        modelName: f.modelName, enabled: !!f.enabled, remark: f.remark || '',
+      };
+      if (editing) body.id = this.providerModal.editId;
+      this.providerModal.saving = true;
+      try {
+        await this.request('/admin/provider', { method: editing ? 'PUT' : 'POST', body });
+        this.message(editing ? 'Provider 已更新' : 'Provider 新增成功');
+        this.providerModal.open = false;
+        await Promise.all([this.loadProviders(), this.loadEnabledProviders()]);
+      } catch (e) {
+        this.toastError(e);
+      } finally {
+        this.providerModal.saving = false;
+      }
+    },
+
+    async toggleProvider(p) {
+      // 乐观更新前先取反，失败则回滚
+      const prev = p.enabled;
+      p.enabled = !prev;
+      const body = { name: p.name, baseUrl: p.baseUrl, apiKey: '', modelName: p.modelName, enabled: p.enabled, remark: p.remark || '' };
+      try {
+        await this.request('/admin/provider', { method: 'PUT', body: { ...body, id: p.id } });
+        this.message(p.enabled ? 'Provider 已启用' : 'Provider 已停用');
+        this.loadEnabledProviders();
+      } catch (e) {
+        p.enabled = prev;
+        this.toastError(e);
+      }
+    },
+
+    async testProvider(p) {
+      this.message(`正在测试「${p.name}」连通性…`, 'info');
+      try {
+        const r = await this.request('/admin/provider/' + p.id + '/test', { method: 'POST' });
+        if (r && r.ok) {
+          this.message(`✅ ${p.name} 连通正常，耗时 ${r.latencyMs != null ? r.latencyMs : '-'} ms${r.message ? '（' + r.message + '）' : ''}`);
+        } else {
+          this.message(`❌ ${p.name} 连通失败：${(r && r.message) || '未知原因'}`, 'error');
+        }
+      } catch (e) {
+        this.toastError(e);
+      }
+    },
+
+    async delProvider(p) {
+      if (!confirm(`确定删除 Provider「${p.name}」吗？`)) return;
+      try {
+        await this.request('/admin/provider/' + p.id, { method: 'DELETE' });
+        this.message('Provider 已删除');
+        await Promise.all([this.loadProviders(), this.loadEnabledProviders()]);
+      } catch (e) {
+        this.toastError(e);
+      }
+    },
+
+    /* ================= API Key ================= */
+    async loadKeys() {
+      this.keysLoading = true;
+      try {
+        this.keys = await this.request('/admin/keys') || [];
+      } catch (e) {
+        this.toastError(e);
+      } finally {
+        this.keysLoading = false;
+      }
+    },
+
+    closeKeyModal() {
+      if (this.keyModal.saving) return;
+      this.keyModal.open = false;
+      this.keyModal.name = '';
+    },
+
+    async doCreateKey() {
+      if (this.keyModal.saving) return;
+      if (!this.keyModal.name) { this.message('请输入 Key 名称', 'warn'); return; }
+      this.keyModal.saving = true;
+      try {
+        const r = await this.request('/admin/key', { method: 'POST', body: { name: this.keyModal.name } });
+        this.keyModal.open = false;
+        this.keyModal.name = '';
+        await this.loadKeys();
+        // 完整明文仅返回这一次：弹窗展示并要求复制
+        if (r && r.key) {
+          this.keyResultModal.key = r.key;
+          this.keyResultModal.open = true;
+        } else {
+          this.message('Key 创建成功，但未返回明文', 'warn');
+        }
+      } catch (e) {
+        this.toastError(e);
+      } finally {
+        this.keyModal.saving = false;
+      }
+    },
+
+    async copyKey() {
+      const text = this.keyResultModal.key;
+      let done = false;
+      // 优先使用 Clipboard API
+      if (navigator.clipboard && window.isSecureContext) {
+        try {
+          await navigator.clipboard.writeText(text);
+          done = true;
+        } catch (e) { /* 走 fallback */ }
+      }
+      // 兼容 fallback：execCommand（file:// 或 http 均可）
+      if (!done) {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.focus();
+          ta.select();
+          done = document.execCommand('copy');
+          document.body.removeChild(ta);
+        } catch (e) { done = false; }
+      }
+      this.message(done ? 'Key 已复制到剪贴板' : '复制失败，请手动选中复制', done ? 'success' : 'error');
+    },
+    closeKeyResultModal() {
+      this.keyResultModal.open = false;
+      this.keyResultModal.key = '';
+    },
+
+    async toggleKey(k) {
+      const prev = k.enabled;
+      k.enabled = !prev;
+      try {
+        await this.request('/admin/key/' + k.id + '/toggle', { method: 'PUT' });
+        this.message(k.enabled ? 'Key 已启用' : 'Key 已停用');
+      } catch (e) {
+        k.enabled = prev;
+        this.toastError(e);
+      }
+    },
+
+    async delKey(k) {
+      if (!confirm(`确定删除 Key「${k.name}」吗？删除后使用该 Key 的客户端将立即无法访问。`)) return;
+      try {
+        await this.request('/admin/key/' + k.id, { method: 'DELETE' });
+        this.message('Key 已删除');
+        await this.loadKeys();
+      } catch (e) {
+        this.toastError(e);
+      }
+    },
+
+    /* ================= 调用日志 ================= */
+    async searchLogs(page) {
+      this.logsLoading = true;
+      const qs = new URLSearchParams();
+      if (this.log.publicModel) qs.set('publicModel', this.log.publicModel);
+      if (this.log.apiKeyName) qs.set('apiKeyName', this.log.apiKeyName);
+      qs.set('pageNum', page || 1);
+      qs.set('pageSize', this.log.pageSize);
+      try {
+        const r = await this.request('/admin/logs?' + qs.toString()) || {};
+        this.log.page = r.page_num || page || 1;
+        this.log.pageSize = r.page_size || this.log.pageSize;
+        this.log.total = r.total || 0;
+        this.log.totalPages = Math.max(1, Math.ceil(this.log.total / this.log.pageSize));
+        this.logs.list = r.list || [];
+      } catch (e) {
+        this.toastError(e);
+      } finally {
+        this.logsLoading = false;
+      }
+    },
+    resetLogs() {
+      this.log.publicModel = '';
+      this.log.apiKeyName = '';
+      this.log.page = 1;
+      this.searchLogs(1);
+    },
+
+    /* ================= 修改密码 ================= */
+    async doChangePassword() {
+      if (this.pwSaving) return;
+      if (!this.pw.oldPassword) { this.message('请输入旧密码', 'warn'); return; }
+      if (!this.pw.newPassword || this.pw.newPassword.length < 6) { this.message('新密码长度不能少于 6 位', 'warn'); return; }
+      if (this.pw.newPassword !== this.pw.confirm) { this.message('两次输入的新密码不一致', 'warn'); return; }
+      this.pwSaving = true;
+      try {
+        await this.request('/admin/change-password', {
+          method: 'POST',
+          body: { oldPassword: this.pw.oldPassword, newPassword: this.pw.newPassword },
+        });
+        this.message('密码修改成功');
+        this.pw = { oldPassword: '', newPassword: '', confirm: '' };
+      } catch (e) {
+        this.toastError(e);
+      } finally {
+        this.pwSaving = false;
+      }
+    },
+
+    /* ================= 工具 ================= */
+    fmtTokens(n) {
+      // 把 token 数格式化，过万显示 w
+      if (n == null || n === '') return '0';
+      const num = Number(n);
+      if (isNaN(num)) return String(n);
+      if (num >= 100000000) return (num / 100000000).toFixed(2) + ' 亿';
+      if (num >= 10000) return (num / 10000).toFixed(1) + ' 万';
+      return String(num);
+    },
+  },
+});
+
+app.mount('#app');
+</script>
+</body>
+</html>
