@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>调用日志 · 大模型统一网关</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="app" class="main-shell" v-cloak>
+
+  <!-- ==================== 侧栏（全站一致） ==================== -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
+      </div>
+      <div class="brand-name">大模型统一网关<small>管理控制台</small></div>
+    </div>
+    <div class="nav-label">功能导航</div>
+    <nav class="menu">
+      <a class="menu-item" href="index.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg>
+        仪表盘
+      </a>
+      <a class="menu-item" href="models.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="18" r="2.4"/><circle cx="18" cy="6" r="2.4"/><path d="M8.3 7.3 15.7 16.7M8.3 4.7h7.4"/><path d="M4.7 8.3v7.4h9"/></svg>
+        对客服务
+      </a>
+      <a class="menu-item" href="services.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="7" rx="2"/><rect x="5" y="14" width="14" height="7" rx="2"/><path d="M9 6.5h.01M9 17.5h.01"/><path d="M12 10v4"/></svg>
+        模型服务
+      </a>
+      <a class="menu-item active" href="logs.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h9M4 12h16M4 18h7"/><circle cx="16.5" cy="6" r="1.8"/><circle cx="20" cy="18" r="1.8"/></svg>
+        调用日志
+      </a>
+    </nav>
+    <div class="side-foot">
+      <span class="pulse"></span>
+      <div>
+        <div class="t">服务运行中 <b>ONLINE</b></div>
+        <div class="v">/v1 · OpenAI 兼容</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ==================== 内容区 ==================== -->
+  <div class="content">
+    <div class="head">
+      <h1><span class="bar"></span>调用日志</h1>
+      <span class="sub">CALL TRACE</span>
+    </div>
+
+    <div class="body">
+      <div class="page">
+
+        <div class="panel">
+          <div class="panel-head">
+            <span class="panel-title"><span class="dot-mark"></span>调用日志
+              <span class="sub">第 {{ log.page || 1 }} / {{ log.totalPages || 1 }} 页 · 共 {{ log.total }} 条</span>
+            </span>
+            <div class="panel-toolbar">
+              <input class="input mono-input" style="width:200px;height:36px" v-model.trim="log.publicModel"
+                     placeholder="按对客服务名筛选">
+              <button class="btn btn-primary btn-sm" @click="searchLogs(1)">查询</button>
+              <button class="btn btn-ghost btn-sm" @click="resetLogs">重置</button>
+            </div>
+          </div>
+
+          <div class="tbl-wrap">
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th>对客服务</th><th>接入地址</th><th>接入模型</th>
+                  <th>输入 Token</th><th>输出 Token</th><th>耗时</th><th>状态</th><th>时间</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="logsLoading"><td colspan="8" class="empty-row"><div class="spinner"></div>&nbsp;加载中…</td></tr>
+                <tr v-else-if="logs.list.length === 0"><td colspan="8" class="empty-row">暂无调用日志</td></tr>
+                <tr v-for="l in logs.list" :key="l.id">
+                  <td><span class="mono" style="color:var(--accent);font-weight:600">{{ l.public_model }}</span></td>
+                  <td><span class="mono sub ellip" style="display:inline-block;vertical-align:middle" :title="l.upstream_url">{{ l.upstream_url }}</span></td>
+                  <td><span class="mono sub">{{ l.upstream_model }}</span></td>
+                  <td><span class="num">{{ fmtTokens(l.input_tokens) }}</span></td>
+                  <td><span class="num">{{ fmtTokens(l.output_tokens) }}</span></td>
+                  <td><span class="num">{{ l.latency_ms != null ? l.latency_ms : '—' }}</span> <span class="sub">ms</span></td>
+                  <td><span class="tag" :class="l.http_status != null && l.http_status < 400 ? 'tag-on' : 'tag-danger'">{{ l.http_status != null ? l.http_status : '—' }}</span></td>
+                  <td class="mono sub" style="white-space:nowrap">{{ l.created_at }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="pagination">
+            <span class="total">共 <b>{{ log.total }}</b> 条记录 · 每页 {{ log.pageSize }} 条</span>
+            <div class="page-op">
+              <button class="btn btn-ghost btn-sm" :disabled="log.page <= 1 || logsLoading" @click="searchLogs(log.page - 1)">‹ 上一页</button>
+              <span class="page-now">{{ log.page || 1 }} / {{ log.totalPages || 1 }}</span>
+              <button class="btn btn-ghost btn-sm" :disabled="log.page >= log.totalPages || logsLoading" @click="searchLogs(log.page + 1)">下一页 ›</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast-wrap">
+    <div v-for="t in toasts" :key="t.id" class="toast" :class="t.type">
+      <span class="dot"></span>{{ t.message }}
+    </div>
+  </div>
+
+</div>
+
+<script src="lib/vue.global.prod.js"></script>
+<script src="js/common.js"></script>
+<script src="js/pages/logs.js"></script>
+<script>
+Vue.createApp(LogsApp).mount('#app');
+</script>
+</body>
+</html>

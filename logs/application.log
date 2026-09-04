@@ -979,3 +979,238 @@ Identify and stop the process that's listening on port 8080 or configure this ap
 2026-09-04 19:17:16 [http-nio-0.0.0.0-8090-exec-6] INFO  c.x.application.aspect.GlobalAspect - IP             : 0:0:0:0:0:0:0:1
 2026-09-04 19:17:16 [http-nio-0.0.0.0-8090-exec-6] INFO  c.x.application.aspect.GlobalAspect - Request Args   : []
 2026-09-04 19:17:16 [http-nio-0.0.0.0-8090-exec-6] INFO  c.x.application.aspect.GlobalAspect - ============================ End ===========================
+2026-09-04 19:25:11 [background-preinit] INFO  o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.2.Final
+2026-09-04 19:25:11 [main] INFO  com.xgateai.XGateAiApplication - Starting XGateAiApplication using Java 21.0.7 with PID 62692 (F:\personal\x-gate-ai\target\classes started by yangsl25774 in F:\personal\x-gate-ai)
+2026-09-04 19:25:12 [main] INFO  com.xgateai.XGateAiApplication - No active profile set, falling back to 1 default profile: "default"
+2026-09-04 19:25:14 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8090 (http)
+2026-09-04 19:25:14 [main] INFO  o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-0.0.0.0-8090"]
+2026-09-04 19:25:14 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-09-04 19:25:14 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.39]
+2026-09-04 19:25:15 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-09-04 19:25:15 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 3246 ms
+2026-09-04 19:25:17 [main] INFO  c.x.g.service.GatewayRouter - 网关路由刷新完成，对外模型数量: 0
+2026-09-04 19:25:17 [main] INFO  o.s.b.a.w.s.WelcomePageHandlerMapping - Adding welcome page: class path resource [static/index.html]
+2026-09-04 19:25:19 [main] INFO  o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-0.0.0.0-8090"]
+2026-09-04 19:25:19 [main] WARN  o.s.b.w.s.c.AnnotationConfigServletWebServerApplicationContext - Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Failed to start bean 'webServerStartStop'
+2026-09-04 19:25:19 [main] INFO  o.s.b.a.l.ConditionEvaluationReportLogger - 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2026-09-04 19:25:19 [main] ERROR o.s.b.d.LoggingFailureAnalysisReporter - 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Web server failed to start. Port 8090 was already in use.
+
+Action:
+
+Identify and stop the process that's listening on port 8090 or configure this application to listen on another port.
+
+2026-09-04 19:25:35 [http-nio-0.0.0.0-8090-exec-10] INFO  c.x.application.aspect.GlobalAspect - 
+2026-09-04 19:25:35 [http-nio-0.0.0.0-8090-exec-10] INFO  c.x.application.aspect.GlobalAspect - =========================== Start ===========================
+2026-09-04 19:25:35 [http-nio-0.0.0.0-8090-exec-10] INFO  c.x.application.aspect.GlobalAspect - URL            : http://localhost:8090/admin/channels
+2026-09-04 19:25:35 [http-nio-0.0.0.0-8090-exec-10] INFO  c.x.application.aspect.GlobalAspect - HTTP Method    : GET
+2026-09-04 19:25:35 [http-nio-0.0.0.0-8090-exec-10] INFO  c.x.application.aspect.GlobalAspect - Class Method   : channels
+2026-09-04 19:25:35 [http-nio-0.0.0.0-8090-exec-10] INFO  c.x.application.aspect.GlobalAspect - IP             : 0:0:0:0:0:0:0:1
+2026-09-04 19:25:35 [http-nio-0.0.0.0-8090-exec-10] INFO  c.x.application.aspect.GlobalAspect - Request Args   : []
+2026-09-04 19:25:35 [http-nio-0.0.0.0-8090-exec-1] INFO  c.x.application.aspect.GlobalAspect - 
+2026-09-04 19:25:35 [http-nio-0.0.0.0-8090-exec-1] INFO  c.x.application.aspect.GlobalAspect - =========================== Start ===========================
+2026-09-04 19:25:35 [http-nio-0.0.0.0-8090-exec-1] INFO  c.x.application.aspect.GlobalAspect - URL            : http://localhost:8090/admin/providers/enabled
+2026-09-04 19:25:35 [http-nio-0.0.0.0-8090-exec-10] INFO  c.x.application.aspect.GlobalAspect - ============================ End ===========================
+2026-09-04 19:25:35 [http-nio-0.0.0.0-8090-exec-1] INFO  c.x.application.aspect.GlobalAspect - HTTP Method    : GET
+2026-09-04 19:25:35 [http-nio-0.0.0.0-8090-exec-1] INFO  c.x.application.aspect.GlobalAspect - Class Method   : enabledProviders
+2026-09-04 19:25:35 [http-nio-0.0.0.0-8090-exec-1] INFO  c.x.application.aspect.GlobalAspect - IP             : 0:0:0:0:0:0:0:1
+2026-09-04 19:25:35 [http-nio-0.0.0.0-8090-exec-1] INFO  c.x.application.aspect.GlobalAspect - Request Args   : []
+2026-09-04 19:25:35 [http-nio-0.0.0.0-8090-exec-1] INFO  c.x.application.aspect.GlobalAspect - ============================ End ===========================
+2026-09-04 19:25:36 [http-nio-0.0.0.0-8090-exec-2] INFO  c.x.application.aspect.GlobalAspect - 
+2026-09-04 19:25:36 [http-nio-0.0.0.0-8090-exec-2] INFO  c.x.application.aspect.GlobalAspect - =========================== Start ===========================
+2026-09-04 19:25:36 [http-nio-0.0.0.0-8090-exec-2] INFO  c.x.application.aspect.GlobalAspect - URL            : http://localhost:8090/admin/providers
+2026-09-04 19:25:36 [http-nio-0.0.0.0-8090-exec-2] INFO  c.x.application.aspect.GlobalAspect - HTTP Method    : GET
+2026-09-04 19:25:36 [http-nio-0.0.0.0-8090-exec-2] INFO  c.x.application.aspect.GlobalAspect - Class Method   : providers
+2026-09-04 19:25:36 [http-nio-0.0.0.0-8090-exec-2] INFO  c.x.application.aspect.GlobalAspect - IP             : 0:0:0:0:0:0:0:1
+2026-09-04 19:25:36 [http-nio-0.0.0.0-8090-exec-2] INFO  c.x.application.aspect.GlobalAspect - Request Args   : []
+2026-09-04 19:25:36 [http-nio-0.0.0.0-8090-exec-2] INFO  c.x.application.aspect.GlobalAspect - ============================ End ===========================
+2026-09-04 19:25:37 [http-nio-0.0.0.0-8090-exec-3] INFO  c.x.application.aspect.GlobalAspect - 
+2026-09-04 19:25:37 [http-nio-0.0.0.0-8090-exec-3] INFO  c.x.application.aspect.GlobalAspect - =========================== Start ===========================
+2026-09-04 19:25:37 [http-nio-0.0.0.0-8090-exec-3] INFO  c.x.application.aspect.GlobalAspect - URL            : http://localhost:8090/admin/logs
+2026-09-04 19:25:37 [http-nio-0.0.0.0-8090-exec-3] INFO  c.x.application.aspect.GlobalAspect - HTTP Method    : GET
+2026-09-04 19:25:37 [http-nio-0.0.0.0-8090-exec-3] INFO  c.x.application.aspect.GlobalAspect - Class Method   : logs
+2026-09-04 19:25:37 [http-nio-0.0.0.0-8090-exec-3] INFO  c.x.application.aspect.GlobalAspect - IP             : 0:0:0:0:0:0:0:1
+2026-09-04 19:25:37 [http-nio-0.0.0.0-8090-exec-3] INFO  c.x.application.aspect.GlobalAspect - Request Args   : [null, null, 1, 10]
+2026-09-04 19:25:37 [http-nio-0.0.0.0-8090-exec-3] INFO  c.x.application.aspect.GlobalAspect - ============================ End ===========================
+2026-09-04 19:25:38 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - 
+2026-09-04 19:25:38 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - =========================== Start ===========================
+2026-09-04 19:25:38 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - URL            : http://localhost:8090/admin/channels
+2026-09-04 19:25:38 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - HTTP Method    : GET
+2026-09-04 19:25:38 [http-nio-0.0.0.0-8090-exec-5] INFO  c.x.application.aspect.GlobalAspect - 
+2026-09-04 19:25:38 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - Class Method   : channels
+2026-09-04 19:25:38 [http-nio-0.0.0.0-8090-exec-5] INFO  c.x.application.aspect.GlobalAspect - =========================== Start ===========================
+2026-09-04 19:25:38 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - IP             : 0:0:0:0:0:0:0:1
+2026-09-04 19:25:38 [http-nio-0.0.0.0-8090-exec-5] INFO  c.x.application.aspect.GlobalAspect - URL            : http://localhost:8090/admin/providers/enabled
+2026-09-04 19:25:38 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - Request Args   : []
+2026-09-04 19:25:38 [http-nio-0.0.0.0-8090-exec-5] INFO  c.x.application.aspect.GlobalAspect - HTTP Method    : GET
+2026-09-04 19:25:38 [http-nio-0.0.0.0-8090-exec-5] INFO  c.x.application.aspect.GlobalAspect - Class Method   : enabledProviders
+2026-09-04 19:25:38 [http-nio-0.0.0.0-8090-exec-5] INFO  c.x.application.aspect.GlobalAspect - IP             : 0:0:0:0:0:0:0:1
+2026-09-04 19:25:38 [http-nio-0.0.0.0-8090-exec-5] INFO  c.x.application.aspect.GlobalAspect - Request Args   : []
+2026-09-04 19:25:38 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - ============================ End ===========================
+2026-09-04 19:25:38 [http-nio-0.0.0.0-8090-exec-5] INFO  c.x.application.aspect.GlobalAspect - ============================ End ===========================
+2026-09-04 19:25:38 [http-nio-0.0.0.0-8090-exec-6] INFO  c.x.application.aspect.GlobalAspect - 
+2026-09-04 19:25:38 [http-nio-0.0.0.0-8090-exec-6] INFO  c.x.application.aspect.GlobalAspect - =========================== Start ===========================
+2026-09-04 19:25:38 [http-nio-0.0.0.0-8090-exec-6] INFO  c.x.application.aspect.GlobalAspect - URL            : http://localhost:8090/admin/dashboard
+2026-09-04 19:25:38 [http-nio-0.0.0.0-8090-exec-6] INFO  c.x.application.aspect.GlobalAspect - HTTP Method    : GET
+2026-09-04 19:25:38 [http-nio-0.0.0.0-8090-exec-6] INFO  c.x.application.aspect.GlobalAspect - Class Method   : dashboard
+2026-09-04 19:25:38 [http-nio-0.0.0.0-8090-exec-6] INFO  c.x.application.aspect.GlobalAspect - IP             : 0:0:0:0:0:0:0:1
+2026-09-04 19:25:38 [http-nio-0.0.0.0-8090-exec-6] INFO  c.x.application.aspect.GlobalAspect - Request Args   : []
+2026-09-04 19:25:38 [http-nio-0.0.0.0-8090-exec-6] INFO  c.x.application.aspect.GlobalAspect - ============================ End ===========================
+2026-09-04 19:26:54 [background-preinit] INFO  o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.2.Final
+2026-09-04 19:26:54 [main] INFO  com.xgateai.XGateAiApplication - Starting XGateAiApplication using Java 21.0.7 with PID 64836 (F:\personal\x-gate-ai\target\classes started by yangsl25774 in F:\personal\x-gate-ai)
+2026-09-04 19:26:54 [main] INFO  com.xgateai.XGateAiApplication - No active profile set, falling back to 1 default profile: "default"
+2026-09-04 19:26:56 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8090 (http)
+2026-09-04 19:26:56 [main] INFO  o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-0.0.0.0-8090"]
+2026-09-04 19:26:56 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-09-04 19:26:56 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.39]
+2026-09-04 19:26:56 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-09-04 19:26:56 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 1708 ms
+2026-09-04 19:26:56 [main] INFO  c.x.g.service.GatewayRouter - 网关路由刷新完成，对外模型数量: 0
+2026-09-04 19:26:57 [main] INFO  o.s.b.a.w.s.WelcomePageHandlerMapping - Adding welcome page: class path resource [static/index.html]
+2026-09-04 19:26:57 [main] INFO  o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-0.0.0.0-8090"]
+2026-09-04 19:26:57 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8090 (http) with context path '/'
+2026-09-04 19:26:57 [main] INFO  com.xgateai.XGateAiApplication - Started XGateAiApplication in 4.096 seconds (process running for 5.896)
+2026-09-04 19:27:00 [http-nio-0.0.0.0-8090-exec-1] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-09-04 19:27:00 [http-nio-0.0.0.0-8090-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-09-04 19:27:00 [http-nio-0.0.0.0-8090-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 2 ms
+2026-09-04 19:27:01 [http-nio-0.0.0.0-8090-exec-5] INFO  c.x.application.aspect.GlobalAspect - 
+2026-09-04 19:27:01 [http-nio-0.0.0.0-8090-exec-5] INFO  c.x.application.aspect.GlobalAspect - =========================== Start ===========================
+2026-09-04 19:27:01 [http-nio-0.0.0.0-8090-exec-5] INFO  c.x.application.aspect.GlobalAspect - URL            : http://localhost:8090/admin/dashboard
+2026-09-04 19:27:01 [http-nio-0.0.0.0-8090-exec-5] INFO  c.x.application.aspect.GlobalAspect - HTTP Method    : GET
+2026-09-04 19:27:01 [http-nio-0.0.0.0-8090-exec-5] INFO  c.x.application.aspect.GlobalAspect - Class Method   : dashboard
+2026-09-04 19:27:01 [http-nio-0.0.0.0-8090-exec-5] INFO  c.x.application.aspect.GlobalAspect - IP             : 0:0:0:0:0:0:0:1
+2026-09-04 19:27:01 [http-nio-0.0.0.0-8090-exec-5] INFO  c.x.application.aspect.GlobalAspect - Request Args   : []
+2026-09-04 19:27:01 [http-nio-0.0.0.0-8090-exec-5] INFO  c.x.application.aspect.GlobalAspect - ============================ End ===========================
+2026-09-04 19:27:22 [http-nio-0.0.0.0-8090-exec-9] INFO  c.x.application.aspect.GlobalAspect - 
+2026-09-04 19:27:22 [http-nio-0.0.0.0-8090-exec-9] INFO  c.x.application.aspect.GlobalAspect - =========================== Start ===========================
+2026-09-04 19:27:22 [http-nio-0.0.0.0-8090-exec-9] INFO  c.x.application.aspect.GlobalAspect - URL            : http://localhost:8090/admin/channels
+2026-09-04 19:27:22 [http-nio-0.0.0.0-8090-exec-9] INFO  c.x.application.aspect.GlobalAspect - HTTP Method    : GET
+2026-09-04 19:27:22 [http-nio-0.0.0.0-8090-exec-9] INFO  c.x.application.aspect.GlobalAspect - Class Method   : channels
+2026-09-04 19:27:22 [http-nio-0.0.0.0-8090-exec-9] INFO  c.x.application.aspect.GlobalAspect - IP             : 0:0:0:0:0:0:0:1
+2026-09-04 19:27:22 [http-nio-0.0.0.0-8090-exec-9] INFO  c.x.application.aspect.GlobalAspect - Request Args   : []
+2026-09-04 19:27:22 [http-nio-0.0.0.0-8090-exec-10] INFO  c.x.application.aspect.GlobalAspect - 
+2026-09-04 19:27:22 [http-nio-0.0.0.0-8090-exec-10] INFO  c.x.application.aspect.GlobalAspect - =========================== Start ===========================
+2026-09-04 19:27:22 [http-nio-0.0.0.0-8090-exec-10] INFO  c.x.application.aspect.GlobalAspect - URL            : http://localhost:8090/admin/providers/enabled
+2026-09-04 19:27:22 [http-nio-0.0.0.0-8090-exec-10] INFO  c.x.application.aspect.GlobalAspect - HTTP Method    : GET
+2026-09-04 19:27:22 [http-nio-0.0.0.0-8090-exec-10] INFO  c.x.application.aspect.GlobalAspect - Class Method   : enabledProviders
+2026-09-04 19:27:22 [http-nio-0.0.0.0-8090-exec-10] INFO  c.x.application.aspect.GlobalAspect - IP             : 0:0:0:0:0:0:0:1
+2026-09-04 19:27:22 [http-nio-0.0.0.0-8090-exec-9] INFO  c.x.application.aspect.GlobalAspect - ============================ End ===========================
+2026-09-04 19:27:22 [http-nio-0.0.0.0-8090-exec-10] INFO  c.x.application.aspect.GlobalAspect - Request Args   : []
+2026-09-04 19:27:22 [http-nio-0.0.0.0-8090-exec-10] INFO  c.x.application.aspect.GlobalAspect - ============================ End ===========================
+2026-09-04 19:27:23 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - 
+2026-09-04 19:27:23 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - =========================== Start ===========================
+2026-09-04 19:27:23 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - URL            : http://localhost:8090/admin/providers
+2026-09-04 19:27:23 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - HTTP Method    : GET
+2026-09-04 19:27:23 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - Class Method   : providers
+2026-09-04 19:27:23 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - IP             : 0:0:0:0:0:0:0:1
+2026-09-04 19:27:23 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - Request Args   : []
+2026-09-04 19:27:23 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - ============================ End ===========================
+2026-09-04 19:27:26 [http-nio-0.0.0.0-8090-exec-5] INFO  c.x.application.aspect.GlobalAspect - 
+2026-09-04 19:27:26 [http-nio-0.0.0.0-8090-exec-5] INFO  c.x.application.aspect.GlobalAspect - =========================== Start ===========================
+2026-09-04 19:27:26 [http-nio-0.0.0.0-8090-exec-5] INFO  c.x.application.aspect.GlobalAspect - URL            : http://localhost:8090/admin/provider
+2026-09-04 19:27:26 [http-nio-0.0.0.0-8090-exec-5] INFO  c.x.application.aspect.GlobalAspect - HTTP Method    : PUT
+2026-09-04 19:27:26 [http-nio-0.0.0.0-8090-exec-5] INFO  c.x.application.aspect.GlobalAspect - Class Method   : updateProvider
+2026-09-04 19:27:26 [http-nio-0.0.0.0-8090-exec-5] INFO  c.x.application.aspect.GlobalAspect - IP             : 0:0:0:0:0:0:0:1
+2026-09-04 19:27:26 [http-nio-0.0.0.0-8090-exec-5] INFO  c.x.application.aspect.GlobalAspect - Request Args   : [ProviderDTO(id=1, name=yangsl25774, baseUrl=http://lightcode-uis.hundsun.com:8080/v1, apiKey=, modelName=deepseek-v4-flash, enabled=1, remark=)]
+2026-09-04 19:27:26 [http-nio-0.0.0.0-8090-exec-5] INFO  c.x.adminbridge.service.AdminService - 更新上游 Provider: yangsl25774 (1)
+2026-09-04 19:27:26 [http-nio-0.0.0.0-8090-exec-5] INFO  c.x.g.service.GatewayRouter - 网关路由刷新完成，对外模型数量: 0
+2026-09-04 19:27:26 [http-nio-0.0.0.0-8090-exec-5] INFO  c.x.application.aspect.GlobalAspect - ============================ End ===========================
+2026-09-04 19:27:50 [http-nio-0.0.0.0-8090-exec-10] INFO  c.x.application.aspect.GlobalAspect - 
+2026-09-04 19:27:50 [http-nio-0.0.0.0-8090-exec-10] INFO  c.x.application.aspect.GlobalAspect - =========================== Start ===========================
+2026-09-04 19:27:50 [http-nio-0.0.0.0-8090-exec-10] INFO  c.x.application.aspect.GlobalAspect - URL            : http://localhost:8090/admin/channels
+2026-09-04 19:27:50 [http-nio-0.0.0.0-8090-exec-10] INFO  c.x.application.aspect.GlobalAspect - HTTP Method    : GET
+2026-09-04 19:27:50 [http-nio-0.0.0.0-8090-exec-10] INFO  c.x.application.aspect.GlobalAspect - Class Method   : channels
+2026-09-04 19:27:50 [http-nio-0.0.0.0-8090-exec-10] INFO  c.x.application.aspect.GlobalAspect - IP             : 0:0:0:0:0:0:0:1
+2026-09-04 19:27:50 [http-nio-0.0.0.0-8090-exec-10] INFO  c.x.application.aspect.GlobalAspect - Request Args   : []
+2026-09-04 19:27:50 [http-nio-0.0.0.0-8090-exec-10] INFO  c.x.application.aspect.GlobalAspect - ============================ End ===========================
+2026-09-04 19:27:50 [http-nio-0.0.0.0-8090-exec-1] INFO  c.x.application.aspect.GlobalAspect - 
+2026-09-04 19:27:50 [http-nio-0.0.0.0-8090-exec-1] INFO  c.x.application.aspect.GlobalAspect - =========================== Start ===========================
+2026-09-04 19:27:50 [http-nio-0.0.0.0-8090-exec-1] INFO  c.x.application.aspect.GlobalAspect - URL            : http://localhost:8090/admin/providers/enabled
+2026-09-04 19:27:50 [http-nio-0.0.0.0-8090-exec-1] INFO  c.x.application.aspect.GlobalAspect - HTTP Method    : GET
+2026-09-04 19:27:50 [http-nio-0.0.0.0-8090-exec-1] INFO  c.x.application.aspect.GlobalAspect - Class Method   : enabledProviders
+2026-09-04 19:27:50 [http-nio-0.0.0.0-8090-exec-1] INFO  c.x.application.aspect.GlobalAspect - IP             : 0:0:0:0:0:0:0:1
+2026-09-04 19:27:50 [http-nio-0.0.0.0-8090-exec-1] INFO  c.x.application.aspect.GlobalAspect - Request Args   : []
+2026-09-04 19:27:50 [http-nio-0.0.0.0-8090-exec-1] INFO  c.x.application.aspect.GlobalAspect - ============================ End ===========================
+2026-09-04 19:28:05 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - 
+2026-09-04 19:28:05 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - =========================== Start ===========================
+2026-09-04 19:28:05 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - URL            : http://localhost:8090/admin/channel
+2026-09-04 19:28:05 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - HTTP Method    : POST
+2026-09-04 19:28:05 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - Class Method   : saveChannel
+2026-09-04 19:28:05 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - IP             : 0:0:0:0:0:0:0:1
+2026-09-04 19:28:05 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - Request Args   : [ChannelDTO(id=null, publicModelName=deepseek, enabled=1, strategy=ROUND_ROBIN, remark=, providerIds=[1, 2])]
+2026-09-04 19:28:05 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.adminbridge.service.AdminService - 新增对外模型通道: deepseek (1)
+2026-09-04 19:28:05 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.g.service.GatewayRouter - 网关路由刷新完成，对外模型数量: 1
+2026-09-04 19:28:05 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - ============================ End ===========================
+2026-09-04 19:28:05 [http-nio-0.0.0.0-8090-exec-6] INFO  c.x.application.aspect.GlobalAspect - 
+2026-09-04 19:28:05 [http-nio-0.0.0.0-8090-exec-6] INFO  c.x.application.aspect.GlobalAspect - =========================== Start ===========================
+2026-09-04 19:28:05 [http-nio-0.0.0.0-8090-exec-6] INFO  c.x.application.aspect.GlobalAspect - URL            : http://localhost:8090/admin/channels
+2026-09-04 19:28:05 [http-nio-0.0.0.0-8090-exec-6] INFO  c.x.application.aspect.GlobalAspect - HTTP Method    : GET
+2026-09-04 19:28:05 [http-nio-0.0.0.0-8090-exec-6] INFO  c.x.application.aspect.GlobalAspect - Class Method   : channels
+2026-09-04 19:28:05 [http-nio-0.0.0.0-8090-exec-6] INFO  c.x.application.aspect.GlobalAspect - IP             : 0:0:0:0:0:0:0:1
+2026-09-04 19:28:05 [http-nio-0.0.0.0-8090-exec-6] INFO  c.x.application.aspect.GlobalAspect - Request Args   : []
+2026-09-04 19:28:05 [http-nio-0.0.0.0-8090-exec-6] INFO  c.x.application.aspect.GlobalAspect - ============================ End ===========================
+2026-09-04 19:28:59 [http-nio-0.0.0.0-8090-exec-1] INFO  c.x.application.aspect.GlobalAspect - 
+2026-09-04 19:28:59 [http-nio-0.0.0.0-8090-exec-1] INFO  c.x.application.aspect.GlobalAspect - =========================== Start ===========================
+2026-09-04 19:28:59 [http-nio-0.0.0.0-8090-exec-1] INFO  c.x.application.aspect.GlobalAspect - URL            : http://localhost:8090/admin/logs
+2026-09-04 19:28:59 [http-nio-0.0.0.0-8090-exec-1] INFO  c.x.application.aspect.GlobalAspect - HTTP Method    : GET
+2026-09-04 19:28:59 [http-nio-0.0.0.0-8090-exec-1] INFO  c.x.application.aspect.GlobalAspect - Class Method   : logs
+2026-09-04 19:28:59 [http-nio-0.0.0.0-8090-exec-1] INFO  c.x.application.aspect.GlobalAspect - IP             : 0:0:0:0:0:0:0:1
+2026-09-04 19:28:59 [http-nio-0.0.0.0-8090-exec-1] INFO  c.x.application.aspect.GlobalAspect - Request Args   : [null, null, 1, 10]
+2026-09-04 19:28:59 [http-nio-0.0.0.0-8090-exec-1] INFO  c.x.application.aspect.GlobalAspect - ============================ End ===========================
+2026-09-04 19:29:00 [http-nio-0.0.0.0-8090-exec-6] INFO  c.x.application.aspect.GlobalAspect - 
+2026-09-04 19:29:00 [http-nio-0.0.0.0-8090-exec-6] INFO  c.x.application.aspect.GlobalAspect - =========================== Start ===========================
+2026-09-04 19:29:00 [http-nio-0.0.0.0-8090-exec-6] INFO  c.x.application.aspect.GlobalAspect - URL            : http://localhost:8090/admin/providers
+2026-09-04 19:29:00 [http-nio-0.0.0.0-8090-exec-6] INFO  c.x.application.aspect.GlobalAspect - HTTP Method    : GET
+2026-09-04 19:29:00 [http-nio-0.0.0.0-8090-exec-6] INFO  c.x.application.aspect.GlobalAspect - Class Method   : providers
+2026-09-04 19:29:00 [http-nio-0.0.0.0-8090-exec-6] INFO  c.x.application.aspect.GlobalAspect - IP             : 0:0:0:0:0:0:0:1
+2026-09-04 19:29:00 [http-nio-0.0.0.0-8090-exec-6] INFO  c.x.application.aspect.GlobalAspect - Request Args   : []
+2026-09-04 19:29:00 [http-nio-0.0.0.0-8090-exec-6] INFO  c.x.application.aspect.GlobalAspect - ============================ End ===========================
+2026-09-04 19:29:01 [http-nio-0.0.0.0-8090-exec-8] INFO  c.x.application.aspect.GlobalAspect - 
+2026-09-04 19:29:01 [http-nio-0.0.0.0-8090-exec-8] INFO  c.x.application.aspect.GlobalAspect - =========================== Start ===========================
+2026-09-04 19:29:01 [http-nio-0.0.0.0-8090-exec-8] INFO  c.x.application.aspect.GlobalAspect - URL            : http://localhost:8090/admin/channels
+2026-09-04 19:29:01 [http-nio-0.0.0.0-8090-exec-8] INFO  c.x.application.aspect.GlobalAspect - HTTP Method    : GET
+2026-09-04 19:29:01 [http-nio-0.0.0.0-8090-exec-8] INFO  c.x.application.aspect.GlobalAspect - Class Method   : channels
+2026-09-04 19:29:01 [http-nio-0.0.0.0-8090-exec-8] INFO  c.x.application.aspect.GlobalAspect - IP             : 0:0:0:0:0:0:0:1
+2026-09-04 19:29:01 [http-nio-0.0.0.0-8090-exec-8] INFO  c.x.application.aspect.GlobalAspect - Request Args   : []
+2026-09-04 19:29:01 [http-nio-0.0.0.0-8090-exec-9] INFO  c.x.application.aspect.GlobalAspect - 
+2026-09-04 19:29:01 [http-nio-0.0.0.0-8090-exec-9] INFO  c.x.application.aspect.GlobalAspect - =========================== Start ===========================
+2026-09-04 19:29:01 [http-nio-0.0.0.0-8090-exec-9] INFO  c.x.application.aspect.GlobalAspect - URL            : http://localhost:8090/admin/providers/enabled
+2026-09-04 19:29:01 [http-nio-0.0.0.0-8090-exec-9] INFO  c.x.application.aspect.GlobalAspect - HTTP Method    : GET
+2026-09-04 19:29:01 [http-nio-0.0.0.0-8090-exec-9] INFO  c.x.application.aspect.GlobalAspect - Class Method   : enabledProviders
+2026-09-04 19:29:01 [http-nio-0.0.0.0-8090-exec-8] INFO  c.x.application.aspect.GlobalAspect - ============================ End ===========================
+2026-09-04 19:29:01 [http-nio-0.0.0.0-8090-exec-9] INFO  c.x.application.aspect.GlobalAspect - IP             : 0:0:0:0:0:0:0:1
+2026-09-04 19:29:01 [http-nio-0.0.0.0-8090-exec-9] INFO  c.x.application.aspect.GlobalAspect - Request Args   : []
+2026-09-04 19:29:01 [http-nio-0.0.0.0-8090-exec-9] INFO  c.x.application.aspect.GlobalAspect - ============================ End ===========================
+2026-09-04 19:29:02 [http-nio-0.0.0.0-8090-exec-2] INFO  c.x.application.aspect.GlobalAspect - 
+2026-09-04 19:29:02 [http-nio-0.0.0.0-8090-exec-2] INFO  c.x.application.aspect.GlobalAspect - =========================== Start ===========================
+2026-09-04 19:29:02 [http-nio-0.0.0.0-8090-exec-2] INFO  c.x.application.aspect.GlobalAspect - URL            : http://localhost:8090/admin/providers
+2026-09-04 19:29:02 [http-nio-0.0.0.0-8090-exec-2] INFO  c.x.application.aspect.GlobalAspect - HTTP Method    : GET
+2026-09-04 19:29:02 [http-nio-0.0.0.0-8090-exec-2] INFO  c.x.application.aspect.GlobalAspect - Class Method   : providers
+2026-09-04 19:29:02 [http-nio-0.0.0.0-8090-exec-2] INFO  c.x.application.aspect.GlobalAspect - IP             : 0:0:0:0:0:0:0:1
+2026-09-04 19:29:02 [http-nio-0.0.0.0-8090-exec-2] INFO  c.x.application.aspect.GlobalAspect - Request Args   : []
+2026-09-04 19:29:02 [http-nio-0.0.0.0-8090-exec-2] INFO  c.x.application.aspect.GlobalAspect - ============================ End ===========================
+2026-09-04 19:29:03 [http-nio-0.0.0.0-8090-exec-3] INFO  c.x.application.aspect.GlobalAspect - 
+2026-09-04 19:29:03 [http-nio-0.0.0.0-8090-exec-3] INFO  c.x.application.aspect.GlobalAspect - =========================== Start ===========================
+2026-09-04 19:29:03 [http-nio-0.0.0.0-8090-exec-3] INFO  c.x.application.aspect.GlobalAspect - URL            : http://localhost:8090/admin/channels
+2026-09-04 19:29:03 [http-nio-0.0.0.0-8090-exec-3] INFO  c.x.application.aspect.GlobalAspect - HTTP Method    : GET
+2026-09-04 19:29:03 [http-nio-0.0.0.0-8090-exec-3] INFO  c.x.application.aspect.GlobalAspect - Class Method   : channels
+2026-09-04 19:29:03 [http-nio-0.0.0.0-8090-exec-3] INFO  c.x.application.aspect.GlobalAspect - IP             : 0:0:0:0:0:0:0:1
+2026-09-04 19:29:03 [http-nio-0.0.0.0-8090-exec-3] INFO  c.x.application.aspect.GlobalAspect - Request Args   : []
+2026-09-04 19:29:03 [http-nio-0.0.0.0-8090-exec-3] INFO  c.x.application.aspect.GlobalAspect - ============================ End ===========================
+2026-09-04 19:29:03 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - 
+2026-09-04 19:29:03 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - =========================== Start ===========================
+2026-09-04 19:29:03 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - URL            : http://localhost:8090/admin/providers/enabled
+2026-09-04 19:29:03 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - HTTP Method    : GET
+2026-09-04 19:29:03 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - Class Method   : enabledProviders
+2026-09-04 19:29:03 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - IP             : 0:0:0:0:0:0:0:1
+2026-09-04 19:29:03 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - Request Args   : []
+2026-09-04 19:29:03 [http-nio-0.0.0.0-8090-exec-4] INFO  c.x.application.aspect.GlobalAspect - ============================ End ===========================
