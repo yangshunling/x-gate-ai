@@ -36,9 +36,4 @@ public class GatewayConfig {
      * 上游 api_key 加密密钥
      */
     private String encryptKey = "xgate-ai-encrypt-2026";
-
-    /**
-     * 管理员初始化密码（留空则启动时随机生成）
-     */
-    private String adminPassword = "";
 }

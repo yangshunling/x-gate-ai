@@ -3,437 +3,611 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>X-Gate-AI 统一模型网关 · 管理控制台</title>
+<title>大模型统一网关 · 管理控制台</title>
 <style>
-/* ============ 全局基础 ============ */
+/* ============================================================
+   设计语言：冰白蓝图 · 精密仪器
+   light / electric-blue / hairline / mono-data / glass panels
+   ============================================================ */
 * { margin: 0; padding: 0; box-sizing: border-box; }
+
 :root {
-  --primary: #3b82f6;
-  --primary-hover: #2f6fe0;
-  --primary-soft: #eef4ff;
-  --danger: #ef4444;
-  --success: #10b981;
-  --warning: #f59e0b;
-  --text: #1f2937;
-  --text-sub: #6b7280;
-  --border: #e5e7eb;
-  --bg: #f4f6fb;
-  --card: #ffffff;
-  --radius: 10px;
-  --shadow: 0 1px 3px rgba(16, 24, 40, .08), 0 1px 2px rgba(16, 24, 40, .04);
-  --shadow-lg: 0 12px 32px rgba(16, 24, 40, .16);
+  --bg: #eef2f8;
+  --ink: #0d1b34;
+  --ink-2: #41506b;
+  --ink-3: #8492ab;
+  --line: #dfe6f0;
+  --line-strong: #ccd7e6;
+  --panel: rgba(255, 255, 255, .86);
+  --panel-solid: #ffffff;
+  --accent: #1b66ff;
+  --accent-2: #00a8ff;
+  --accent-soft: #e8f0ff;
+  --cyan: #00b4d8;
+  --ok: #0faf7a;
+  --ok-soft: #e3f7f0;
+  --bad: #ff4d5e;
+  --bad-soft: #ffeaed;
+  --warn: #f59e0b;
+  --warn-soft: #fff4e0;
+  --mono: "JetBrains Mono", "Cascadia Code", "SF Mono", Consolas, monospace;
+  --sans: "HarmonyOS Sans SC", "MiSans", "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+  --r-sm: 9px;
+  --r-md: 14px;
+  --r-lg: 18px;
+  --shadow-panel: 0 1px 0 rgba(20,40,90,.03) inset, 0 1px 2px rgba(18,38,90,.05), 0 10px 30px -18px rgba(18,38,90,.22);
+  --shadow-pop: 0 24px 70px -22px rgba(10,26,70,.4), 0 4px 14px rgba(10,26,70,.08);
 }
+
 html, body { height: 100%; }
 body {
-  font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, -apple-system, sans-serif;
-  background: var(--bg); color: var(--text); font-size: 14px; -webkit-font-smoothing: antialiased;
+  font-family: var(--sans);
+  background:
+    radial-gradient(1200px 500px at 85% -10%, rgba(0,168,255,.10), transparent 60%),
+    radial-gradient(900px 480px at -10% 110%, rgba(27,102,255,.08), transparent 55%),
+    linear-gradient(var(--bg), var(--bg));
+  color: var(--ink);
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
-[hidden] { display: none !important; }
+/* 蓝图网格叠加层 */
+body::before {
+  content: "";
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image:
+    linear-gradient(rgba(27,102,255,.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(27,102,255,.035) 1px, transparent 1px);
+  background-size: 26px 26px;
+  mask-image: radial-gradient(ellipse 90% 80% at 50% 0%, #000 20%, transparent 90%);
+}
+#app { position: relative; z-index: 1; height: 100vh; }
 
-/* ============ 登录页 ============ */
-.login-wrap {
-  min-height: 100vh; display: flex; align-items: center; justify-content: center;
-  background: radial-gradient(1200px 600px at 20% 0%, #e8f0ff 0%, transparent 60%),
-              radial-gradient(1000px 500px at 90% 100%, #e7f7f1 0%, transparent 60%), var(--bg);
-}
-.login-card {
-  width: 400px; background: var(--card); border-radius: 16px; box-shadow: var(--shadow-lg);
-  padding: 40px 36px 32px;
-}
-.login-logo {
-  width: 56px; height: 56px; border-radius: 14px; margin: 0 auto 18px;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 700; font-size: 20px;
-  box-shadow: 0 8px 18px rgba(59, 130, 246, .35);
-}
-.login-title { text-align: center; font-size: 20px; font-weight: 700; letter-spacing: .5px; }
-.login-sub { text-align: center; color: var(--text-sub); margin: 6px 0 28px; font-size: 13px; }
-.form-item { margin-bottom: 16px; }
-.form-item label { display: block; font-size: 13px; color: var(--text-sub); margin-bottom: 6px; }
-.input {
-  width: 100%; height: 40px; padding: 0 12px; border: 1px solid var(--border);
-  border-radius: 8px; font-size: 14px; background: #fff; color: var(--text);
-  transition: border-color .15s, box-shadow .15s; outline: none;
-}
-.input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59, 130, 246, .15); }
-.btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  height: 38px; padding: 0 18px; border: none; border-radius: 8px; font-size: 14px;
-  cursor: pointer; transition: background .15s, opacity .15s; white-space: nowrap;
-}
-.btn:disabled { opacity: .6; cursor: not-allowed; }
-.btn-primary { background: var(--primary); color: #fff; }
-.btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
-.btn-ghost { background: #fff; color: var(--text-sub); border: 1px solid var(--border); }
-.btn-ghost:hover:not(:disabled) { color: var(--primary); border-color: var(--primary); }
-.btn-danger-ghost { background: #fff; color: var(--danger); border: 1px solid #fecaca; }
-.btn-danger-ghost:hover:not(:disabled) { background: #fef2f2; }
-.btn-sm { height: 30px; padding: 0 12px; font-size: 13px; border-radius: 6px; }
-.btn-block { width: 100%; height: 42px; font-size: 15px; }
-.login-error {
-  background: #fef2f2; color: var(--danger); border: 1px solid #fecaca; border-radius: 8px;
-  padding: 8px 12px; font-size: 13px; margin-bottom: 14px; text-align: center;
-}
+/* ---------------- Shell ---------------- */
+.main-shell { display: flex; height: 100vh; }
 
-/* ============ 整体布局 ============ */
-#app { height: 100vh; display: flex; }
-.main-shell { display: flex; width: 100%; height: 100vh; }
+/* ---------------- Sidebar ---------------- */
 .sidebar {
-  width: 208px; flex-shrink: 0; background: #1e293b; color: #cbd5e1;
+  width: 236px; flex-shrink: 0;
   display: flex; flex-direction: column;
+  background: linear-gradient(180deg, rgba(255,255,255,.94), rgba(248,251,255,.94));
+  border-right: 1px solid var(--line);
+  backdrop-filter: blur(8px);
 }
-.sidebar-brand {
-  height: 60px; display: flex; align-items: center; gap: 10px; padding: 0 18px;
-  color: #fff; font-weight: 700; font-size: 15px; border-bottom: 1px solid rgba(255,255,255,.08);
+.brand {
+  height: 66px; display: flex; align-items: center; gap: 12px;
+  padding: 0 20px; border-bottom: 1px solid var(--line);
 }
-.sidebar-brand .logo-mini {
-  width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  display: flex; align-items: center; justify-content: center; font-size: 13px;
+.brand-mark {
+  width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  box-shadow: 0 6px 16px -4px rgba(27,102,255,.55);
+  display: grid; place-items: center; position: relative;
 }
-.sidebar .menu { flex: 1; padding: 10px 0; overflow-y: auto; }
-.sidebar .menu-item {
-  display: flex; align-items: center; gap: 10px; padding: 11px 18px; cursor: pointer;
-  color: #94a3b8; font-size: 14px; border-left: 3px solid transparent; transition: all .15s;
-  user-select: none;
+.brand-mark::after {
+  content: ""; position: absolute; inset: 0; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.35);
 }
-.sidebar .menu-item:hover { color: #e2e8f0; background: rgba(255,255,255,.04); }
-.sidebar .menu-item.active { color: #fff; background: rgba(59,130,246,.18); border-left-color: var(--primary); }
-.sidebar .menu-item .ico { width: 18px; text-align: center; flex-shrink: 0; }
-.sidebar .user-box {
-  padding: 14px 16px; border-top: 1px solid rgba(255,255,255,.08); display: flex;
-  align-items: center; gap: 10px;
-}
-.sidebar .user-avatar {
-  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
-  background: var(--primary); color: #fff; font-size: 13px;
-  display: flex; align-items: center; justify-content: center; font-weight: 600;
-}
-.sidebar .user-info { flex: 1; min-width: 0; }
-.sidebar .user-name { color: #fff; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sidebar .user-role { color: #64748b; font-size: 11px; }
-.sidebar .logout-btn {
-  border: 1px solid rgba(255,255,255,.2); background: transparent; color: #cbd5e1;
-  cursor: pointer; border-radius: 6px; padding: 4px 8px; font-size: 12px; flex-shrink: 0;
-  transition: all .15s;
-}
-.sidebar .logout-btn:hover { color: #fff; border-color: rgba(255,255,255,.45); }
+.brand-mark svg { width: 18px; height: 18px; stroke: #fff; }
+.brand-name { font-size: 15px; font-weight: 700; letter-spacing: .2px; line-height: 1.1; }
+.brand-name small { display: block; font-size: 10px; font-weight: 500; color: var(--ink-3); font-family: var(--mono); letter-spacing: .6px; margin-top: 2px; }
 
+.nav-label {
+  padding: 20px 22px 8px; font-size: 10px; font-weight: 600; letter-spacing: 1.6px;
+  color: var(--ink-3); font-family: var(--mono);
+}
+.menu { flex: 1; padding: 0 12px 12px; overflow-y: auto; }
+.menu-item {
+  position: relative;
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; margin-bottom: 3px; border-radius: 10px;
+  color: var(--ink-2); font-size: 13.5px; font-weight: 500;
+  cursor: pointer; user-select: none;
+  transition: background .16s, color .16s, transform .16s;
+}
+.menu-item svg { width: 18px; height: 18px; stroke: currentColor; flex-shrink: 0; opacity: .85; }
+.menu-item:hover { background: rgba(27,102,255,.06); color: var(--ink); }
+.menu-item.active {
+  background: linear-gradient(90deg, var(--accent-soft), rgba(27,102,255,.10));
+  color: var(--accent); font-weight: 600;
+}
+.menu-item.active::before {
+  content: ""; position: absolute; left: -12px; top: 7px; bottom: 7px; width: 3px;
+  border-radius: 0 3px 3px 0; background: linear-gradient(var(--accent), var(--accent-2));
+  box-shadow: 0 0 12px rgba(27,102,255,.7);
+}
+.menu-item .count {
+  margin-left: auto; font-family: var(--mono); font-size: 10.5px; color: var(--ink-3);
+  background: rgba(13,27,52,.05); border-radius: 6px; padding: 1px 7px;
+}
+
+.side-foot {
+  margin: 0 12px 12px; padding: 11px 13px; border: 1px solid var(--line); border-radius: 10px;
+  display: flex; align-items: center; gap: 9px; background: rgba(255,255,255,.6);
+}
+.pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); position: relative; flex-shrink: 0; }
+.pulse::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 1px solid var(--ok); animation: pulse 2.2s ease-out infinite; }
+.side-foot .t { font-size: 11px; color: var(--ink-2); }
+.side-foot .t b { font-family: var(--mono); font-weight: 600; color: var(--ok); }
+.side-foot .v { font-family: var(--mono); font-size: 9.5px; color: var(--ink-3); letter-spacing: .4px; }
+
+/* ---------------- Content ---------------- */
 .content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.content-head {
-  height: 60px; background: var(--card); border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: space-between; padding: 0 24px;
-  flex-shrink: 0;
+.head {
+  height: 66px; flex-shrink: 0; display: flex; align-items: center; gap: 16px;
+  padding: 0 28px; background: rgba(255,255,255,.72); backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
 }
-.content-head h2 { font-size: 17px; font-weight: 600; }
-.content-body { flex: 1; overflow-y: auto; padding: 22px 24px; }
-
-/* ============ 卡片通用 ============ */
-.card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); }
-.page { max-width: 1180px; }
-.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 18px; }
-.stat-card { padding: 18px 20px; position: relative; overflow: hidden; }
-.stat-card .stat-icon {
-  position: absolute; right: -8px; top: -8px; width: 64px; height: 64px; border-radius: 50%;
-  opacity: .12; display: flex; align-items: center; justify-content: center; font-size: 30px;
+.head .crumb { font-family: var(--mono); font-size: 10px; color: var(--ink-3); letter-spacing: 1px; }
+.head h1 { font-size: 17px; font-weight: 700; letter-spacing: .2px; display: flex; align-items: center; gap: 10px; }
+.head h1 .bar { width: 3px; height: 17px; border-radius: 2px; background: linear-gradient(var(--accent), var(--accent-2)); box-shadow: 0 0 10px rgba(27,102,255,.6); }
+.head .right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.head .tag-chip {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: .6px; color: var(--ink-3);
+  border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px; background: rgba(255,255,255,.7);
 }
-.stat-card .stat-label { color: var(--text-sub); font-size: 13px; margin-bottom: 8px; }
-.stat-card .stat-value { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
-.stat-card .stat-value small { font-size: 13px; color: var(--text-sub); font-weight: 400; margin-left: 4px; }
-.stat-card.t1 .stat-icon { background: var(--primary); color: #fff; }
-.stat-card.t2 .stat-icon { background: var(--success); color: #fff; }
-.stat-card.t3 .stat-icon { background: var(--danger); color: #fff; }
-.stat-card.t4 .stat-icon { background: #8b5cf6; color: #fff; }
-.stat-card.t5 .stat-icon { background: #f59e0b; color: #fff; }
-.stat-card.t6 .stat-icon { background: #06b6d4; color: #fff; }
-.stat-card.t7 .stat-icon { background: #ec4899; color: #fff; }
-.stat-card.t8 .stat-icon { background: #6366f1; color: #fff; }
-.stat-card.ok .stat-value { color: var(--success); }
-.stat-card.bad .stat-value { color: var(--danger); }
 
-/* ============ 表格与卡片工具条 ============ */
-.panel { margin-bottom: 18px; }
+.body { flex: 1; overflow-y: auto; padding: 24px 28px 40px; }
+.page { max-width: 1240px; margin: 0 auto; }
+
+/* ---------------- Metric / stat ---------------- */
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(168px, 1fr)); gap: 13px; margin-bottom: 20px; }
+.stat {
+  position: relative; overflow: hidden; padding: 16px 17px 15px; border-radius: var(--r-md);
+  background: var(--panel); border: 1px solid var(--line);
+  box-shadow: var(--shadow-panel); backdrop-filter: blur(6px);
+  transition: transform .18s, box-shadow .18s, border-color .18s;
+}
+.stat:hover { transform: translateY(-2px); border-color: #c3d4ee; box-shadow: 0 18px 40px -22px rgba(18,38,90,.35); }
+.stat::after {
+  content: ""; position: absolute; left: 17px; right: 17px; top: 0; height: 2px; border-radius: 0 0 4px 4px;
+  background: var(--sc, linear-gradient(90deg, var(--accent), var(--accent-2)));
+  opacity: .9;
+}
+.stat .k { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--ink-3); font-weight: 500; }
+.stat .k svg { width: 13px; height: 13px; stroke: var(--ink-3); }
+.stat .v {
+  margin-top: 9px; font-family: var(--mono); font-size: 27px; font-weight: 600; line-height: 1;
+  font-variant-numeric: tabular-nums; letter-spacing: -1px; color: var(--ink);
+}
+.stat .v small { font-size: 13px; font-weight: 500; color: var(--ink-3); letter-spacing: 0; margin-left: 3px; }
+.stat .u { margin-top: 9px; font-family: var(--mono); font-size: 9.5px; letter-spacing: 1px; color: var(--ink-3); text-transform: uppercase; }
+.stat.ok .v { color: var(--ok); }
+.stat.bad .v { color: var(--bad); }
+
+/* ---------------- Panel / card ---------------- */
+.panel {
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--r-md);
+  box-shadow: var(--shadow-panel); backdrop-filter: blur(6px); margin-bottom: 18px; overflow: hidden;
+}
 .panel-head {
-  padding: 14px 18px; border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 14px 20px; border-bottom: 1px solid var(--line);
 }
-.panel-head .panel-title { font-size: 15px; font-weight: 600; }
-.panel-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.table-wrap { overflow-x: auto; padding: 4px; }
-table.tbl { width: 100%; border-collapse: collapse; min-width: 640px; }
-.tbl th, .tbl td { text-align: left; padding: 11px 14px; border-bottom: 1px solid #f1f3f6; font-size: 13px; }
-.tbl th { color: var(--text-sub); font-weight: 500; background: #fafbfd; white-space: nowrap; }
-.tbl th:first-child, .tbl td:first-child { padding-left: 18px; }
-.tbl tr:last-child td { border-bottom: none; }
-.tbl tbody tr:hover td { background: #f8fafc; }
-.tbl .mono { font-family: Consolas, "Courier New", monospace; font-size: 12px; }
-.tbl .ops { display: flex; gap: 6px; white-space: nowrap; }
-.tag {
-  display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; line-height: 18px;
-}
-.tag-on { background: #ecfdf5; color: #059669; }
-.tag-off { background: #f3f4f6; color: #9ca3af; }
-.tag-blue { background: var(--primary-soft); color: var(--primary); }
-.remark-cell { color: var(--text-sub); font-size: 12px; }
-.empty-row td { text-align: center; color: var(--text-sub); padding: 40px 0 !important; }
-.row-link { color: var(--primary); cursor: pointer; }
-.row-link.danger { color: var(--danger); }
-.row-link:hover { text-decoration: underline; }
-.link-list { display: flex; flex-wrap: wrap; gap: 4px; }
-.provider-pill {
-  background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 999px;
-  font-size: 12px; padding: 1px 9px; color: #475569; line-height: 18px;
-}
-.provider-pill.off { background: #fafafa; border-color: #f1f1f1; color: #c0c4cc; }
+.panel-title { font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 9px; }
+.panel-title .dot-mark { width: 8px; height: 8px; border-radius: 2px; transform: rotate(45deg); background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: 0 0 8px rgba(27,102,255,.5); }
+.panel-title .sub { font-family: var(--mono); font-size: 11px; font-weight: 500; color: var(--ink-3); }
+.panel-toolbar { margin-left: auto; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.panel-body { padding: 18px 20px; }
 
-/* ============ 分页 ============ */
-.pagination {
-  display: flex; align-items: center; justify-content: space-between; padding: 12px 18px;
-  border-top: 1px solid var(--border); color: var(--text-sub); font-size: 13px;
+/* ---------------- Buttons ---------------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  height: 36px; padding: 0 15px; border-radius: 9px; border: 1px solid transparent;
+  font-family: var(--sans); font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap;
+  transition: all .16s;
 }
-.pagination .page-op { display: flex; align-items: center; gap: 8px; }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff;
+  box-shadow: 0 8px 18px -8px rgba(27,102,255,.6);
+}
+.btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 12px 22px -8px rgba(27,102,255,.7); }
+.btn-ghost { background: var(--panel-solid); color: var(--ink-2); border-color: var(--line-strong); }
+.btn-ghost:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); background: #f8fbff; }
+.btn-danger { background: var(--panel-solid); color: var(--bad); border-color: #ffc2c9; }
+.btn-danger:hover:not(:disabled) { background: var(--bad-soft); }
+.btn-sm { height: 30px; padding: 0 11px; font-size: 12px; border-radius: 8px; }
+.btn .spinner { width: 13px; height: 13px; border-width: 1.6px; border-color: rgba(255,255,255,.5); border-top-color: #fff; }
 
-/* ============ 开关 ============ */
-.switch { position: relative; width: 40px; height: 22px; display: inline-block; flex-shrink: 0; cursor: pointer; }
+/* ---------------- Table ---------------- */
+.tbl-wrap { overflow-x: auto; }
+table.tbl { width: 100%; border-collapse: collapse; min-width: 720px; }
+.tbl th {
+  text-align: left; font-family: var(--mono); font-size: 10.5px; letter-spacing: .7px; font-weight: 600;
+  color: var(--ink-3); text-transform: uppercase; padding: 11px 18px;
+  background: rgba(238,242,248,.7); border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+.tbl td { padding: 13px 18px; border-bottom: 1px solid #eef2f8; font-size: 13px; color: var(--ink); vertical-align: middle; }
+.tbl tbody tr { transition: background .13s; }
+.tbl tbody tr:hover td { background: rgba(27,102,255,.035); }
+.tbl tbody tr:last-child td { border-bottom: none; }
+.tbl .mono { font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums; }
+.tbl .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.tbl .sub { color: var(--ink-3); font-size: 12px; }
+.ellip { max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.empty-row td { text-align: center; color: var(--ink-3); padding: 44px 0 !important; }
+.empty-row .ghost-ico { font-size: 26px; opacity: .5; }
+
+/* badges / tags */
+.tag { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 500; line-height: 1; }
+.tag::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.tag-on { background: var(--ok-soft); color: var(--ok); }
+.tag-off { background: #eef1f6; color: var(--ink-3); }
+.tag-blue { background: var(--accent-soft); color: var(--accent); }
+.tag-blue::before { display: none; }
+.tag-danger { background: var(--bad-soft); color: var(--bad); }
+.strategy { font-family: var(--mono); font-size: 10px; letter-spacing: .8px; color: var(--accent); border: 1px dashed rgba(27,102,255,.4); padding: 2px 8px; border-radius: 6px; }
+
+.link-pill {
+  display: inline-flex; align-items: center; gap: 6px; background: #f1f5fc; border: 1px solid var(--line);
+  border-radius: 7px; padding: 2px 9px; font-size: 11.5px; color: var(--ink-2); line-height: 19px;
+}
+.link-pill.off { background: #f6f7fa; color: var(--ink-3); border-color: #e8ebf1; }
+.link-pill .bdot { width: 5px; height: 5px; border-radius: 50%; background: var(--ok); }
+.link-pill.off .bdot { background: #c3c9d4; }
+.link-list { display: flex; flex-wrap: wrap; gap: 5px; }
+
+.row-link { color: var(--accent); cursor: pointer; font-size: 12.5px; font-weight: 500; transition: opacity .13s; }
+.row-link:hover { opacity: .75; text-decoration: underline; text-underline-offset: 3px; }
+.row-link.danger { color: var(--bad); }
+.ops { display: flex; gap: 10px; white-space: nowrap; align-items: center; }
+.ops .sep { width: 1px; height: 12px; background: var(--line-strong); }
+
+/* switch */
+.switch { position: relative; width: 40px; height: 23px; display: inline-block; flex-shrink: 0; cursor: pointer; }
 .switch input { opacity: 0; width: 0; height: 0; }
 .switch .slider {
-  position: absolute; inset: 0; border-radius: 999px; background: #d1d5db; transition: background .18s;
+  position: absolute; inset: 0; border-radius: 999px; background: #d3dbe7;
+  transition: background .18s, box-shadow .18s; border: 1px solid transparent;
 }
 .switch .slider::before {
-  content: ""; position: absolute; width: 18px; height: 18px; border-radius: 50%; background: #fff;
-  left: 2px; top: 2px; transition: transform .18s; box-shadow: 0 1px 3px rgba(0,0,0,.2);
+  content: ""; position: absolute; width: 17px; height: 17px; border-radius: 50%; background: #fff;
+  left: 3px; top: 2px; transition: transform .18s;
+  box-shadow: 0 1px 3px rgba(13,27,52,.25);
 }
-.switch input:checked + .slider { background: var(--primary); }
-.switch input:checked + .slider::before { transform: translateX(18px); }
+.switch input:checked + .slider { background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: 0 2px 10px -2px rgba(27,102,255,.6); }
+.switch input:checked + .slider::before { transform: translateX(17px); }
 .switch input:disabled + .slider { opacity: .5; cursor: not-allowed; }
 
-/* ============ 弹窗 ============ */
+/* ---------------- Inputs ---------------- */
+.form-item { margin-bottom: 16px; }
+.form-item label { display: block; font-size: 12px; font-weight: 600; color: var(--ink-2); margin-bottom: 7px; letter-spacing: .2px; }
+.form-item label .req { color: var(--accent); }
+.input {
+  width: 100%; height: 40px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 9px;
+  font-family: var(--sans); font-size: 13.5px; background: var(--panel-solid); color: var(--ink);
+  transition: border-color .15s, box-shadow .15s; outline: none;
+}
+.input::placeholder { color: var(--ink-3); }
+.input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(27,102,255,.13); }
+.input:disabled { background: #f3f5f9; color: var(--ink-3); cursor: not-allowed; }
+textarea.input { height: auto; padding: 10px 12px; resize: vertical; line-height: 1.6; }
+input.mono, .mono-input { font-family: var(--mono); font-size: 12.5px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+.form-grid .full { grid-column: 1 / -1; }
+
+/* ---- 自绘勾选框：统一尺寸/间距/垂直中心，摆脱浏览器原生差异 ---- */
+.checkbox-line, .pick-item { position: relative; }
+.checkbox-line input[type="checkbox"], .pick-item input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none; -moz-appearance: none;
+  width: 17px; height: 17px; margin: 0; padding: 0; flex: 0 0 auto;
+  border: 1.5px solid #b6c3d6; border-radius: 5px; background-color: #fff;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M2 6.5 4.7 9.2 10 3.2' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-size: 11px 11px; background-position: center; background-repeat: no-repeat;
+  cursor: pointer; transition: background-color .14s, border-color .14s, box-shadow .14s;
+}
+.checkbox-line input[type="checkbox"]:hover, .pick-item input[type="checkbox"]:hover { border-color: #7fa0d6; }
+.checkbox-line input[type="checkbox"]:checked, .pick-item input[type="checkbox"]:checked {
+  background-color: var(--accent); border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(27,102,255,.12);
+}
+.checkbox-line { display: inline-flex; align-items: center; gap: 10px; font-size: 13px; color: var(--ink-2); cursor: pointer; user-select: none; line-height: 1; }
+.checkbox-line .txt { line-height: 1.3; }
+.check-cell { height: 40px; display: flex; align-items: center; }
+
+/* provider picker */
+.pick-group { border: 1px solid var(--line-strong); border-radius: 10px; max-height: 224px; overflow-y: auto; margin-top: 2px; background: #fbfdff; }
+.pick-item { display: flex; align-items: center; gap: 12px; padding: 10px 13px; cursor: pointer; border-bottom: 1px solid #eef2f8; transition: background .12s; }
+.pick-item:last-child { border-bottom: none; }
+.pick-item:hover { background: #f0f6ff; }
+.pick-item .pi-name { font-size: 13px; font-weight: 500; line-height: 1.3; }
+.pick-item .pi-model { font-family: var(--mono); font-size: 11px; color: var(--ink-3); margin-left: auto; background: #eef2f8; padding: 2px 8px; border-radius: 6px; line-height: 1.4; }
+.pick-empty { padding: 26px; text-align: center; color: var(--ink-3); font-size: 12.5px; }
+
+/* ---------------- Modal ---------------- */
 .modal-mask {
-  position: fixed; inset: 0; background: rgba(15, 23, 42, .45); z-index: 100;
-  display: flex; align-items: flex-start; justify-content: center; padding: 60px 16px;
-  overflow-y: auto; animation: fadeIn .15s ease;
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; align-items: flex-start; justify-content: center; padding: 54px 16px;
+  overflow-y: auto;
+  background: rgba(15, 26, 50, .34);
+  backdrop-filter: blur(6px);
+  animation: fadeIn .16s ease;
 }
 .modal {
-  background: var(--card); border-radius: 14px; box-shadow: var(--shadow-lg);
-  width: 100%; max-width: 540px; animation: popIn .16s ease;
+  background: var(--panel-solid); border-radius: var(--r-lg); box-shadow: var(--shadow-pop);
+  width: 100%; max-width: 560px; border: 1px solid rgba(255,255,255,.6);
+  animation: popIn .18s cubic-bezier(.2,.9,.3,1.2);
+  overflow: hidden;
 }
 .modal-head {
-  padding: 16px 20px; border-bottom: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center; gap: 12px; padding: 17px 22px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, #fbfdff, #fff);
 }
-.modal-head .modal-title { font-size: 16px; font-weight: 600; }
-.modal-close { border: none; background: transparent; font-size: 20px; cursor: pointer; color: var(--text-sub); line-height: 1; }
-.modal-close:hover { color: var(--text); }
-.modal-body { padding: 18px 20px; max-height: 62vh; overflow-y: auto; }
-.modal-foot { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
-.modal-foot.pending-btn { justify-content: space-between; }
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
-.form-grid .full { grid-column: 1 / -1; }
-.checkbox-line { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--text-sub); cursor: pointer; }
-textarea.input { height: auto; padding: 9px 12px; resize: vertical; font-family: inherit; }
-
-/* Key 复制弹窗 */
-.key-modal .modal { max-width: 460px; }
-.key-box {
-  background: #0f172a; color: #7dd3fc; font-family: Consolas, monospace; font-size: 13px;
-  padding: 14px; border-radius: 8px; word-break: break-all; margin: 12px 0;
+.modal-head .m-tag { font-family: var(--mono); font-size: 10px; letter-spacing: 1px; color: var(--accent); }
+.modal-title { font-size: 15.5px; font-weight: 700; }
+.modal-close {
+  margin-left: auto; width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 8px;
+  background: #fff; color: var(--ink-3); font-size: 15px; line-height: 1; cursor: pointer; transition: all .14s;
 }
-.key-tip { background: #fffbeb; border: 1px solid #fde68a; color: #b45309; padding: 8px 12px; border-radius: 8px; font-size: 13px; }
+.modal-close:hover { color: var(--bad); border-color: #ffc2c9; background: var(--bad-soft); }
+.modal-body { padding: 22px; max-height: 66vh; overflow-y: auto; }
+.modal-foot { padding: 15px 22px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 10px; background: #fbfdff; }
+.modal-rule { font-family: var(--mono); font-size: 9.5px; letter-spacing: 1px; color: var(--ink-3); margin: -6px 0 14px; }
 
-/* ============ Provider 多选列表 ============ */
-.provider-check-group {
-  border: 1px solid var(--border); border-radius: 8px; max-height: 220px; overflow-y: auto; margin-top: 8px;
-}
-.provider-check-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; cursor: pointer; }
-.provider-check-item:hover { background: #f8fafc; }
-.provider-check-item input { accent-color: var(--primary); width: 15px; height: 15px; flex-shrink: 0; }
-.provider-check-item .pc-name { font-size: 13px; }
-.provider-check-item .pc-model { color: var(--text-sub); font-size: 12px; margin-left: auto; }
-
-/* ============ Toast ============ */
-.toast-wrap { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 200; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+/* ---------------- Toast ---------------- */
+.toast-wrap { position: fixed; top: 22px; left: 50%; transform: translateX(-50%); z-index: 200; display: flex; flex-direction: column; gap: 10px; align-items: center; }
 .toast {
-  background: #fff; border-radius: 8px; box-shadow: var(--shadow-lg); padding: 10px 16px;
-  font-size: 13px; display: flex; align-items: center; gap: 8px; min-width: 200px; max-width: 460px;
-  animation: slideDown .2s ease;
+  display: flex; align-items: center; gap: 10px; min-width: 220px; max-width: 480px;
+  background: rgba(255,255,255,.94); backdrop-filter: blur(10px);
+  border: 1px solid var(--line); border-radius: 11px;
+  box-shadow: 0 18px 44px -16px rgba(10,26,70,.4);
+  padding: 11px 16px; font-size: 13px; font-weight: 500; color: var(--ink);
+  animation: toastIn .22s cubic-bezier(.2,.9,.3,1.15);
 }
-.toast .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.toast.success .dot { background: var(--success); }
-.toast.error .dot { background: var(--danger); }
-.toast.warn .dot { background: var(--warning); }
-.toast.info .dot { background: var(--primary); }
-.toast.success { border-left: 3px solid var(--success); }
-.toast.error { border-left: 3px solid var(--danger); }
-.toast.warn { border-left: 3px solid var(--warning); }
-.toast.info { border-left: 3px solid var(--primary); }
+.toast .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 0 3px rgba(0,0,0,.04); }
+.toast.success .dot { background: var(--ok); }
+.toast.error .dot { background: var(--bad); }
+.toast.warn .dot { background: var(--warn); }
+.toast.info .dot { background: var(--accent); }
 
-/* ============ Loading ============ */
+/* loading */
 .spinner {
-  width: 15px; height: 15px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff;
+  width: 15px; height: 15px; border: 2px solid rgba(27,102,255,.25); border-top-color: var(--accent);
   border-radius: 50%; animation: spin .7s linear infinite; flex-shrink: 0;
 }
-.spinner.dark { border-color: #cbd5e1; border-top-color: var(--primary); }
-.loading-mask {
-  position: absolute; inset: 0; background: rgba(255,255,255,.72); z-index: 50;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
-  color: var(--text-sub); font-size: 13px; border-radius: var(--radius);
-}
-.page-loading { min-height: 60vh; display: flex; align-items: center; justify-content: center; color: var(--text-sub); font-size: 14px; gap: 10px; }
-.page-loading .spinner.dark { width: 20px; height: 20px; border-width: 2.5px; }
+.page-loading { min-height: 52vh; display: flex; align-items: center; justify-content: center; gap: 11px; color: var(--ink-3); font-size: 13px; }
+.page-loading .spinner { width: 22px; height: 22px; border-width: 2.4px; }
+.scanline { width: 130px; height: 1px; background: linear-gradient(90deg, transparent, rgba(27,102,255,.7), transparent); animation: scan 1.6s ease-in-out infinite; }
 
+/* pagination */
+.pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 20px; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 12.5px; flex-wrap: wrap; }
+.pagination .total b { color: var(--ink-2); font-family: var(--mono); font-weight: 600; }
+.pagination .page-op { display: flex; align-items: center; gap: 10px; }
+.page-now { font-family: var(--mono); font-size: 12px; color: var(--ink-2); }
+
+/* hint card */
+.hint-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.hint { display: flex; gap: 13px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: rgba(250,252,255,.6); }
+.hint .step {
+  width: 24px; height: 24px; flex-shrink: 0; border-radius: 7px; display: grid; place-items: center;
+  font-family: var(--mono); font-size: 11.5px; font-weight: 600; color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: 0 4px 10px -3px rgba(27,102,255,.5);
+}
+.hint .ht { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+.hint .hd { font-size: 12px; color: var(--ink-3); line-height: 1.6; }
+.hint .hd code { font-family: var(--mono); font-size: 10.5px; background: #eaf1fb; color: var(--accent); padding: 1px 6px; border-radius: 5px; }
+
+/* key-value list (info rows) */
+.kv-row { display: flex; align-items: center; padding: 9px 0; border-bottom: 1px dashed #e6ecf5; }
+.kv-row:last-child { border-bottom: none; }
+.kv-row .k { width: 120px; color: var(--ink-3); font-size: 12px; }
+.kv-row .v { font-family: var(--mono); font-size: 12.5px; }
+
+/* utilities */
+.flex { display: flex; align-items: center; gap: 10px; }
+.right { margin-left: auto; }
+.muted { color: var(--ink-3); }
+.mt-2 { margin-top: 18px; }
+
+/* animations */
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes popIn { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
-@keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes popIn { from { opacity: 0; transform: scale(.95) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+@keyframes toastIn { from { opacity: 0; transform: translateY(-12px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes pulse { 0% { transform: scale(.6); opacity: 1; } 80%,100% { transform: scale(1.9); opacity: 0; } }
+@keyframes scan { 0% { transform: translateX(-140px); opacity: 0; } 40% { opacity: 1; } 100% { transform: translateX(140px); opacity: 0; } }
+@keyframes pageIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.view { animation: pageIn .22s ease; }
 
-/* ============ 工具类 ============ */
-.flex { display: flex; align-items: center; gap: 10px; }
-.fill { width: 100%; }
-.muted { color: var(--text-sub); }
-.w-64 { width: 240px; }
-.right { margin-left: auto; }
+/* scrollbar */
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-thumb { background: #ccd7e6; border-radius: 6px; border: 2px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background-color: #b4c3d9; }
+::-webkit-scrollbar-track { background: transparent; }
 </style>
 </head>
 <body>
 <div id="app">
+  <div class="main-shell">
 
-  <!-- ==================== 登录视图 ==================== -->
-  <div v-if="!loggedIn" class="login-wrap">
-    <div class="login-card">
-      <div class="login-logo">XG</div>
-      <div class="login-title">X-Gate-AI 统一模型网关</div>
-      <div class="login-sub">管理控制台 · 请登录后继续操作</div>
-
-      <div v-if="loginError" class="login-error">{{ loginError }}</div>
-
-      <div class="form-item">
-        <label>用户名</label>
-        <input class="input" v-model.trim="loginForm.username" @keyup.enter="doLogin"
-               placeholder="请输入管理员用户名" autocomplete="username">
-      </div>
-      <div class="form-item">
-        <label>密码</label>
-        <input class="input" type="password" v-model.trim="loginForm.password" @keyup.enter="doLogin"
-               placeholder="请输入密码" autocomplete="current-password">
-      </div>
-      <button class="btn btn-primary btn-block" :disabled="loggingIn" @click="doLogin">
-        <span v-if="loggingIn" class="spinner"></span>{{ loggingIn ? '登录中…' : '登 录' }}
-      </button>
-    </div>
-  </div>
-
-  <!-- ==================== 主界面 ==================== -->
-  <div v-else class="main-shell">
-    <!-- 左侧边栏 -->
+    <!-- ============ Sidebar ============ -->
     <aside class="sidebar">
-      <div class="sidebar-brand">
-        <div class="logo-mini">XG</div>
-        <span>X-Gate-AI 网关</span>
+      <div class="brand">
+        <div class="brand-mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/>
+          </svg>
+        </div>
+        <div class="brand-name">大模型统一网关<small>管理控制台</small></div>
       </div>
+      <div class="nav-label">CONTROL</div>
       <nav class="menu">
-        <div class="menu-item" v-for="m in menus" :key="m.key"
+        <div v-for="m in menus" :key="m.key" class="menu-item"
              :class="{active: tab === m.key}" @click="switchTab(m.key)">
-          <span class="ico">{{ m.ico }}</span>{{ m.label }}
+          <svg v-if="m.key==='dashboard'" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/>
+            <rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/>
+          </svg>
+          <svg v-else-if="m.key==='channels'" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="18" r="2.4"/><circle cx="18" cy="6" r="2.4"/>
+            <path d="M8.3 7.3 15.7 16.7M8.3 4.7h7.4"/><path d="M4.7 8.3v7.4h9"/>
+          </svg>
+          <svg v-else-if="m.key==='providers'" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="5" y="3" width="14" height="7" rx="2"/><rect x="5" y="14" width="14" height="7" rx="2"/>
+            <path d="M9 6.5h.01M9 17.5h.01"/><path d="M12 10v4"/>
+          </svg>
+          <svg v-else viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 6h9M4 12h16M4 18h7"/><circle cx="16.5" cy="6" r="1.8"/><circle cx="20" cy="18" r="1.8"/>
+          </svg>
+          <span>{{ m.label }}</span>
+          <span v-if="m.key==='channels'" class="count">{{ channels.length }}</span>
+          <span v-else-if="m.key==='providers'" class="count">{{ providers.length }}</span>
+          <span v-else-if="m.key==='logs'" class="count">{{ log.total || 0 }}</span>
         </div>
       </nav>
-      <div class="user-box">
-        <div class="user-avatar">{{ (session.username || 'A')[0].toUpperCase() }}</div>
-        <div class="user-info">
-          <div class="user-name">{{ session.username }}</div>
-          <div class="user-role">管理员</div>
+      <div class="side-foot">
+        <span class="pulse"></span>
+        <div>
+          <div class="t">Gateway <b>ONLINE</b></div>
+          <div class="v">/v1 · OpenAI Compatible</div>
         </div>
-        <button class="logout-btn" @click="doLogout">退出</button>
       </div>
     </aside>
 
-    <!-- 右侧内容 -->
+    <!-- ============ Content ============ -->
     <div class="content">
-      <div class="content-head">
-        <h2>{{ currentMenu.label }}</h2>
-        <span class="muted" style="font-size:12px">统一大模型网关管理控制台</span>
+      <div class="head">
+        <h1><span class="bar"></span>{{ currentMenu.label }}</h1>
+        <div class="right"></div>
       </div>
 
-      <div class="content-body">
-        <div class="page">
+      <div class="body">
+        <div class="page" :key="tab">
 
           <!-- ========== 仪表盘 ========== -->
           <div v-if="tab === 'dashboard'">
             <div v-if="dashLoading" class="page-loading">
-              <div class="spinner dark"></div>加载中…
+              <div class="spinner"></div>正在读取实时指标…
             </div>
             <template v-else>
               <div class="stat-grid">
-                <div class="card stat-card t1"><div class="stat-icon">📞</div>
-                  <div class="stat-label">今日调用</div><div class="stat-value">{{ dash.todayCalls }}</div></div>
-                <div class="card stat-card t2 ok"><div class="stat-icon">✅</div>
-                  <div class="stat-label">今日成功</div><div class="stat-value">{{ dash.todaySuccess }}</div></div>
-                <div class="card stat-card t3 bad"><div class="stat-icon">❌</div>
-                  <div class="stat-label">今日失败</div><div class="stat-value">{{ dash.todayFail }}</div></div>
-                <div class="card stat-card t4"><div class="stat-icon">▲</div>
-                  <div class="stat-label">今日输入 Token</div>
-                  <div class="stat-value"><small>{{ fmtTokens(dash.todayInputTokens) }}</small></div></div>
-                <div class="card stat-card t5"><div class="stat-icon">▼</div>
-                  <div class="stat-label">今日输出 Token</div>
-                  <div class="stat-value"><small>{{ fmtTokens(dash.todayOutputTokens) }}</small></div></div>
-                <div class="card stat-card t6"><div class="stat-icon">🔀</div>
-                  <div class="stat-label">启用通道</div><div class="stat-value">{{ dash.enabledChannels }}</div></div>
-                <div class="card stat-card t7"><div class="stat-icon">🖧</div>
-                  <div class="stat-label">启用 Provider</div><div class="stat-value">{{ dash.enabledProviders }}</div></div>
-                <div class="card stat-card t8"><div class="stat-icon">🔑</div>
-                  <div class="stat-label">启用 Key</div><div class="stat-value">{{ dash.enabledKeys }}</div></div>
+                <div class="stat" style="--sc: linear-gradient(90deg,#1b66ff,#00a8ff)">
+                  <div class="k">CALLS · TODAY</div>
+                  <div class="v">{{ dash.todayCalls != null ? dash.todayCalls : '—' }}</div>
+                  <div class="u">total requests</div>
+                </div>
+                <div class="stat ok" style="--sc: linear-gradient(90deg,#0faf7a,#23d6a4)">
+                  <div class="k">SUCCESS</div>
+                  <div class="v">{{ dash.todaySuccess != null ? dash.todaySuccess : '—' }}</div>
+                  <div class="u">http &lt; 400</div>
+                </div>
+                <div class="stat bad" style="--sc: linear-gradient(90deg,#ff4d5e,#ff8a5c)">
+                  <div class="k">FAILED</div>
+                  <div class="v">{{ dash.todayFail != null ? dash.todayFail : '—' }}</div>
+                  <div class="u">errors</div>
+                </div>
+                <div class="stat" style="--sc: linear-gradient(90deg,#7c5cff,#b06bff)">
+                  <div class="k">INPUT TOKENS</div>
+                  <div class="v"><small>{{ fmtTokens(dash.todayInputTokens) }}</small></div>
+                  <div class="u">prompt</div>
+                </div>
+                <div class="stat" style="--sc: linear-gradient(90deg,#00b4d8,#2dd4bf)">
+                  <div class="k">OUTPUT TOKENS</div>
+                  <div class="v"><small>{{ fmtTokens(dash.todayOutputTokens) }}</small></div>
+                  <div class="u">completion</div>
+                </div>
+                <div class="stat" style="--sc: linear-gradient(90deg,#0faf7a,#23d6a4)">
+                  <div class="k">ENABLED MODELS</div>
+                  <div class="v">{{ dash.enabledChannels != null ? dash.enabledChannels : '—' }}</div>
+                  <div class="u">对客服务</div>
+                </div>
+                <div class="stat" style="--sc: linear-gradient(90deg,#1b66ff,#00a8ff)">
+                  <div class="k">ENABLED SERVICES</div>
+                  <div class="v">{{ dash.enabledProviders != null ? dash.enabledProviders : '—' }}</div>
+                  <div class="u">模型服务</div>
+                </div>
               </div>
 
-              <div class="card panel">
-                <div class="panel-head"><span class="panel-title">💡 使用提示</span></div>
-                <div class="panel-body" style="padding:16px 18px;line-height:2;color:var(--text-sub);font-size:13px">
-                  <p>1. 在「上游管理」中添加真实的大模型服务商 Provider，并填写其 API Key，可随时「测试连通」校验。</p>
-                  <p>2. 在「模型通道」中新建对外模型名，并绑定一个或多个启用的 Provider（支持多路、轮询负载均衡）。</p>
-                  <p>3. 在「API Key」中创建对外访问密钥，客户端调用 <code style="background:#f1f5f9;padding:1px 6px;border-radius:4px">POST /v1/chat/completions</code> 时携带该 Key。</p>
-                  <p>4. 「调用日志」记录每一次上游转发的明细，可在仪表盘查看今日整体概况。</p>
+              <div class="panel">
+                <div class="panel-head">
+                  <span class="panel-title"><span class="dot-mark"></span>快速上手<span class="sub">SETUP GUIDE</span></span>
+                </div>
+                <div class="panel-body">
+                  <div class="hint-grid">
+                    <div class="hint">
+                      <div class="step">1</div>
+                      <div>
+                        <div class="ht">接入真实模型服务</div>
+                        <div class="hd">到「模型服务」添加大模型服务商，填入 Base URL 与 API Key，点「测试连通」验证。</div>
+                      </div>
+                    </div>
+                    <div class="hint">
+                      <div class="step">2</div>
+                      <div>
+                        <div class="ht">创建对客服务</div>
+                        <div class="hd">到「对客服务」新建一个名字，绑定一个或多个服务，多路自动轮询 + 故障切换。</div>
+                      </div>
+                    </div>
+                    <div class="hint">
+                      <div class="step">3</div>
+                      <div>
+                        <div class="ht">客户端接入</div>
+                        <div class="hd">调用 <code>POST /v1/chat/completions</code>，model 填对客服务名即可，无需鉴权。</div>
+                      </div>
+                    </div>
+                    <div class="hint">
+                      <div class="step">4</div>
+                      <div>
+                        <div class="ht">查看调用明细</div>
+                        <div class="hd">「调用日志」记录每次转发的耗时与 Token 用量，仪表盘汇总今日概况。</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </template>
           </div>
 
-          <!-- ========== 模型通道 ========== -->
-          <div v-if="tab === 'channels'">
-            <div class="card panel">
+          <!-- ========== 对客服务 ========== -->
+          <div v-if="tab === 'channels'" class="view">
+            <div class="panel">
               <div class="panel-head">
-                <span class="panel-title">🔀 模型通道（共 {{ channels.length }} 个）</span>
+                <span class="panel-title"><span class="dot-mark"></span>对客服务<span class="sub">PUBLIC MODELS · {{ channels.length }}</span></span>
                 <div class="panel-toolbar">
                   <button class="btn btn-ghost btn-sm" @click="loadChannels">刷新</button>
-                  <button class="btn btn-primary btn-sm" @click="openChannelModal()">＋ 新建通道</button>
+                  <button class="btn btn-primary btn-sm" @click="openChannelModal()">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                    新建对客服务
+                  </button>
                 </div>
               </div>
-              <div class="table-wrap">
+              <div class="tbl-wrap">
                 <table class="tbl">
                   <thead>
                     <tr>
-                      <th>对外模型名</th><th>状态</th><th>绑定上游</th>
-                      <th>策略</th><th>备注</th><th style="width:130px">操作</th>
+                      <th>Model</th><th>Status</th><th>绑定模型服务</th>
+                      <th>策略</th><th>备注</th><th style="text-align:right">操作</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-if="channelsLoading"><td colspan="6" class="empty-row"><div class="flex" style="justify-content:center"><div class="spinner dark"></div>加载中…</div></td></tr>
-                    <tr v-else-if="channels.length === 0"><td colspan="6" class="empty-row">暂无通道，点击右上角「新建通道」创建</td></tr>
+                    <tr v-if="channelsLoading"><td colspan="6" class="empty-row"><div class="flex" style="justify-content:center"><div class="spinner"></div>加载中…</div></td></tr>
+                    <tr v-else-if="channels.length === 0">
+                      <td colspan="6" class="empty-row">
+                        <div class="ghost-ico">◇</div>
+                        <div style="margin-top:6px">还没有对客服务 — 点右上角「新建对客服务」开始</div>
+                      </td>
+                    </tr>
                     <tr v-for="c in channels" :key="c.id">
-                      <td><code class="mono">{{ c.public_model_name }}</code></td>
+                      <td><span class="mono" style="color:var(--accent);font-weight:600">{{ c.public_model_name }}</span></td>
                       <td><span class="tag" :class="c.enabled ? 'tag-on' : 'tag-off'">{{ c.enabled ? '启用' : '停用' }}</span></td>
                       <td>
                         <div class="link-list">
                           <template v-if="c.providers.length">
-                            <span class="provider-pill" v-for="p in c.providers" :key="p.id" :class="{off: !p.enabled}">
-                              {{ p.name }}{{ p.enabled ? '' : '（停用）' }}
+                            <span class="link-pill" v-for="p in c.providers" :key="p.id" :class="{off: !p.enabled}">
+                              <span class="bdot"></span>{{ p.name }}{{ p.enabled ? '' : '（停用）' }}
                             </span>
                           </template>
-                          <span v-else class="muted">未绑定</span>
+                          <span v-else class="muted">未绑定服务</span>
                         </div>
                       </td>
-                      <td><span class="tag tag-blue">{{ c.strategy || 'ROUND_ROBIN' }}</span></td>
-                      <td class="remark-cell">{{ c.remark || '—' }}</td>
+                      <td><span class="strategy">{{ c.strategy || 'ROUND_ROBIN' }}</span></td>
+                      <td class="sub">{{ c.remark || '—' }}</td>
                       <td>
-                        <div class="ops">
+                        <div class="ops" style="justify-content:flex-end">
                           <a class="row-link" @click="openChannelModal(c)">编辑</a>
+                          <span class="sep"></span>
                           <a class="row-link danger" @click="delChannel(c)">删除</a>
                         </div>
                       </td>
@@ -444,42 +618,51 @@ textarea.input { height: auto; padding: 9px 12px; resize: vertical; font-family:
             </div>
           </div>
 
-          <!-- ========== 上游管理 ========== -->
-          <div v-if="tab === 'providers'">
-            <div class="card panel">
+          <!-- ========== 模型服务 ========== -->
+          <div v-if="tab === 'providers'" class="view">
+            <div class="panel">
               <div class="panel-head">
-                <span class="panel-title">🖧 上游 Provider（共 {{ providers.length }} 个）</span>
+                <span class="panel-title"><span class="dot-mark"></span>模型服务<span class="sub">UPSTREAM SERVICES · {{ providers.length }}</span></span>
                 <div class="panel-toolbar">
                   <button class="btn btn-ghost btn-sm" @click="loadProviders">刷新</button>
-                  <button class="btn btn-primary btn-sm" @click="openProviderModal()">＋ 新增 Provider</button>
+                  <button class="btn btn-primary btn-sm" @click="openProviderModal()">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                    新增模型服务
+                  </button>
                 </div>
               </div>
-              <div class="table-wrap">
+              <div class="tbl-wrap">
                 <table class="tbl">
                   <thead>
                     <tr>
                       <th>名称</th><th>Base URL</th><th>模型名</th>
-                      <th>状态</th><th>备注</th><th style="width:190px">操作</th>
+                      <th>状态</th><th>备注</th><th style="text-align:right">操作</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-if="providersLoading"><td colspan="6" class="empty-row"><div class="flex" style="justify-content:center"><div class="spinner dark"></div>加载中…</div></td></tr>
-                    <tr v-else-if="providers.length === 0"><td colspan="6" class="empty-row">暂无 Provider，点击右上角「新增 Provider」</td></tr>
+                    <tr v-if="providersLoading"><td colspan="6" class="empty-row"><div class="flex" style="justify-content:center"><div class="spinner"></div>加载中…</div></td></tr>
+                    <tr v-else-if="providers.length === 0">
+                      <td colspan="6" class="empty-row">
+                        <div class="ghost-ico">◇</div>
+                        <div style="margin-top:6px">还没有模型服务 — 点右上角「新增模型服务」接入</div>
+                      </td>
+                    </tr>
                     <tr v-for="p in providers" :key="p.id">
-                      <td>{{ p.name }}</td>
-                      <td><code class="mono">{{ p.baseUrl }}</code></td>
-                      <td><code class="mono">{{ p.modelName }}</code></td>
+                      <td style="font-weight:600">{{ p.name }}</td>
+                      <td><span class="mono ellip" :title="p.baseUrl" style="display:inline-block;vertical-align:middle">{{ p.baseUrl }}</span></td>
+                      <td><span class="mono sub">{{ p.modelName }}</span></td>
                       <td>
                         <label class="switch" :title="p.enabled ? '点击停用' : '点击启用'">
                           <input type="checkbox" :checked="p.enabled" @change="toggleProvider(p)">
                           <span class="slider"></span>
                         </label>
                       </td>
-                      <td class="remark-cell">{{ p.remark || '—' }}</td>
+                      <td class="sub">{{ p.remark || '—' }}</td>
                       <td>
-                        <div class="ops">
+                        <div class="ops" style="justify-content:flex-end">
                           <button class="btn btn-ghost btn-sm" @click="testProvider(p)">测试连通</button>
                           <a class="row-link" @click="openProviderModal(p)">编辑</a>
+                          <span class="sep"></span>
                           <a class="row-link danger" @click="delProvider(p)">删除</a>
                         </div>
                       </td>
@@ -490,118 +673,51 @@ textarea.input { height: auto; padding: 9px 12px; resize: vertical; font-family:
             </div>
           </div>
 
-          <!-- ========== API Key ========== -->
-          <div v-if="tab === 'keys'">
-            <div class="card panel">
-              <div class="panel-head">
-                <span class="panel-title">🔑 对外 API Key（共 {{ keys.length }} 个）</span>
-                <div class="panel-toolbar">
-                  <button class="btn btn-ghost btn-sm" @click="loadKeys">刷新</button>
-                  <button class="btn btn-primary btn-sm" @click="keyModal.open = true">＋ 新建 Key</button>
-                </div>
-              </div>
-              <div class="table-wrap">
-                <table class="tbl">
-                  <thead>
-                    <tr>
-                      <th>名称</th><th>Key（脱敏）</th><th>状态</th>
-                      <th>创建时间</th><th>最后使用</th><th style="width:120px">操作</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-if="keysLoading"><td colspan="6" class="empty-row"><div class="flex" style="justify-content:center"><div class="spinner dark"></div>加载中…</div></td></tr>
-                    <tr v-else-if="keys.length === 0"><td colspan="6" class="empty-row">暂无 Key，点击右上角「新建 Key」</td></tr>
-                    <tr v-for="k in keys" :key="k.id">
-                      <td>{{ k.name }}</td>
-                      <td><code class="mono">{{ k.key }}</code></td>
-                      <td>
-                        <label class="switch" :title="k.enabled ? '点击停用' : '点击启用'">
-                          <input type="checkbox" :checked="k.enabled" @change="toggleKey(k)">
-                          <span class="slider"></span>
-                        </label>
-                      </td>
-                      <td class="muted">{{ k.createdAt }}</td>
-                      <td class="muted">{{ k.lastUsedAt || '从未使用' }}</td>
-                      <td>
-                        <div class="ops">
-                          <a class="row-link danger" @click="delKey(k)">删除</a>
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
           <!-- ========== 调用日志 ========== -->
-          <div v-if="tab === 'logs'">
-            <div class="card panel">
+          <div v-if="tab === 'logs'" class="view">
+            <div class="panel">
               <div class="panel-head">
-                <span class="panel-title">📋 调用日志（第 {{ log.page }} / {{ log.totalPages || 1 }} 页 · 共 {{ log.total }} 条）</span>
+                <span class="panel-title"><span class="dot-mark"></span>调用日志<span class="sub">TRACE · PAGE {{ log.page || 1 }}/{{ log.totalPages || 1 }}</span></span>
                 <div class="panel-toolbar">
-                  <input class="input" style="width:170px;height:32px" v-model.trim="log.publicModel" placeholder="对外模型">
-                  <input class="input" style="width:170px;height:32px" v-model.trim="log.apiKeyName" placeholder="API Key 名称">
+                  <input class="input mono-input" style="width:180px;height:32px" v-model.trim="log.publicModel" placeholder="按对客服务筛选">
                   <button class="btn btn-primary btn-sm" @click="searchLogs(1)">查询</button>
                   <button class="btn btn-ghost btn-sm" @click="resetLogs">重置</button>
                 </div>
               </div>
-              <div class="table-wrap">
+              <div class="tbl-wrap">
                 <table class="tbl">
                   <thead>
                     <tr>
-                      <th>API Key</th><th>对外模型</th><th>上游 URL</th><th>上游模型</th>
-                      <th>输入 Token</th><th>输出 Token</th><th>耗时(ms)</th><th>状态</th><th>时间</th>
+                      <th>对客服务</th><th>接入地址</th><th>接入模型</th>
+                      <th style="text-align:right">Input</th><th style="text-align:right">Output</th>
+                      <th style="text-align:right">耗时</th><th>状态</th><th>时间</th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-if="logsLoading"><td colspan="9" class="empty-row"><div class="flex" style="justify-content:center"><div class="spinner dark"></div>加载中…</div></td></tr>
-                    <tr v-else-if="logs.list.length === 0"><td colspan="9" class="empty-row">暂无日志记录</td></tr>
+                    <tr v-if="logsLoading"><td colspan="8" class="empty-row"><div class="flex" style="justify-content:center"><div class="spinner"></div>加载中…</div></td></tr>
+                    <tr v-else-if="logs.list.length === 0"><td colspan="8" class="empty-row">暂无调用日志</td></tr>
                     <tr v-for="l in logs.list" :key="l.id">
-                      <td class="mono">{{ l.api_key }}</td>
-                      <td><code class="mono">{{ l.public_model }}</code></td>
-                      <td class="mono" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" :title="l.upstream_url">{{ l.upstream_url }}</td>
-                      <td class="mono">{{ l.upstream_model }}</td>
-                      <td>{{ fmtTokens(l.input_tokens) }}</td>
-                      <td>{{ fmtTokens(l.output_tokens) }}</td>
-                      <td>{{ l.latency_ms }}</td>
-                      <td><span class="tag" :class="l.http_status < 400 ? 'tag-on' : 'tag-off'">{{ l.http_status }}</span></td>
-                      <td class="muted" style="white-space:nowrap">{{ l.created_at }}</td>
+                      <td><span class="mono" style="color:var(--accent);font-weight:600">{{ l.public_model }}</span></td>
+                      <td><span class="mono sub ellip" style="display:inline-block;vertical-align:middle" :title="l.upstream_url">{{ l.upstream_url }}</span></td>
+                      <td><span class="mono sub">{{ l.upstream_model }}</span></td>
+                      <td style="text-align:right"><span class="num">{{ fmtTokens(l.input_tokens) }}</span></td>
+                      <td style="text-align:right"><span class="num">{{ fmtTokens(l.output_tokens) }}</span></td>
+                      <td style="text-align:right"><span class="num">{{ l.latency_ms != null ? l.latency_ms : '—' }}</span> <span class="sub">ms</span></td>
+                      <td>
+                        <span class="tag" :class="l.http_status != null && l.http_status < 400 ? 'tag-on' : 'tag-danger'">{{ l.http_status != null ? l.http_status : '—' }}</span>
+                      </td>
+                      <td class="mono sub" style="white-space:nowrap">{{ l.created_at }}</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
               <div class="pagination">
-                <span>共 {{ log.total }} 条记录，每页 {{ log.pageSize }} 条</span>
+                <span class="total">共 <b>{{ log.total }}</b> 条记录 · 每页 {{ log.pageSize }} 条</span>
                 <div class="page-op">
                   <button class="btn btn-ghost btn-sm" :disabled="log.page <= 1 || logsLoading" @click="searchLogs(log.page - 1)">‹ 上一页</button>
-                  <span>第 {{ log.page }} / {{ log.totalPages || 1 }} 页</span>
+                  <span class="page-now">{{ log.page || 1 }} / {{ log.totalPages || 1 }}</span>
                   <button class="btn btn-ghost btn-sm" :disabled="log.page >= log.totalPages || logsLoading" @click="searchLogs(log.page + 1)">下一页 ›</button>
                 </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- ========== 修改密码 ========== -->
-          <div v-if="tab === 'password'">
-            <div class="card" style="max-width:520px">
-              <div class="panel-head"><span class="panel-title">🔒 修改密码</span></div>
-              <div style="padding:20px 20px 24px">
-                <div class="form-item">
-                  <label>旧密码</label>
-                  <input class="input" type="password" v-model.trim="pw.oldPassword" placeholder="请输入当前密码">
-                </div>
-                <div class="form-item">
-                  <label>新密码</label>
-                  <input class="input" type="password" v-model.trim="pw.newPassword" placeholder="至少 6 位" @keyup.enter="doChangePassword">
-                </div>
-                <div class="form-item">
-                  <label>确认新密码</label>
-                  <input class="input" type="password" v-model.trim="pw.confirm" placeholder="再次输入新密码" @keyup.enter="doChangePassword">
-                </div>
-                <button class="btn btn-primary" style="margin-top:6px" :disabled="pwSaving" @click="doChangePassword">
-                  <span v-if="pwSaving" class="spinner"></span>{{ pwSaving ? '提交中…' : '确认修改' }}
-                </button>
               </div>
             </div>
           </div>
@@ -611,29 +727,34 @@ textarea.input { height: auto; padding: 9px 12px; resize: vertical; font-family:
     </div>
   </div>
 
-  <!-- ==================== 通道新增/编辑弹窗 ==================== -->
-  <div v-if="channelModal.open" class="modal-mask" @click.self="closeChannelModal">
+  <!-- ============ 对客服务 · 弹窗 ============ -->
+  <div v-if="channelModal.open" class="modal-mask">
     <div class="modal">
       <div class="modal-head">
-        <span class="modal-title">{{ channelModal.editId ? '编辑通道' : '新建通道' }}</span>
-        <button class="modal-close" @click="closeChannelModal">×</button>
+        <div>
+          <div class="m-tag">{{ channelModal.editId ? 'EDIT MODEL' : 'NEW MODEL' }}</div>
+          <div class="modal-title">{{ channelModal.editId ? '编辑对客服务' : '新建对客服务' }}</div>
+        </div>
+        <button class="modal-close" @click="closeChannelModal">✕</button>
       </div>
       <div class="modal-body">
         <div class="form-item">
-          <label>对外模型名（客户端调用时使用的 model）</label>
-          <input class="input" v-model.trim="channelModal.form.publicModelName"
-                 :disabled="!!channelModal.editId" placeholder="如：gpt-4o 或 my-model-1">
+          <label>对客服务名 <span class="req">*</span><span class="modal-rule" style="margin-left:8px">客户端调用时使用的 model 字段</span></label>
+          <input class="input mono-input" v-model.trim="channelModal.form.publicModelName"
+                 :disabled="!!channelModal.editId" placeholder="如：gpt-4o / my-model-1">
         </div>
         <div class="form-grid">
           <div class="form-item">
             <label>调度策略</label>
-            <input class="input" value="ROUND_ROBIN" disabled title="当前版本固定轮询策略">
+            <input class="input mono-input" value="ROUND_ROBIN" disabled title="当前版本固定轮询策略">
           </div>
           <div class="form-item">
             <label>状态</label>
-            <label class="checkbox-line" style="margin-top:11px">
-              <input type="checkbox" v-model="channelModal.form.enabled"> 启用该通道
-            </label>
+            <div class="check-cell">
+              <label class="checkbox-line">
+                <input type="checkbox" v-model="channelModal.form.enabled"> <span class="txt">启用该对客服务</span>
+              </label>
+            </div>
           </div>
         </div>
         <div class="form-item">
@@ -641,15 +762,15 @@ textarea.input { height: auto; padding: 9px 12px; resize: vertical; font-family:
           <textarea class="input" rows="2" v-model.trim="channelModal.form.remark" placeholder="选填"></textarea>
         </div>
         <div class="form-item" style="margin-bottom:0">
-          <label>绑定上游 Provider（勾选顺序即转发顺序，当前仅启用中的 Provider 可选）</label>
-          <div class="provider-check-group">
-            <label class="provider-check-item" v-for="p in enabledProviders" :key="p.id">
+          <label>绑定模型服务 <span class="modal-rule" style="margin-left:8px">勾选顺序即转发顺序 · 仅启用中的服务可选</span></label>
+          <div class="pick-group">
+            <label class="pick-item" v-for="p in enabledProviders" :key="p.id">
               <input type="checkbox" :value="p.id" v-model="channelModal.selectedIds">
-              <span class="pc-name">{{ p.name }}</span>
-              <span class="pc-model">{{ p.modelName }}</span>
+              <span class="pi-name">{{ p.name }}</span>
+              <span class="pi-model">{{ p.modelName }}</span>
             </label>
-            <div v-if="!enabledProviders.length" style="padding:24px;text-align:center;color:var(--text-sub)">
-              暂无启用中的 Provider，请先到「上游管理」添加并启用
+            <div v-if="!enabledProviders.length" class="pick-empty">
+              暂无启用中的模型服务 — 请先到「模型服务」添加并启用
             </div>
           </div>
         </div>
@@ -663,39 +784,44 @@ textarea.input { height: auto; padding: 9px 12px; resize: vertical; font-family:
     </div>
   </div>
 
-  <!-- ==================== Provider 新增/编辑弹窗 ==================== -->
-  <div v-if="providerModal.open" class="modal-mask" @click.self="closeProviderModal">
+  <!-- ============ 模型服务 · 弹窗 ============ -->
+  <div v-if="providerModal.open" class="modal-mask">
     <div class="modal">
       <div class="modal-head">
-        <span class="modal-title">{{ providerModal.editId ? '编辑 Provider' : '新增 Provider' }}</span>
-        <button class="modal-close" @click="closeProviderModal">×</button>
+        <div>
+          <div class="m-tag">{{ providerModal.editId ? 'EDIT SERVICE' : 'NEW SERVICE' }}</div>
+          <div class="modal-title">{{ providerModal.editId ? '编辑模型服务' : '新增模型服务' }}</div>
+        </div>
+        <button class="modal-close" @click="closeProviderModal">✕</button>
       </div>
       <div class="modal-body">
         <div class="form-grid">
           <div class="form-item">
-            <label>名称</label>
-            <input class="input" v-model.trim="providerModal.form.name" placeholder="如：OpenAI-主站">
+            <label>名称 <span class="req">*</span></label>
+            <input class="input" v-model.trim="providerModal.form.name" placeholder="如：OpenAI 主站">
           </div>
           <div class="form-item">
-            <label>模型名（上游模型）</label>
-            <input class="input" v-model.trim="providerModal.form.modelName" placeholder="如：gpt-4o">
+            <label>模型名 <span class="req">*</span><span class="modal-rule" style="margin-left:8px">该服务提供的模型</span></label>
+            <input class="input mono-input" v-model.trim="providerModal.form.modelName" placeholder="如：gpt-4o">
           </div>
         </div>
         <div class="form-item">
-          <label>Base URL（上游地址）</label>
-          <input class="input" v-model.trim="providerModal.form.baseUrl" placeholder="如：https://api.openai.com">
+          <label>Base URL <span class="req">*</span><span class="modal-rule" style="margin-left:8px">服务地址，无需补 /v1</span></label>
+          <input class="input mono-input" v-model.trim="providerModal.form.baseUrl" placeholder="如：https://api.openai.com/v1">
         </div>
         <div class="form-item">
-          <label>API Key（{{ providerModal.editId ? '留空表示不修改' : '' }}）</label>
-          <input class="input" type="password" v-model.trim="providerModal.form.apiKey"
-                 :placeholder="providerModal.editId ? '留空保持不变' : '请输入上游 API Key'">
+          <label>API Key <span class="req" v-if="!providerModal.editId">*</span><span class="modal-rule" style="margin-left:8px">{{ providerModal.editId ? '留空表示不修改' : '该服务的密钥' }}</span></label>
+          <input class="input mono-input" type="password" v-model.trim="providerModal.form.apiKey"
+                 :placeholder="providerModal.editId ? '留空保持不变' : '请输入该服务 API Key'">
         </div>
         <div class="form-grid">
           <div class="form-item">
             <label>状态</label>
-            <label class="checkbox-line" style="margin-top:11px">
-              <input type="checkbox" v-model="providerModal.form.enabled"> 启用
-            </label>
+            <div class="check-cell">
+              <label class="checkbox-line">
+                <input type="checkbox" v-model="providerModal.form.enabled"> <span class="txt">启用该服务</span>
+              </label>
+            </div>
           </div>
           <div class="form-item">
             <label>备注</label>
@@ -712,50 +838,7 @@ textarea.input { height: auto; padding: 9px 12px; resize: vertical; font-family:
     </div>
   </div>
 
-  <!-- ==================== 新建 Key 弹窗 ==================== -->
-  <div v-if="keyModal.open" class="modal-mask" @click.self="closeKeyModal">
-    <div class="modal">
-      <div class="modal-head">
-        <span class="modal-title">新建 API Key</span>
-        <button class="modal-close" @click="closeKeyModal">×</button>
-      </div>
-      <div class="modal-body">
-        <div class="form-item">
-          <label>Key 名称（便于识别用途）</label>
-          <input class="input" v-model.trim="keyModal.name" placeholder="如：生产环境 / 测试环境"
-                 @keyup.enter="doCreateKey">
-        </div>
-      </div>
-      <div class="modal-foot">
-        <button class="btn btn-ghost" @click="closeKeyModal">取消</button>
-        <button class="btn btn-primary" :disabled="keyModal.saving" @click="doCreateKey">
-          <span v-if="keyModal.saving" class="spinner"></span>创建
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ==================== Key 明文展示弹窗（仅此一次） ==================== -->
-  <div v-if="keyResultModal.open" class="modal-mask key-modal">
-    <div class="modal">
-      <div class="modal-head">
-        <span class="modal-title">🎉 Key 创建成功</span>
-        <button class="modal-close" @click="closeKeyResultModal">×</button>
-      </div>
-      <div class="modal-body">
-        <div class="key-tip">⚠️ 完整 Key 仅本次展示，关闭后将无法再次查看，请立即复制并妥善保存！</div>
-        <div class="key-box" ref="keyBox">{{ keyResultModal.key }}</div>
-      </div>
-      <div class="modal-foot pending-btn">
-        <button class="btn btn-ghost" @click="closeKeyResultModal">关闭</button>
-        <button class="btn btn-primary" @click="copyKey">
-          <span v-if="keyResultModal.copying" class="spinner"></span>复制 Key
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ==================== Toast 容器 ==================== -->
+  <!-- ============ Toast ============ -->
   <div class="toast-wrap">
     <div v-for="t in toasts" :key="t.id" class="toast" :class="t.type">
       <span class="dot"></span>{{ t.message }}
@@ -771,55 +854,30 @@ const { createApp } = Vue;
 const app = createApp({
   data() {
     return {
-      /* 登录态 */
-      loggedIn: false,
-      session: { username: '' },
-      loginForm: { username: '', password: '' },
-      loginError: '',
-      loggingIn: false,
-
-      /* 布局菜单 */
       tab: 'dashboard',
       menus: [
-        { key: 'dashboard', label: '仪表盘', ico: '📊' },
-        { key: 'channels',  label: '模型通道', ico: '🔀' },
-        { key: 'providers', label: '上游管理', ico: '🖧' },
-        { key: 'keys',      label: 'API Key', ico: '🔑' },
-        { key: 'logs',      label: '调用日志', ico: '📋' },
-        { key: 'password',  label: '修改密码', ico: '🔒' },
+        { key: 'dashboard', label: '仪表盘' },
+        { key: 'channels',  label: '对客服务' },
+        { key: 'providers', label: '模型服务' },
+        { key: 'logs',      label: '调用日志' },
       ],
 
-      /* 仪表盘 */
       dash: {},
       dashLoading: false,
 
-      /* 通道 */
       channels: [],
       channelsLoading: false,
       enabledProviders: [],
       channelModal: { open: false, editId: null, saving: false, form: { publicModelName: '', enabled: true, remark: '', strategy: 'ROUND_ROBIN' }, selectedIds: [] },
 
-      /* Provider */
       providers: [],
       providersLoading: false,
       providerModal: { open: false, editId: null, saving: false, form: { name: '', baseUrl: '', apiKey: '', modelName: '', enabled: true, remark: '' } },
 
-      /* API Key */
-      keys: [],
-      keysLoading: false,
-      keyModal: { open: false, name: '', saving: false },
-      keyResultModal: { open: false, key: '', copying: false },
-
-      /* 日志 */
-      log: { publicModel: '', apiKeyName: '', page: 1, pageSize: 10, total: 0, totalPages: 1 },
+      log: { publicModel: '', page: 1, pageSize: 10, total: 0, totalPages: 1 },
       logs: { list: [] },
       logsLoading: false,
 
-      /* 修改密码 */
-      pw: { oldPassword: '', newPassword: '', confirm: '' },
-      pwSaving: false,
-
-      /* Toast */
       toasts: [],
       toastSeq: 0,
     };
@@ -832,20 +890,16 @@ const app = createApp({
   },
 
   watch: {
-    // 切换菜单时懒加载对应数据
-    tab() {
-      this.onTabChange();
-    },
+    tab() { this.onTabChange(); },
   },
 
   created() {
-    this.checkSession();
+    this.loadDashboard();
   },
 
   methods: {
-    /* ================= 通用请求封装 ================= */
+    /* ---------------- 请求封装 ---------------- */
     async request(url, options = {}) {
-      // 包装统一格式：默认带 JSON 头，错误统一抛 message
       const opts = { method: options.method || 'GET', headers: {} };
       if (options.body !== undefined) {
         opts.headers['Content-Type'] = 'application/json';
@@ -857,15 +911,9 @@ const app = createApp({
       } catch (e) {
         throw new Error('网络请求失败，请检查服务是否可用');
       }
-      // 401 视为未登录：清理会话并抛特殊错误，交给调用方处理
-      if (resp.status === 401) {
-        this.loggedIn = false;
-        throw new Error('未登录或登录已过期，请重新登录');
-      }
       let data = null;
       try { data = await resp.json(); } catch (e) { /* 无 JSON 体 */ }
       if (!resp.ok) {
-        // 后端或网关层错误，尽量取 message
         throw new Error((data && data.message) || ('请求失败：HTTP ' + resp.status));
       }
       if (data && data.code !== undefined && data.code !== 200) {
@@ -874,7 +922,7 @@ const app = createApp({
       return data ? data.result : undefined;
     },
 
-    /* ================= Toast 提示 ================= */
+    /* ---------------- Toast ---------------- */
     message(msg, type = 'success') {
       const id = ++this.toastSeq;
       this.toasts.push({ id, message: msg, type });
@@ -883,73 +931,22 @@ const app = createApp({
       }, 2600);
     },
     toastError(err) {
-      // 统一错误提示（兼容 Error 对象 / 字符串 / 含 message 的对象）
       const m = (err && err.message) ? err.message : String(err || '未知错误');
       this.message(m, 'error');
     },
 
-    /* ================= 登录 / 会话 ================= */
-    async checkSession() {
-      // 页面刷新时确认登录态；401 表示未登录，停留登录页
-      try {
-        const r = await this.request('/admin/session', { method: 'GET' });
-        this.session = r || {};
-        this.loggedIn = true;
-      } catch (e) {
-        if (e && e.message && e.message.indexOf('登录已过期') >= 0) {
-          // 已由 request 置为未登录
-        } else {
-          this.message(e.message, 'error');
-        }
-      }
-    },
-
-    async doLogin() {
-      if (this.loggingIn) return;
-      if (!this.loginForm.username || !this.loginForm.password) {
-        this.loginError = '请输入用户名和密码';
-        return;
-      }
-      this.loginError = '';
-      this.loggingIn = true;
-      try {
-        const r = await this.request('/admin/login', { method: 'POST', body: this.loginForm });
-        this.session = r || { username: this.loginForm.username };
-        this.loggedIn = true;
-        this.loginForm.password = '';
-        this.message('登录成功，欢迎回来');
-      } catch (e) {
-        this.loginError = e.message || '登录失败';
-      } finally {
-        this.loggingIn = false;
-      }
-    },
-
-    async doLogout() {
-      if (!confirm('确定要退出登录吗？')) return;
-      try {
-        await this.request('/admin/logout', { method: 'POST' });
-      } catch (e) { /* 忽略登出错误 */ }
-      this.loggedIn = false;
-      this.session = { username: '' };
-      this.tab = 'dashboard';
-      this.message('已安全退出');
-    },
-
-    /* ================= 菜单切换 ================= */
+    /* ---------------- 菜单 ---------------- */
     switchTab(key) {
       if (this.tab !== key) this.tab = key;
     },
     onTabChange() {
-      // 懒加载各 tab 数据
-      if (this.tab === 'dashboard' && this.loggedIn) this.loadDashboard();
+      if (this.tab === 'dashboard') this.loadDashboard();
       else if (this.tab === 'channels') { this.loadChannels(); this.loadEnabledProviders(); }
       else if (this.tab === 'providers') this.loadProviders();
-      else if (this.tab === 'keys') this.loadKeys();
       else if (this.tab === 'logs') this.searchLogs(1);
     },
 
-    /* ================= 仪表盘 ================= */
+    /* ---------------- 仪表盘 ---------------- */
     async loadDashboard() {
       this.dashLoading = true;
       try {
@@ -961,7 +958,7 @@ const app = createApp({
       }
     },
 
-    /* ================= 模型通道 ================= */
+    /* ---------------- 对客服务 ---------------- */
     async loadChannels() {
       this.channelsLoading = true;
       try {
@@ -974,7 +971,6 @@ const app = createApp({
     },
 
     async loadEnabledProviders() {
-      // 通道弹窗所需：仅启用中的 Provider，key 恒为 null
       try {
         this.enabledProviders = await this.request('/admin/providers/enabled') || [];
       } catch (e) {
@@ -992,7 +988,6 @@ const app = createApp({
           remark: c.remark || '',
           strategy: c.strategy || 'ROUND_ROBIN',
         };
-        // 勾选顺序 = providerIds 顺序
         this.channelModal.selectedIds = (c.provider_ids || []).slice();
       } else {
         this.channelModal.editId = null;
@@ -1008,20 +1003,20 @@ const app = createApp({
 
     async saveChannel() {
       const f = this.channelModal.form;
-      if (!f.publicModelName) { this.message('请输入对外模型名', 'warn'); return; }
-      if (!this.channelModal.selectedIds.length) { this.message('请至少绑定一个启用的上游 Provider', 'warn'); return; }
+      if (!f.publicModelName) { this.message('请输入对客服务名', 'warn'); return; }
+      if (!this.channelModal.selectedIds.length) { this.message('请至少绑定一个启用的模型服务', 'warn'); return; }
       const body = {
         publicModelName: f.publicModelName,
-        enabled: !!f.enabled,
+        enabled: f.enabled ? 1 : 0,
         strategy: 'ROUND_ROBIN',
         remark: f.remark || '',
-        providerIds: this.channelModal.selectedIds.slice(), // 按勾选顺序提交
+        providerIds: this.channelModal.selectedIds.slice(),
       };
       if (this.channelModal.editId) body.id = this.channelModal.editId;
       this.channelModal.saving = true;
       try {
         await this.request('/admin/channel', { method: this.channelModal.editId ? 'PUT' : 'POST', body });
-        this.message(this.channelModal.editId ? '通道已更新' : '通道创建成功');
+        this.message(this.channelModal.editId ? '对客服务已更新' : '对客服务创建成功');
         this.channelModal.open = false;
         await this.loadChannels();
       } catch (e) {
@@ -1032,17 +1027,17 @@ const app = createApp({
     },
 
     async delChannel(c) {
-      if (!confirm(`确定删除通道「${c.public_model_name}」吗？删除后客户端将无法调用该模型。`)) return;
+      if (!confirm(`确定删除对客服务「${c.public_model_name}」吗？删除后客户端将无法调用该模型。`)) return;
       try {
         await this.request('/admin/channel/' + c.id, { method: 'DELETE' });
-        this.message('通道已删除');
+        this.message('对客服务已删除');
         await this.loadChannels();
       } catch (e) {
         this.toastError(e);
       }
     },
 
-    /* ================= 上游 Provider ================= */
+    /* ---------------- 模型服务 ---------------- */
     async loadProviders() {
       this.providersLoading = true;
       try {
@@ -1059,7 +1054,7 @@ const app = createApp({
       if (p) {
         this.providerModal.editId = p.id;
         this.providerModal.form = {
-          name: p.name, baseUrl: p.baseUrl, apiKey: '', // 编辑时列表恒不返回 key，留空=不修改
+          name: p.name, baseUrl: p.baseUrl, apiKey: '',
           modelName: p.modelName, enabled: !!p.enabled, remark: p.remark || '',
         };
       } else {
@@ -1077,19 +1072,18 @@ const app = createApp({
       const f = this.providerModal.form;
       if (!f.name) { this.message('请输入名称', 'warn'); return; }
       if (!f.baseUrl) { this.message('请输入 Base URL', 'warn'); return; }
-      if (!f.modelName) { this.message('请输入上游模型名', 'warn'); return; }
+      if (!f.modelName) { this.message('请输入该服务的模型名', 'warn'); return; }
       const editing = !!this.providerModal.editId;
-      // 编辑时留空 apiKey = 不修改（后端语义）；新增时必须填写
-      if (!editing && !f.apiKey) { this.message('请填写上游 API Key', 'warn'); return; }
+      if (!editing && !f.apiKey) { this.message('请填写该服务 API Key', 'warn'); return; }
       const body = {
         name: f.name, baseUrl: f.baseUrl, apiKey: editing ? (f.apiKey || '') : f.apiKey,
-        modelName: f.modelName, enabled: !!f.enabled, remark: f.remark || '',
+        modelName: f.modelName, enabled: f.enabled ? 1 : 0, remark: f.remark || '',
       };
       if (editing) body.id = this.providerModal.editId;
       this.providerModal.saving = true;
       try {
         await this.request('/admin/provider', { method: editing ? 'PUT' : 'POST', body });
-        this.message(editing ? 'Provider 已更新' : 'Provider 新增成功');
+        this.message(editing ? '模型服务已更新' : '模型服务新增成功');
         this.providerModal.open = false;
         await Promise.all([this.loadProviders(), this.loadEnabledProviders()]);
       } catch (e) {
@@ -1100,13 +1094,12 @@ const app = createApp({
     },
 
     async toggleProvider(p) {
-      // 乐观更新前先取反，失败则回滚
       const prev = p.enabled;
-      p.enabled = !prev;
+      p.enabled = prev ? 0 : 1;
       const body = { name: p.name, baseUrl: p.baseUrl, apiKey: '', modelName: p.modelName, enabled: p.enabled, remark: p.remark || '' };
       try {
         await this.request('/admin/provider', { method: 'PUT', body: { ...body, id: p.id } });
-        this.message(p.enabled ? 'Provider 已启用' : 'Provider 已停用');
+        this.message(p.enabled ? '模型服务已启用' : '模型服务已停用');
         this.loadEnabledProviders();
       } catch (e) {
         p.enabled = prev;
@@ -1119,9 +1112,9 @@ const app = createApp({
       try {
         const r = await this.request('/admin/provider/' + p.id + '/test', { method: 'POST' });
         if (r && r.ok) {
-          this.message(`✅ ${p.name} 连通正常，耗时 ${r.latencyMs != null ? r.latencyMs : '-'} ms${r.message ? '（' + r.message + '）' : ''}`);
+          this.message(`「${p.name}」连通正常 · 耗时 ${r.latencyMs != null ? r.latencyMs : '-'} ms${r.message ? '（' + r.message + '）' : ''}`);
         } else {
-          this.message(`❌ ${p.name} 连通失败：${(r && r.message) || '未知原因'}`, 'error');
+          this.message(`「${p.name}」连通失败：${(r && r.message) || '未知原因'}`, 'error');
         }
       } catch (e) {
         this.toastError(e);
@@ -1129,117 +1122,21 @@ const app = createApp({
     },
 
     async delProvider(p) {
-      if (!confirm(`确定删除 Provider「${p.name}」吗？`)) return;
+      if (!confirm(`确定删除模型服务「${p.name}」吗？`)) return;
       try {
         await this.request('/admin/provider/' + p.id, { method: 'DELETE' });
-        this.message('Provider 已删除');
+        this.message('模型服务已删除');
         await Promise.all([this.loadProviders(), this.loadEnabledProviders()]);
       } catch (e) {
         this.toastError(e);
       }
     },
 
-    /* ================= API Key ================= */
-    async loadKeys() {
-      this.keysLoading = true;
-      try {
-        this.keys = await this.request('/admin/keys') || [];
-      } catch (e) {
-        this.toastError(e);
-      } finally {
-        this.keysLoading = false;
-      }
-    },
-
-    closeKeyModal() {
-      if (this.keyModal.saving) return;
-      this.keyModal.open = false;
-      this.keyModal.name = '';
-    },
-
-    async doCreateKey() {
-      if (this.keyModal.saving) return;
-      if (!this.keyModal.name) { this.message('请输入 Key 名称', 'warn'); return; }
-      this.keyModal.saving = true;
-      try {
-        const r = await this.request('/admin/key', { method: 'POST', body: { name: this.keyModal.name } });
-        this.keyModal.open = false;
-        this.keyModal.name = '';
-        await this.loadKeys();
-        // 完整明文仅返回这一次：弹窗展示并要求复制
-        if (r && r.key) {
-          this.keyResultModal.key = r.key;
-          this.keyResultModal.open = true;
-        } else {
-          this.message('Key 创建成功，但未返回明文', 'warn');
-        }
-      } catch (e) {
-        this.toastError(e);
-      } finally {
-        this.keyModal.saving = false;
-      }
-    },
-
-    async copyKey() {
-      const text = this.keyResultModal.key;
-      let done = false;
-      // 优先使用 Clipboard API
-      if (navigator.clipboard && window.isSecureContext) {
-        try {
-          await navigator.clipboard.writeText(text);
-          done = true;
-        } catch (e) { /* 走 fallback */ }
-      }
-      // 兼容 fallback：execCommand（file:// 或 http 均可）
-      if (!done) {
-        try {
-          const ta = document.createElement('textarea');
-          ta.value = text;
-          ta.style.position = 'fixed';
-          ta.style.opacity = '0';
-          document.body.appendChild(ta);
-          ta.focus();
-          ta.select();
-          done = document.execCommand('copy');
-          document.body.removeChild(ta);
-        } catch (e) { done = false; }
-      }
-      this.message(done ? 'Key 已复制到剪贴板' : '复制失败，请手动选中复制', done ? 'success' : 'error');
-    },
-    closeKeyResultModal() {
-      this.keyResultModal.open = false;
-      this.keyResultModal.key = '';
-    },
-
-    async toggleKey(k) {
-      const prev = k.enabled;
-      k.enabled = !prev;
-      try {
-        await this.request('/admin/key/' + k.id + '/toggle', { method: 'PUT' });
-        this.message(k.enabled ? 'Key 已启用' : 'Key 已停用');
-      } catch (e) {
-        k.enabled = prev;
-        this.toastError(e);
-      }
-    },
-
-    async delKey(k) {
-      if (!confirm(`确定删除 Key「${k.name}」吗？删除后使用该 Key 的客户端将立即无法访问。`)) return;
-      try {
-        await this.request('/admin/key/' + k.id, { method: 'DELETE' });
-        this.message('Key 已删除');
-        await this.loadKeys();
-      } catch (e) {
-        this.toastError(e);
-      }
-    },
-
-    /* ================= 调用日志 ================= */
+    /* ---------------- 调用日志 ---------------- */
     async searchLogs(page) {
       this.logsLoading = true;
       const qs = new URLSearchParams();
       if (this.log.publicModel) qs.set('publicModel', this.log.publicModel);
-      if (this.log.apiKeyName) qs.set('apiKeyName', this.log.apiKeyName);
       qs.set('pageNum', page || 1);
       qs.set('pageSize', this.log.pageSize);
       try {
@@ -1257,35 +1154,12 @@ const app = createApp({
     },
     resetLogs() {
       this.log.publicModel = '';
-      this.log.apiKeyName = '';
       this.log.page = 1;
       this.searchLogs(1);
     },
 
-    /* ================= 修改密码 ================= */
-    async doChangePassword() {
-      if (this.pwSaving) return;
-      if (!this.pw.oldPassword) { this.message('请输入旧密码', 'warn'); return; }
-      if (!this.pw.newPassword || this.pw.newPassword.length < 6) { this.message('新密码长度不能少于 6 位', 'warn'); return; }
-      if (this.pw.newPassword !== this.pw.confirm) { this.message('两次输入的新密码不一致', 'warn'); return; }
-      this.pwSaving = true;
-      try {
-        await this.request('/admin/change-password', {
-          method: 'POST',
-          body: { oldPassword: this.pw.oldPassword, newPassword: this.pw.newPassword },
-        });
-        this.message('密码修改成功');
-        this.pw = { oldPassword: '', newPassword: '', confirm: '' };
-      } catch (e) {
-        this.toastError(e);
-      } finally {
-        this.pwSaving = false;
-      }
-    },
-
-    /* ================= 工具 ================= */
+    /* ---------------- 工具 ---------------- */
     fmtTokens(n) {
-      // 把 token 数格式化，过万显示 w
       if (n == null || n === '') return '0';
       const num = Number(n);
       if (isNaN(num)) return String(n);

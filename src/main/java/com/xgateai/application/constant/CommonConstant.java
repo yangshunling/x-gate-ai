@@ -72,11 +72,4 @@ public class CommonConstant {
     public static final String TIME_FORMAT = "HH:mm:ss";
     public static final String DATETIME_FORMAT = "yyyy-MM-dd HH:mm:ss";
 
-    // 常用的HTTP头部常量
-    public static final String HEADER_AUTHORIZATION = "Authorization";
-    public static final String HEADER_X_API_KEY = "x-api-key";
-
-    // 会话键
-    public static final String SESSION_ADMIN_USER = "admin_user";
-
 }

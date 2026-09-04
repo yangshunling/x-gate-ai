@@ -89,12 +89,11 @@ public class OpenAiProxyAdapter {
     /**
      * 非流式对话透传：逐个候选尝试，成功后返回上游原始响应；全部失败抛出 CommonException
      *
-     * @param requestBody   客户端原始请求体（OpenAI Chat Completion 格式）
-     * @param publicModel   对外模型名
-     * @param callerKeyName 调用方标识（用于日志，可空）
+     * @param requestBody 客户端原始请求体（OpenAI Chat Completion 格式）
+     * @param publicModel 对外模型名
      * @return 上游调用结果（原始响应字符串 + 实际命中的上游 + 耗时）
      */
-    public UpstreamCallResult chat(JSONObject requestBody, String publicModel, String callerKeyName) {
+    public UpstreamCallResult chat(JSONObject requestBody, String publicModel) {
         List<UpstreamProvider> candidates = gatewayRouter.getCandidates(publicModel);
         String lastError = "";
         for (UpstreamProvider provider : candidates) {
@@ -107,7 +106,7 @@ public class OpenAiProxyAdapter {
                         .bodyToMono(String.class)
                         .block(Duration.ofMinutes(gatewayConfig.getTimeOutOfMinutes()));
                 long latencyMs = System.currentTimeMillis() - start;
-                recordCallLog(callerKeyName, publicModel, provider, rawBody, latencyMs, 200);
+                recordCallLog(publicModel, provider, rawBody, latencyMs, 200);
                 log.info("非流式 chat 透传成功，publicModel: {}, 上游: {}, 耗时: {}ms", publicModel, provider.getName(), latencyMs);
                 return new UpstreamCallResult(rawBody, provider, latencyMs);
             } catch (Exception e) {
@@ -123,19 +122,18 @@ public class OpenAiProxyAdapter {
      * 流式 SSE 对话透传：字节级原样转发（不转 String 二次封装）
      * 单个候选在未输出任何字节前失败时切换下一候选；已在输出中断流则原样把错误抛给客户端
      *
-     * @param requestBody   客户端原始请求体
-     * @param publicModel   对外模型名
-     * @param callerKeyName 调用方标识（用于日志，可空）
+     * @param requestBody 客户端原始请求体
+     * @param publicModel 对外模型名
      * @return SSE 流式字节流
      */
-    public Flux<DataBuffer> chatStream(JSONObject requestBody, String publicModel, String callerKeyName) {
+    public Flux<DataBuffer> chatStream(JSONObject requestBody, String publicModel) {
         AtomicReference<UpstreamProvider> usedProviderRef = new AtomicReference<>();
         AtomicLong startRef = new AtomicLong(0);
         return Flux.defer(() -> {
             // 候选为空 / 模型不存在时由 getCandidates 抛 CommonException，转为 Flux.error 交还给下游
             List<UpstreamProvider> candidates = gatewayRouter.getCandidates(publicModel);
             startRef.compareAndSet(0, System.currentTimeMillis());
-            return streamAttempt(candidates, 0, requestBody, callerKeyName, publicModel, usedProviderRef, new AtomicReference<>(""));
+            return streamAttempt(candidates, 0, requestBody, publicModel, usedProviderRef, new AtomicReference<>(""));
         }).doFinally(signal -> {
             // 流结束或出错时统一记录调用日志（需在订阅期间记录最终使用的上游）
             UpstreamProvider provider = usedProviderRef.get();
@@ -143,19 +141,18 @@ public class OpenAiProxyAdapter {
                 return;
             }
             long latencyMs = System.currentTimeMillis() - startRef.get();
-            recordCallLog(callerKeyName, publicModel, provider, null, latencyMs, 200);
+            recordCallLog(publicModel, provider, null, latencyMs, 200);
         });
     }
 
     /**
      * Embeddings 透传（同非流式 chat 逻辑，仅上游路径不同）
      *
-     * @param requestBody   客户端原始请求体（含 model 字段）
-     * @param publicModel   对外模型名
-     * @param callerKeyName 调用方标识（用于日志，可空）
+     * @param requestBody 客户端原始请求体（含 model 字段）
+     * @param publicModel 对外模型名
      * @return 上游调用结果
      */
-    public UpstreamCallResult embeddings(JSONObject requestBody, String publicModel, String callerKeyName) {
+    public UpstreamCallResult embeddings(JSONObject requestBody, String publicModel) {
         List<UpstreamProvider> candidates = gatewayRouter.getCandidates(publicModel);
         String lastError = "";
         for (UpstreamProvider provider : candidates) {
@@ -167,7 +164,7 @@ public class OpenAiProxyAdapter {
                         .bodyToMono(String.class)
                         .block(Duration.ofMinutes(gatewayConfig.getTimeOutOfMinutes()));
                 long latencyMs = System.currentTimeMillis() - start;
-                recordCallLog(callerKeyName, publicModel, provider, rawBody, latencyMs, 200);
+                recordCallLog(publicModel, provider, rawBody, latencyMs, 200);
                 log.info("embeddings 透传成功，publicModel: {}, 上游: {}, 耗时: {}ms", publicModel, provider.getName(), latencyMs);
                 return new UpstreamCallResult(rawBody, provider, latencyMs);
             } catch (Exception e) {
@@ -230,13 +227,12 @@ public class OpenAiProxyAdapter {
      * @param candidates      候选上游列表
      * @param index           当前候选下标
      * @param requestBody     客户端原始请求体
-     * @param callerKeyName   调用方标识
      * @param publicModel     对外模型名
      * @param usedProviderRef 记录实际已开始输出（最终使用）的上游
      * @param lastErrorRef    记录最后一次失败原因
      * @return 流式字节 Flux
      */
-    private Flux<DataBuffer> streamAttempt(List<UpstreamProvider> candidates, int index, JSONObject requestBody, String callerKeyName,
+    private Flux<DataBuffer> streamAttempt(List<UpstreamProvider> candidates, int index, JSONObject requestBody,
                                            String publicModel, AtomicReference<UpstreamProvider> usedProviderRef,
                                            AtomicReference<String> lastErrorRef) {
         if (index >= candidates.size()) {
@@ -265,25 +261,24 @@ public class OpenAiProxyAdapter {
                     log.warn("流式 chat 调用上游失败，上游: {}, 原因: {}", provider.getName(), error);
                     gatewayRouter.markCooldown(provider.getId());
                     // 尚未输出任何字节：冷却当前上游并尝试下一个候选
-                    return streamAttempt(candidates, index + 1, requestBody, callerKeyName, publicModel, usedProviderRef, lastErrorRef);
+                    return streamAttempt(candidates, index + 1, requestBody, publicModel, usedProviderRef, lastErrorRef);
                 });
     }
 
     /**
      * 记录一次成功/已接入上游的调用日志（token 从 usage 中尽量解析，缺省为 0）
      *
-     * @param callerKeyName 调用方标识
-     * @param publicModel   对外模型名
-     * @param provider      实际命中的上游
-     * @param rawBody       上游原始响应（流式时为 null）
-     * @param latencyMs     耗时（毫秒）
-     * @param httpStatus    HTTP 状态码
+     * @param publicModel 对外模型名
+     * @param provider    实际命中的上游
+     * @param rawBody     上游原始响应（流式时为 null）
+     * @param latencyMs   耗时（毫秒）
+     * @param httpStatus  HTTP 状态码
      */
-    private void recordCallLog(String callerKeyName, String publicModel, UpstreamProvider provider, String rawBody,
+    private void recordCallLog(String publicModel, UpstreamProvider provider, String rawBody,
                                long latencyMs, int httpStatus) {
         try {
             CallLog callLog = new CallLog();
-            callLog.setApiKey(callerKeyName);
+            callLog.setApiKey(null);
             callLog.setPublicModel(publicModel);
             callLog.setUpstreamUrl(provider.getBaseUrl() + PATH_CHAT_COMPLETIONS);
             callLog.setUpstreamModel(provider.getModelName());

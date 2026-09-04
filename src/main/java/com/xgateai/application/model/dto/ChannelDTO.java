@@ -25,7 +25,7 @@ public class ChannelDTO {
     /**
      * 对外模型名（对外稳定暴露）
      */
-    @JsonProperty("public_model_name")
+    @JsonProperty("publicModelName")
     @NotBlank(message = "对外模型名不能为空")
     private String publicModelName;
 
@@ -47,6 +47,6 @@ public class ChannelDTO {
     /**
      * 绑定的上游 Provider ID 列表（列表顺序即绑定顺序，可为空列表）
      */
-    @JsonProperty("provider_ids")
+    @JsonProperty("providerIds")
     private List<Long> providerIds;
 }

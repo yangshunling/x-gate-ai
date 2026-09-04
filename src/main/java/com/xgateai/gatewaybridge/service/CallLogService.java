@@ -7,12 +7,10 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.xgateai.application.constant.CommonConstant;
-import com.xgateai.application.entity.ApiKey;
 import com.xgateai.application.entity.CallLog;
 import com.xgateai.application.entity.ModelChannel;
 import com.xgateai.application.entity.UpstreamProvider;
 import com.xgateai.gatewaybridge.config.GatewayConfig;
-import com.xgateai.mapper.ApiKeyMapper;
 import com.xgateai.mapper.CallLogMapper;
 import com.xgateai.mapper.ModelChannelMapper;
 import com.xgateai.mapper.UpstreamProviderMapper;
@@ -60,12 +58,6 @@ public class CallLogService {
     UpstreamProviderMapper upstreamProviderMapper;
 
     /**
-     * 对外调用 API Key Mapper
-     */
-    @Resource
-    ApiKeyMapper apiKeyMapper;
-
-    /**
      * 保存一条调用日志，createdAt 为空时默认取当前时间
      *
      * @param callLog 调用日志实体
@@ -100,7 +92,7 @@ public class CallLogService {
      * 统计今日调用与各资源启用数量，用于控制台看板
      *
      * @return 看板统计 JSON：todayCalls/todaySuccess/todayFail/todayInputTokens/todayOutputTokens/
-     * enabledChannels/enabledProviders/enabledKeys
+     * enabledChannels/enabledProviders
      */
     public JSONObject dashboard() {
         // 今日零点作为字符串起点（created_at 存储格式为 yyyy-MM-dd HH:mm:ss）
@@ -135,11 +127,8 @@ public class CallLogService {
                 new QueryWrapper<ModelChannel>().eq("enabled", CommonConstant.ENABLED));
         Long enabledProviders = upstreamProviderMapper.selectCount(
                 new QueryWrapper<UpstreamProvider>().eq("enabled", CommonConstant.ENABLED));
-        Long enabledKeys = apiKeyMapper.selectCount(
-                new QueryWrapper<ApiKey>().eq("enabled", CommonConstant.ENABLED));
         result.put("enabledChannels", enabledChannels);
         result.put("enabledProviders", enabledProviders);
-        result.put("enabledKeys", enabledKeys);
 
         return result;
     }

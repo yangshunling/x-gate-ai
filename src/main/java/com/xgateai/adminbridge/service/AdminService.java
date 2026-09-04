@@ -1,35 +1,25 @@
 package com.xgateai.adminbridge.service;
 
-import cn.hutool.core.date.DateUtil;
-import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.crypto.digest.BCrypt;
 import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.xgateai.adminbridge.component.EncryptUtil;
 import com.xgateai.application.constant.CommonConstant;
-import com.xgateai.application.entity.ApiKey;
 import com.xgateai.application.entity.CallLog;
 import com.xgateai.application.entity.ChannelUpstream;
 import com.xgateai.application.entity.ModelChannel;
 import com.xgateai.application.entity.UpstreamProvider;
-import com.xgateai.application.entity.User;
 import com.xgateai.application.exceptions.CommonException;
-import com.xgateai.application.model.dto.ApiKeyCreateDTO;
-import com.xgateai.application.model.dto.ChangePasswordDTO;
 import com.xgateai.application.model.dto.ChannelDTO;
 import com.xgateai.application.model.dto.ProviderDTO;
 import com.xgateai.gatewaybridge.adapter.OpenAiProxyAdapter;
 import com.xgateai.gatewaybridge.service.CallLogService;
 import com.xgateai.gatewaybridge.service.GatewayRouter;
-import com.xgateai.mapper.ApiKeyMapper;
 import com.xgateai.mapper.ChannelUpstreamMapper;
 import com.xgateai.mapper.ModelChannelMapper;
 import com.xgateai.mapper.UpstreamProviderMapper;
-import com.xgateai.mapper.UserMapper;
 import jakarta.annotation.Resource;
-import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -38,7 +28,7 @@ import java.util.List;
 
 /**
  * <p>
- * AdminService 管理端服务：登录会话、Provider/通道/API Key 管理、调用日志与看板
+ * AdminService 管理端服务：Provider/通道管理、调用日志与看板
  * </p>
  *
  * @author xgateai
@@ -52,18 +42,6 @@ public class AdminService {
      * 默认负载策略
      */
     private static final String STRATEGY_ROUND_ROBIN = "ROUND_ROBIN";
-
-    /**
-     * 用户 Mapper
-     */
-    @Resource
-    UserMapper userMapper;
-
-    /**
-     * API Key Mapper
-     */
-    @Resource
-    ApiKeyMapper apiKeyMapper;
 
     /**
      * 上游 Provider Mapper
@@ -106,73 +84,6 @@ public class AdminService {
      */
     @Resource
     OpenAiProxyAdapter openAiProxyAdapter;
-
-    /**
-     * 管理员登录：校验用户名密码，成功后将用户 ID 写入会话并返回脱敏用户
-     *
-     * @param username 用户名
-     * @param password 明文密码
-     * @param session  会话
-     * @return 脱敏后的用户（不包含密码哈希）
-     */
-    public User login(String username, String password, HttpSession session) {
-        User user = userMapper.selectOne(new LambdaQueryWrapper<User>()
-                .eq(User::getUsername, username)
-                .last("LIMIT 1"));
-        if (user == null || !BCrypt.checkpw(password, user.getPasswordHash())) {
-            throw new CommonException("用户名或密码错误");
-        }
-        session.setAttribute(CommonConstant.SESSION_ADMIN_USER, user.getId());
-        // 脱敏：不向前端暴露密码哈希
-        user.setPasswordHash(null);
-        log.info("管理员登录成功: {}", username);
-        return user;
-    }
-
-    /**
-     * 管理员登出：销毁当前会话
-     *
-     * @param session 会话
-     */
-    public void logout(HttpSession session) {
-        if (session != null) {
-            session.invalidate();
-        }
-    }
-
-    /**
-     * 获取当前登录用户：会话无登录标记或用户不存在时抛出未登录异常
-     *
-     * @param session 会话
-     * @return 当前登录用户
-     */
-    public User currentUser(HttpSession session) {
-        Object userId = session == null ? null : session.getAttribute(CommonConstant.SESSION_ADMIN_USER);
-        if (userId == null) {
-            throw new CommonException("未登录");
-        }
-        User user = userMapper.selectById(Long.valueOf(userId.toString()));
-        if (user == null) {
-            throw new CommonException("未登录");
-        }
-        return user;
-    }
-
-    /**
-     * 修改当前登录用户密码：校验原密码后写入新密码哈希
-     *
-     * @param dto     修改密码参数
-     * @param session 会话
-     */
-    public void changePassword(ChangePasswordDTO dto, HttpSession session) {
-        User user = currentUser(session);
-        if (!BCrypt.checkpw(dto.getOldPassword(), user.getPasswordHash())) {
-            throw new CommonException("原密码错误");
-        }
-        user.setPasswordHash(BCrypt.hashpw(dto.getNewPassword(), BCrypt.gensalt()));
-        userMapper.updateById(user);
-        log.info("管理员修改密码成功: {}", user.getUsername());
-    }
 
     /**
      * 查询全部上游 Provider（按 id 升序），apiKey 脱敏为 null 不外泄
@@ -376,67 +287,6 @@ public class AdminService {
                 .eq(ChannelUpstream::getChannelId, id));
         modelChannelMapper.deleteById(id);
         gatewayRouter.refresh();
-    }
-
-    /**
-     * 查询全部对外调用 API Key（按 id 升序），key 明文脱敏展示（前 8 位 + ...）
-     *
-     * @return API Key 列表
-     */
-    public List<ApiKey> listApiKeys() {
-        List<ApiKey> keys = apiKeyMapper.selectList(
-                new LambdaQueryWrapper<ApiKey>().orderByAsc(ApiKey::getId));
-        for (ApiKey apiKey : keys) {
-            if (StrUtil.isNotBlank(apiKey.getKey()) && apiKey.getKey().length() > 8) {
-                apiKey.setKey(StrUtil.sub(apiKey.getKey(), 0, 8) + "...");
-            }
-        }
-        return keys;
-    }
-
-    /**
-     * 创建对外调用 API Key（明文完整入库，仅创建时返回一次完整明文）
-     *
-     * @param dto     创建参数
-     * @param session 会话（取当前登录用户）
-     * @return 完整明文 key（一次性展示，不再提供查询）
-     */
-    public String createApiKey(ApiKeyCreateDTO dto, HttpSession session) {
-        User user = currentUser(session);
-        String key = "xgate-" + RandomUtil.randomString(32);
-        ApiKey apiKey = new ApiKey();
-        apiKey.setUserId(user.getId());
-        apiKey.setKey(key);
-        apiKey.setName(dto.getName());
-        apiKey.setEnabled(CommonConstant.ENABLED);
-        apiKey.setCreatedAt(DateUtil.now());
-        apiKeyMapper.insert(apiKey);
-        log.info("管理员创建 API Key: {} ({})", dto.getName(), apiKey.getId());
-        return key;
-    }
-
-    /**
-     * 启用/停用切换对外调用 API Key
-     *
-     * @param id API Key ID
-     */
-    public void toggleApiKey(Long id) {
-        ApiKey apiKey = apiKeyMapper.selectById(id);
-        if (apiKey == null) {
-            throw new CommonException("API Key 不存在");
-        }
-        apiKey.setEnabled(apiKey.getEnabled() != null && apiKey.getEnabled() == CommonConstant.ENABLED
-                ? CommonConstant.DISABLED : CommonConstant.ENABLED);
-        apiKeyMapper.updateById(apiKey);
-    }
-
-    /**
-     * 删除对外调用 API Key
-     *
-     * @param id API Key ID
-     */
-    public void deleteApiKey(Long id) {
-        apiKeyMapper.deleteById(id);
     }
 
     /**

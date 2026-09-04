@@ -4,15 +4,10 @@ import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.xgateai.adminbridge.service.AdminService;
 import com.xgateai.application.entity.CallLog;
-import com.xgateai.application.entity.User;
-import com.xgateai.application.model.dto.ApiKeyCreateDTO;
-import com.xgateai.application.model.dto.ChangePasswordDTO;
 import com.xgateai.application.model.dto.ChannelDTO;
-import com.xgateai.application.model.dto.LoginDTO;
 import com.xgateai.application.model.dto.ProviderDTO;
 import com.xgateai.application.model.response.HttpResponse;
 import jakarta.annotation.Resource;
-import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -29,7 +24,6 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * <p>
  * AdminController 管理端控制器：供 Web 控制台前端页面调用
- * 登录态校验由 AdminAuthInterceptor 统一拦截（/admin/login 除外）
  * </p>
  *
  * @author xgateai
@@ -46,58 +40,6 @@ public class AdminController {
      */
     @Resource
     private AdminService adminService;
-
-    /**
-     * 管理员登录：校验用户名密码，成功后会话写入登录态
-     *
-     * @param loginDTO 登录参数（用户名、密码）
-     * @param session  会话
-     * @return 登录用户信息（含 id/username）
-     */
-    @PostMapping("/login")
-    public HttpResponse login(@RequestBody @Valid LoginDTO loginDTO, HttpSession session) {
-        return HttpResponse.object(adminService.login(loginDTO.getUsername(), loginDTO.getPassword(), session));
-    }
-
-    /**
-     * 管理员登出：销毁会话
-     *
-     * @param session 会话
-     * @return 登出成功
-     */
-    @PostMapping("/logout")
-    public HttpResponse logout(HttpSession session) {
-        adminService.logout(session);
-        return HttpResponse.successForMessage("登出成功");
-    }
-
-    /**
-     * 查询当前登录用户信息（未登录抛 CommonException 由全局处理器处理）
-     *
-     * @param session 会话
-     * @return 当前登录用户 {id, username}
-     */
-    @GetMapping("/session")
-    public HttpResponse session(HttpSession session) {
-        User user = adminService.currentUser(session);
-        JSONObject result = new JSONObject();
-        result.put("id", user.getId());
-        result.put("username", user.getUsername());
-        return HttpResponse.object(result);
-    }
-
-    /**
-     * 修改当前登录用户密码
-     *
-     * @param dto     修改密码参数
-     * @param session 会话
-     * @return 密码修改成功
-     */
-    @PostMapping("/change-password")
-    public HttpResponse changePassword(@RequestBody @Valid ChangePasswordDTO dto, HttpSession session) {
-        adminService.changePassword(dto, session);
-        return HttpResponse.successForMessage("密码修改成功");
-    }
 
     /**
      * 查询全部上游 Provider 列表
@@ -213,56 +155,6 @@ public class AdminController {
     }
 
     /**
-     * 查询全部对外调用 API Key 列表（key 明文脱敏展示）
-     *
-     * @return API Key 列表
-     */
-    @GetMapping("/keys")
-    public HttpResponse keys() {
-        return HttpResponse.object(adminService.listApiKeys());
-    }
-
-    /**
-     * 创建对外调用 API Key，result 携带完整明文 key（一次性展示）
-     *
-     * @param dto     创建参数
-     * @param session 会话
-     * @return {"key": 完整明文, "name": 名称}
-     */
-    @PostMapping("/key")
-    public HttpResponse createKey(@RequestBody @Valid ApiKeyCreateDTO dto, HttpSession session) {
-        String key = adminService.createApiKey(dto, session);
-        JSONObject result = new JSONObject();
-        result.put("key", key);
-        result.put("name", dto.getName());
-        return HttpResponse.object(result);
-    }
-
-    /**
-     * 启用/停用切换对外调用 API Key
-     *
-     * @param id API Key ID
-     * @return 操作成功
-     */
-    @PutMapping("/key/{id}/toggle")
-    public HttpResponse toggleKey(@PathVariable Long id) {
-        adminService.toggleApiKey(id);
-        return HttpResponse.objectForMessage(null, "操作成功");
-    }
-
-    /**
-     * 删除对外调用 API Key
-     *
-     * @param id API Key ID
-     * @return 删除成功
-     */
-    @DeleteMapping("/key/{id}")
-    public HttpResponse deleteKey(@PathVariable Long id) {
-        adminService.deleteApiKey(id);
-        return HttpResponse.successForMessage("删除成功");
-    }
-
-    /**
      * 分页查询调用日志，可按对外模型名 / API Key 精确过滤
      *
      * @param publicModel 对外模型名（可选）
@@ -272,10 +164,10 @@ public class AdminController {
      * @return 调用日志分页结果
      */
     @GetMapping("/logs")
-    public HttpResponse logs(@RequestParam(required = false) String publicModel,
-                             @RequestParam(required = false) String apiKeyName,
-                             @RequestParam(defaultValue = "1") int pageNum,
-                             @RequestParam(defaultValue = "20") int pageSize) {
+    public HttpResponse logs(@RequestParam(name = "publicModel", required = false) String publicModel,
+                             @RequestParam(name = "apiKeyName", required = false) String apiKeyName,
+                             @RequestParam(name = "pageNum", defaultValue = "1") int pageNum,
+                             @RequestParam(name = "pageSize", defaultValue = "20") int pageSize) {
         Page<CallLog> page = adminService.queryLogs(publicModel, apiKeyName, pageNum, pageSize);
         return HttpResponse.list(page.getRecords(), page.getTotal(), pageNum, pageSize);
     }
