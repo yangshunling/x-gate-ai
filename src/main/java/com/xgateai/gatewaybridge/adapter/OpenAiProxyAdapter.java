@@ -265,7 +265,14 @@ public class OpenAiProxyAdapter {
                         dataBuffer.read(bytes);
                         String chunk = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
                         if (chunk.contains("\"usage\"")) {
-                            lastChunkRef.set(chunk);
+                            // 只提取含 usage 的那一行，去掉 "data: " 前缀
+                            for (String line : chunk.split("\\r?\\n")) {
+                                String trimmed = line.strip();
+                                if (trimmed.startsWith("data:") && trimmed.contains("\"usage\"")) {
+                                    lastChunkRef.set(trimmed.substring(5).strip());
+                                    break;
+                                }
+                            }
                         }
                     } catch (Exception e) {
                         log.debug("[DEBUG] 缓存 chunk 失败: {}", e.getMessage());
