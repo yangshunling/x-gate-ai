@@ -9,48 +9,12 @@
 <body>
 <div id="app" class="main-shell" v-cloak>
 
-  <!-- ==================== 侧栏（全站一致） ==================== -->
-  <aside class="sidebar">
-    <div class="brand">
-      <div class="brand-mark">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
-      </div>
-      <div class="brand-name">大模型统一网关<small>管理控制台</small></div>
-    </div>
-    <div class="nav-label">功能导航</div>
-    <nav class="menu">
-      <a class="menu-item" href="index.html">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg>
-        仪表盘
-      </a>
-      <a class="menu-item" href="models.html">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="18" r="2.4"/><circle cx="18" cy="6" r="2.4"/><path d="M8.3 7.3 15.7 16.7M8.3 4.7h7.4"/><path d="M4.7 8.3v7.4h9"/></svg>
-        对客服务
-      </a>
-      <a class="menu-item active" href="services.html">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="7" rx="2"/><rect x="5" y="14" width="14" height="7" rx="2"/><path d="M9 6.5h.01M9 17.5h.01"/><path d="M12 10v4"/></svg>
-        模型服务
-      </a>
-      <a class="menu-item" href="logs.html">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h9M4 12h16M4 18h7"/><circle cx="16.5" cy="6" r="1.8"/><circle cx="20" cy="18" r="1.8"/></svg>
-        调用日志
-      </a>
-    </nav>
-    <div class="side-foot">
-      <span class="pulse"></span>
-      <div>
-        <div class="t">服务运行中 <b>ONLINE</b></div>
-        <div class="v">/v1 · OpenAI 兼容</div>
-      </div>
-    </div>
-  </aside>
+  <!-- 侧栏（公共组件） -->
+  <x-nav active="services"></x-nav>
 
-  <!-- ==================== 内容区 ==================== -->
   <div class="content">
-    <div class="head">
-      <h1><span class="bar"></span>模型服务</h1>
-      <span class="sub">UPSTREAM SERVICES</span>
-    </div>
+    <!-- 顶栏（公共组件） -->
+    <x-head title="模型服务" sub="上游接入服务"></x-head>
 
     <div class="body">
       <div class="page">
@@ -59,8 +23,8 @@
           <div class="panel-head">
             <span class="panel-title"><span class="dot-mark"></span>模型服务<span class="sub">共 {{ providers.length }} 个</span></span>
             <div class="panel-toolbar">
-              <button class="btn btn-ghost btn-sm" @click="loadProviders">刷新</button>
-              <button class="btn btn-primary btn-sm" @click="openProviderModal()">
+              <button class="btn btn-ghost btn-sm" @click="load">刷新</button>
+              <button class="btn btn-primary btn-sm" @click="openModal()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
                 新增模型服务
               </button>
@@ -76,11 +40,15 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-if="providersLoading"><td colspan="6" class="empty-row"><div class="spinner"></div>&nbsp;加载中…</td></tr>
+                <tr v-if="loading"><td colspan="6" class="empty-row"><div class="spinner"></div>&nbsp;加载中…</td></tr>
                 <tr v-else-if="providers.length === 0">
                   <td colspan="6" class="empty-row">
-                    <div class="ghost-ico">◇</div>
-                    <div>还没有模型服务 — 点右上角「新增模型服务」接入</div>
+                    <div class="empty-state">
+                      <span class="es-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="8" rx="2"/><rect x="4" y="13" width="16" height="8" rx="2"/><path d="M9 7h.01M9 17h.01"/></svg>
+                      </span>
+                      <span class="es-text">暂无模型服务，点击右上角<b>「新增模型服务」</b>接入</span>
+                    </div>
                   </td>
                 </tr>
                 <tr v-for="p in providers" :key="p.id">
@@ -89,17 +57,17 @@
                   <td><span class="mono sub">{{ p.modelName }}</span></td>
                   <td>
                     <label class="switch" :title="p.enabled ? '点击停用' : '点击启用'">
-                      <input type="checkbox" :checked="p.enabled" @change="toggleProvider(p)">
+                      <input type="checkbox" :checked="p.enabled" @change="toggle(p)">
                       <span class="slider"></span>
                     </label>
                   </td>
                   <td class="sub">{{ p.remark || '—' }}</td>
                   <td>
                     <div class="ops">
-                      <button class="btn btn-ghost btn-sm" @click="testProvider(p)">测试连通</button>
-                      <a class="row-link" @click="openProviderModal(p)">编辑</a>
+                      <button class="btn btn-ghost btn-sm" @click="test(p)">测试连通</button>
+                      <a class="row-link" @click="openModal(p)">编辑</a>
                       <span class="sep"></span>
-                      <a class="row-link danger" @click="delProvider(p)">删除</a>
+                      <a class="row-link danger" @click="remove(p)">删除</a>
                     </div>
                   </td>
                 </tr>
@@ -113,72 +81,68 @@
   </div>
 
   <!-- ==================== 新增 / 编辑弹窗 ==================== -->
-  <div v-if="providerModal.open" class="modal-mask">
+  <div v-if="modal.open" class="modal-mask">
     <div class="modal">
       <div class="modal-head">
-        <span class="modal-title">{{ providerModal.editId ? '编辑模型服务' : '新增模型服务' }}</span>
-        <button class="modal-close" @click="closeProviderModal">✕</button>
+        <span class="modal-title">{{ modal.editId ? '编辑模型服务' : '新增模型服务' }}</span>
+        <button class="modal-close" @click="closeModal">✕</button>
       </div>
       <div class="modal-body">
         <div class="form-grid">
           <div class="form-item">
             <label>名称 <span class="req">*</span></label>
-            <input class="input" v-model.trim="providerModal.form.name" placeholder="如：DeepSeek 官方">
+            <input class="input" v-model.trim="modal.form.name" placeholder="如：DeepSeek 官方">
           </div>
           <div class="form-item">
             <label>模型名 <span class="req">*</span> <span class="form-hint">该服务提供的模型</span></label>
-            <input class="input mono-input" v-model.trim="providerModal.form.modelName" placeholder="如：deepseek-chat">
+            <input class="input mono-input" v-model.trim="modal.form.modelName" placeholder="如：deepseek-chat">
           </div>
         </div>
         <div class="form-item">
           <label>Base URL <span class="req">*</span> <span class="form-hint">服务地址（含 /v1）</span></label>
-          <input class="input mono-input" v-model.trim="providerModal.form.baseUrl" placeholder="如：https://api.deepseek.com/v1">
+          <input class="input mono-input" v-model.trim="modal.form.baseUrl" placeholder="如：https://api.deepseek.com/v1">
         </div>
         <div class="form-item">
-          <label>API Key <span class="req" v-if="!providerModal.editId">*</span>
-            <span class="form-hint">{{ providerModal.editId ? '留空表示不修改，不回显原值' : '该服务的调用密钥' }}</span>
+          <label>API Key <span class="req" v-if="!modal.editId">*</span>
+            <span class="form-hint">{{ modal.editId ? '留空表示不修改，不回显原值' : '该服务的调用密钥' }}</span>
           </label>
-          <input class="input mono-input" type="password" v-model.trim="providerModal.form.apiKey"
-                 :placeholder="providerModal.editId ? '留空保持不变' : '请输入 API Key'">
+          <input class="input mono-input" type="password" v-model.trim="modal.form.apiKey"
+                 :placeholder="modal.editId ? '留空保持不变' : '请输入 API Key'">
         </div>
         <div class="form-grid">
           <div class="form-item">
             <label>状态</label>
             <div class="check-cell">
               <label class="checkbox-line">
-                <input type="checkbox" v-model="providerModal.form.enabled"> <span class="txt">启用该服务</span>
+                <input type="checkbox" v-model="modal.form.enabled"> <span class="txt">启用该服务</span>
               </label>
             </div>
           </div>
           <div class="form-item">
             <label>备注</label>
-            <input class="input" v-model.trim="providerModal.form.remark" placeholder="选填">
+            <input class="input" v-model.trim="modal.form.remark" placeholder="选填">
           </div>
         </div>
       </div>
       <div class="modal-foot">
-        <button class="btn btn-ghost" @click="closeProviderModal">取消</button>
-        <button class="btn btn-primary" :disabled="providerModal.saving" @click="saveProvider">
-          <span v-if="providerModal.saving" class="spinner"></span>保存
+        <button class="btn btn-ghost" @click="closeModal">取消</button>
+        <button class="btn btn-primary" :disabled="modal.saving" @click="save">
+          <span v-if="modal.saving" class="spinner"></span>保存
         </button>
       </div>
     </div>
   </div>
 
-  <!-- Toast -->
-  <div class="toast-wrap">
-    <div v-for="t in toasts" :key="t.id" class="toast" :class="t.type">
-      <span class="dot"></span>{{ t.message }}
-    </div>
-  </div>
+  <!-- Toast（公共组件） -->
+  <x-toast :list="toasts"></x-toast>
 
 </div>
 
 <script src="lib/vue.global.prod.js"></script>
-<script src="js/common.js"></script>
+<script src="js/http.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/api.js"></script>
 <script src="js/pages/services.js"></script>
-<script>
-Vue.createApp(ServicesApp).mount('#app');
-</script>
+<script>XUi.mount(ServicesApp);</script>
 </body>
 </html>

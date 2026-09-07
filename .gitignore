@@ -7,6 +7,9 @@ bin-release/
 # Other files and folders
 .settings/
 
+# Maven build output
+target/
+
 # Executables
 *.swf
 *.air

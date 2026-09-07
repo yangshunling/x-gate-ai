@@ -13,6 +13,9 @@ public class GatewayConstant {
     // 负载策略
     public static final String STRATEGY_ROUND_ROBIN = "ROUND_ROBIN";
 
+    // 请求属性键（ApiKeyInterceptor 放入请求的 ApiKey 记录）
+    public static final String ATTR_API_KEY = "gateway_api_key";
+
     // 默认分页
     public static final int DEFAULT_PAGE_NUM = 1;
     public static final int DEFAULT_PAGE_SIZE = 20;

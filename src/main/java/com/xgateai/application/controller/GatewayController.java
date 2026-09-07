@@ -4,11 +4,14 @@ import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
+import com.xgateai.application.entity.ModelChannel;
 import com.xgateai.application.exceptions.CommonException;
 import com.xgateai.gatewaybridge.adapter.OpenAiProxyAdapter;
 import com.xgateai.gatewaybridge.adapter.UpstreamCallResult;
+import com.xgateai.gatewaybridge.constant.GatewayConstant;
 import com.xgateai.gatewaybridge.service.GatewayRouter;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.MediaType;
@@ -26,7 +29,8 @@ import java.util.List;
 /**
  * <p>
  * GatewayController OpenAI 兼容对外网关控制器（/v1）
- * 提供 chat/completions（含 SSE 流式）、embeddings、models 三个对外端点，内部将请求透传至动态上游
+ * 提供 chat/completions（含 SSE 流式）、embeddings、models 三个对外端点，
+ * 由 ApiKeyInterceptor 拦截校验后进入，内部将请求透传至动态上游
  * </p>
  *
  * @author xgateai
@@ -52,31 +56,34 @@ public class GatewayController {
 
     /**
      * Chat Completions 端点：按 body.stream 区分非流式（JSON 透传）与 SSE 流式透传
+     * 路由模型以鉴权 Key 对应的对客服务为准（body.model 忽略，保持 OpenAI 兼容）
      *
      * @param rawBody 客户端请求体原始 JSON 字符串
      * @return 非流式为 JSON 字符串响应体；流式为 text/event-stream 的字节 Flux
      */
     @PostMapping("/chat/completions")
-    public ResponseEntity<?> chatCompletions(@RequestBody String rawBody) {
+    public ResponseEntity<?> chatCompletions(@RequestBody String rawBody, HttpServletRequest request) {
         try {
             JSONObject body = JSON.parseObject(rawBody);
             if (body == null) {
                 throw new CommonException("请求体为空或不是合法 JSON");
             }
-            String publicModel = body.getString("model");
-            if (StrUtil.isBlank(publicModel)) {
-                throw new CommonException("model 不能为空");
+            ModelChannel channel = resolveChannel(request);
+            if (channel == null) {
+                throw new CommonException("无法识别调用方对客服务");
             }
+            String publicModel = channel.getPublicModelName();
+            String callerKeyName = channel.getPublicModelName();
             boolean stream = body.getBooleanValue("stream");
             if (stream) {
                 // SSE 流式：字节级原样转发上游
-                Flux<DataBuffer> flux = openAiProxyAdapter.chatStream(body, publicModel);
+                Flux<DataBuffer> flux = openAiProxyAdapter.chatStream(body, publicModel, callerKeyName);
                 return ResponseEntity.ok()
                         .contentType(MediaType.TEXT_EVENT_STREAM)
                         .body(flux);
             }
             // 非流式：完整 JSON 原样返回
-            UpstreamCallResult result = openAiProxyAdapter.chat(body, publicModel);
+            UpstreamCallResult result = openAiProxyAdapter.chat(body, publicModel, callerKeyName);
             return ResponseEntity.ok()
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(result.getRawBody());
@@ -90,22 +97,25 @@ public class GatewayController {
 
     /**
      * Embeddings 端点：非流式透传，返回上游原始 JSON
+     * 路由模型以鉴权 Key 对应的对客服务为准
      *
      * @param rawBody 客户端请求体原始 JSON 字符串
      * @return 上游原始 JSON 响应体
      */
     @PostMapping("/embeddings")
-    public ResponseEntity<?> embeddings(@RequestBody String rawBody) {
+    public ResponseEntity<?> embeddings(@RequestBody String rawBody, HttpServletRequest request) {
         try {
             JSONObject body = JSON.parseObject(rawBody);
             if (body == null) {
                 throw new CommonException("请求体为空或不是合法 JSON");
             }
-            String publicModel = body.getString("model");
-            if (StrUtil.isBlank(publicModel)) {
-                throw new CommonException("model 不能为空");
+            ModelChannel channel = resolveChannel(request);
+            if (channel == null) {
+                throw new CommonException("无法识别调用方对客服务");
             }
-            UpstreamCallResult result = openAiProxyAdapter.embeddings(body, publicModel);
+            String publicModel = channel.getPublicModelName();
+            String callerKeyName = channel.getPublicModelName();
+            UpstreamCallResult result = openAiProxyAdapter.embeddings(body, publicModel, callerKeyName);
             return ResponseEntity.ok()
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(result.getRawBody());
@@ -118,17 +128,17 @@ public class GatewayController {
     }
 
     /**
-     * Models 端点：返回对外暴露模型列表（OpenAI 列表格式）
+     * Models 端点：返回当前 Key 对应的对客服务（OpenAI 列表格式）
      *
      * @return OpenAI 风格模型列表 JSON
      */
     @GetMapping("/models")
-    public ResponseEntity<String> listModels() {
-        List<String> models = gatewayRouter.listPublicModels();
+    public ResponseEntity<String> listModels(HttpServletRequest request) {
+        ModelChannel channel = resolveChannel(request);
         JSONArray data = new JSONArray();
-        for (String model : models) {
+        if (channel != null) {
             JSONObject item = new JSONObject();
-            item.put("id", model);
+            item.put("id", channel.getPublicModelName());
             item.put("object", "model");
             item.put("created", 1686935002);
             item.put("owned_by", "x-gate-ai");
@@ -140,6 +150,17 @@ public class GatewayController {
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(result.toJSONString());
+    }
+
+    /**
+     * 从请求属性中取出拦截器放入的 ModelChannel 记录
+     */
+    private ModelChannel resolveChannel(HttpServletRequest request) {
+        Object attribute = request.getAttribute(GatewayConstant.ATTR_API_KEY);
+        if (attribute instanceof ModelChannel channel) {
+            return channel;
+        }
+        return null;
     }
 
     /**

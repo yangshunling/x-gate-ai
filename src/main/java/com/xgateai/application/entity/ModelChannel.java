@@ -31,6 +31,12 @@ public class ModelChannel {
     private String publicModelName;
 
     /**
+     * 该对客服务专属的调用 Key（创建时自动生成）
+     */
+    @JsonProperty("api_key")
+    private String apiKey;
+
+    /**
      * 是否启用
      */
     private Integer enabled;

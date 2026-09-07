@@ -1,43 +1,88 @@
 /* ============================================================
- * 调用日志页面逻辑
+ * 调用日志页面
+ * 含：高级筛选（模型/日期/状态码）、行内详情展开
  * ============================================================ */
 
 const LogsApp = {
-  mixins: [XGateMixin],
+  mixins: [XUi.mixin],
   data() {
     return {
-      log: { publicModel: '', page: 1, pageSize: 10, total: 0, totalPages: 1 },
-      logs: { list: [] },
-      logsLoading: false,
+      /* 筛选条件 */
+      filter: { model: '', dateFrom: '', dateTo: '', status: '' },
+
+      /* 分页 */
+      page: { num: 1, size: 10, total: 0, totalPages: 1 },
+      list: [],
+      loading: false,
+
+      /* 展开详情 */
+      expanded: null,
     };
   },
-  created() {
-    this.searchLogs(1);
-  },
+
+  created() { this.search(1); },
+
   methods: {
-    async searchLogs(page) {
-      this.logsLoading = true;
-      const qs = new URLSearchParams();
-      if (this.log.publicModel) qs.set('publicModel', this.log.publicModel);
-      qs.set('pageNum', page || 1);
-      qs.set('pageSize', this.log.pageSize);
+    async search(page) {
+      this.loading = true;
       try {
-        const r = await this.request('/admin/logs?' + qs.toString()) || {};
-        this.log.page = r.page_num || page || 1;
-        this.log.pageSize = r.page_size || this.log.pageSize;
-        this.log.total = r.total || 0;
-        this.log.totalPages = Math.max(1, Math.ceil(this.log.total / this.log.pageSize));
-        this.logs.list = r.list || [];
+        const r = await XApi.queryLogs({
+          publicModel: this.filter.model,
+          dateFrom: this.filter.dateFrom,
+          dateTo: this.filter.dateTo,
+          status: this.filter.status,
+          pageNum: page || 1,
+          pageSize: this.page.size,
+        }) || {};
+        this.page.num = r.page_num || page || 1;
+        this.page.size = r.page_size || this.page.size;
+        this.page.total = r.total || 0;
+        this.page.totalPages = Math.max(1, Math.ceil(this.page.total / this.page.size));
+        this.list = r.list || [];
+        this.expanded = null;
       } catch (e) {
         this.toastError(e);
       } finally {
-        this.logsLoading = false;
+        this.loading = false;
       }
     },
-    resetLogs() {
-      this.log.publicModel = '';
-      this.log.page = 1;
-      this.searchLogs(1);
+    reset() {
+      this.filter = { model: '', dateFrom: '', dateTo: '', status: '' };
+      this.search(1);
+    },
+
+    /* ---------------- 详情展开 ---------------- */
+    toggleDetail(log) {
+      this.expanded = this.expanded === log.id ? null : log.id;
+    },
+
+    /* 解析请求体 messages */
+    requestMessages(log) {
+      if (!log.request_body) return [];
+      try {
+        const body = JSON.parse(log.request_body);
+        const msgs = Array.isArray(body.messages) ? body.messages : [];
+        return msgs.map(m => ({
+          role: m.role || 'unknown',
+          content: typeof m.content === 'string'
+            ? m.content
+            : (m.content && typeof m.content === 'object' ? JSON.stringify(m.content) : ''),
+        }));
+      } catch (e) {
+        return [];
+      }
+    },
+    roleLabel(role) {
+      return { system: 'System', user: 'User', assistant: 'AI', tool: 'Tool' }[role] || role;
+    },
+    roleClass(role) {
+      return {
+        system: 'role-system', user: 'role-user', assistant: 'role-ai', tool: 'role-tool',
+      }[role] || '';
+    },
+    prettyJson(json) {
+      if (!json) return '';
+      try { return JSON.stringify(JSON.parse(json), null, 2); } catch (e) { return json; }
     },
   },
 };

@@ -1,5 +1,6 @@
 package com.xgateai.adminbridge.service;
 
+import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -28,7 +29,7 @@ import java.util.List;
 
 /**
  * <p>
- * AdminService 管理端服务：Provider/通道管理、调用日志与看板
+ * AdminService 管理端服务：Provider/通道/API Key 管理、调用日志与看板
  * </p>
  *
  * @author xgateai
@@ -218,6 +219,7 @@ public class AdminService {
             JSONObject obj = new JSONObject();
             obj.put("id", channel.getId());
             obj.put("public_model_name", channel.getPublicModelName());
+            obj.put("api_key", channel.getApiKey());
             obj.put("enabled", channel.getEnabled());
             obj.put("strategy", channel.getStrategy());
             obj.put("remark", channel.getRemark());
@@ -229,15 +231,21 @@ public class AdminService {
     }
 
     /**
-     * 新增或更新对外模型通道，并按 providerIds 顺序重建通道-上游绑定（可为空通道），随后刷新路由缓存
+     * 新增或更新对外模型通道，并按 providerIds 顺序重建通道-上游绑定，随后刷新路由缓存
+     * 新增时自动生成该服务专属的调用 Key
      *
      * @param dto 通道参数
+     * @return 新增时返回生成的专属 Key（编辑时为 null）
      */
-    public void saveChannel(ChannelDTO dto) {
+    public String saveChannel(ChannelDTO dto) {
         boolean isNew = dto.getId() == null;
+        String generatedKey = null;
         ModelChannel channel;
         if (isNew) {
             channel = new ModelChannel();
+            // 每个对客服务独属一个调用 Key
+            generatedKey = "xgate-" + RandomUtil.randomString(32);
+            channel.setApiKey(generatedKey);
         } else {
             channel = modelChannelMapper.selectById(dto.getId());
             if (channel == null) {
@@ -275,6 +283,7 @@ public class AdminService {
             }
         }
         gatewayRouter.refresh();
+        return generatedKey;
     }
 
     /**
@@ -294,12 +303,32 @@ public class AdminService {
      *
      * @param publicModel 对外模型名（可选）
      * @param apiKeyName  API Key（可选）
+     * @param model       上游真实模型名（可选）
+     * @param dateFrom    起始日期 yyyy-MM-dd（可选）
+     * @param dateTo      结束日期 yyyy-MM-dd（可选）
+     * @param status      HTTP 状态码（可选）
      * @param pageNum     页码
      * @param pageSize    每页条数
      * @return 调用日志分页结果
      */
-    public Page<CallLog> queryLogs(String publicModel, String apiKeyName, int pageNum, int pageSize) {
-        return callLogService.pageQuery(publicModel, apiKeyName, pageNum, pageSize);
+    public Page<CallLog> queryLogs(String publicModel, String apiKeyName, String model,
+                                   String dateFrom, String dateTo, Integer status,
+                                   int pageNum, int pageSize) {
+        return callLogService.pageQuery(publicModel, apiKeyName, model, dateFrom, dateTo, status, pageNum, pageSize);
+    }
+
+    /**
+     * 查询 Token 用量趋势（透传网关日志服务）
+     */
+    public List<JSONObject> tokenTrend(int hours) {
+        return callLogService.tokenTrend(hours);
+    }
+
+    /**
+     * 查询模型分布统计（透传网关日志服务）
+     */
+    public List<JSONObject> modelStats() {
+        return callLogService.modelStats();
     }
 
     /**

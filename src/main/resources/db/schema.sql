@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS upstream_providers (
 CREATE TABLE IF NOT EXISTS model_channels (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     public_model_name TEXT NOT NULL UNIQUE,
+    api_key TEXT NOT NULL UNIQUE,
     enabled INTEGER NOT NULL DEFAULT 1,
     strategy TEXT NOT NULL DEFAULT 'ROUND_ROBIN',
     remark TEXT
@@ -34,5 +35,6 @@ CREATE TABLE IF NOT EXISTS call_logs (
     output_tokens INTEGER NOT NULL DEFAULT 0,
     latency_ms INTEGER NOT NULL DEFAULT 0,
     http_status INTEGER NOT NULL DEFAULT 0,
+    request_body TEXT,
     created_at TEXT NOT NULL
 );

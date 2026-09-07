@@ -126,8 +126,8 @@ public class AdminController {
      */
     @PostMapping("/channel")
     public HttpResponse saveChannel(@RequestBody @Valid ChannelDTO dto) {
-        adminService.saveChannel(dto);
-        return HttpResponse.objectForMessage(null, "保存成功");
+        String key = adminService.saveChannel(dto);
+        return HttpResponse.objectForMessage(key, "保存成功");
     }
 
     /**
@@ -155,21 +155,35 @@ public class AdminController {
     }
 
     /**
-     * 分页查询调用日志，可按对外模型名 / API Key 精确过滤
-     *
-     * @param publicModel 对外模型名（可选）
-     * @param apiKeyName  API Key（可选）
-     * @param pageNum     页码，默认 1
-     * @param pageSize    每页条数，默认 20
-     * @return 调用日志分页结果
+     * 分页查询调用日志，支持多条件筛选
      */
     @GetMapping("/logs")
     public HttpResponse logs(@RequestParam(name = "publicModel", required = false) String publicModel,
                              @RequestParam(name = "apiKeyName", required = false) String apiKeyName,
+                             @RequestParam(name = "model", required = false) String model,
+                             @RequestParam(name = "dateFrom", required = false) String dateFrom,
+                             @RequestParam(name = "dateTo", required = false) String dateTo,
+                             @RequestParam(name = "status", required = false) Integer status,
                              @RequestParam(name = "pageNum", defaultValue = "1") int pageNum,
                              @RequestParam(name = "pageSize", defaultValue = "20") int pageSize) {
-        Page<CallLog> page = adminService.queryLogs(publicModel, apiKeyName, pageNum, pageSize);
+        Page<CallLog> page = adminService.queryLogs(publicModel, apiKeyName, model, dateFrom, dateTo, status, pageNum, pageSize);
         return HttpResponse.list(page.getRecords(), page.getTotal(), pageNum, pageSize);
+    }
+
+    /**
+     * 查询 Token 用量趋势（按小时聚合）
+     */
+    @GetMapping("/dashboard/trend")
+    public HttpResponse trend(@RequestParam(name = "hours", defaultValue = "24") int hours) {
+        return HttpResponse.object(adminService.tokenTrend(hours));
+    }
+
+    /**
+     * 查询模型分布统计
+     */
+    @GetMapping("/dashboard/models")
+    public HttpResponse models() {
+        return HttpResponse.object(adminService.modelStats());
     }
 
     /**

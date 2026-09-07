@@ -9,54 +9,18 @@
 <body>
 <div id="app" class="main-shell" v-cloak>
 
-  <!-- ==================== 侧栏（全站一致） ==================== -->
-  <aside class="sidebar">
-    <div class="brand">
-      <div class="brand-mark">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
-      </div>
-      <div class="brand-name">大模型统一网关<small>管理控制台</small></div>
-    </div>
-    <div class="nav-label">功能导航</div>
-    <nav class="menu">
-      <a class="menu-item active" href="index.html">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg>
-        仪表盘
-      </a>
-      <a class="menu-item" href="models.html">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="18" r="2.4"/><circle cx="18" cy="6" r="2.4"/><path d="M8.3 7.3 15.7 16.7M8.3 4.7h7.4"/><path d="M4.7 8.3v7.4h9"/></svg>
-        对客服务
-      </a>
-      <a class="menu-item" href="services.html">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="7" rx="2"/><rect x="5" y="14" width="14" height="7" rx="2"/><path d="M9 6.5h.01M9 17.5h.01"/><path d="M12 10v4"/></svg>
-        模型服务
-      </a>
-      <a class="menu-item" href="logs.html">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h9M4 12h16M4 18h7"/><circle cx="16.5" cy="6" r="1.8"/><circle cx="20" cy="18" r="1.8"/></svg>
-        调用日志
-      </a>
-    </nav>
-    <div class="side-foot">
-      <span class="pulse"></span>
-      <div>
-        <div class="t">服务运行中 <b>ONLINE</b></div>
-        <div class="v">/v1 · OpenAI 兼容</div>
-      </div>
-    </div>
-  </aside>
+  <!-- 侧栏（公共组件） -->
+  <x-nav active="dashboard"></x-nav>
 
-  <!-- ==================== 内容区 ==================== -->
   <div class="content">
-    <div class="head">
-      <h1><span class="bar"></span>仪表盘</h1>
-      <span class="sub">REAL-TIME OVERVIEW</span>
-    </div>
+    <!-- 顶栏（公共组件） -->
+    <x-head title="仪表盘" sub="实时总览"></x-head>
 
     <div class="body">
       <div class="page">
 
         <!-- 加载中 -->
-        <div v-if="dashLoading" class="page-loading">
+        <div v-if="loading" class="page-loading">
           <div class="spinner"></div>
           正在读取今日指标…
         </div>
@@ -64,40 +28,106 @@
         <template v-else>
           <!-- 指标卡 -->
           <div class="stat-grid">
-            <div class="stat" style="--sc: linear-gradient(90deg,#2464ff,#00a3ff)">
-              <div class="k">今日调用</div>
+            <div class="stat">
+              <div class="k"><span class="stat-ico" style="background:#eff6ff;color:#2563eb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 3v6h6"/></svg></span>今日调用</div>
               <div class="v">{{ dash.todayCalls != null ? dash.todayCalls : '—' }}</div>
               <div class="u">请求总次数</div>
             </div>
-            <div class="stat ok" style="--sc: linear-gradient(90deg,#0faf7a,#2fd6a0)">
-              <div class="k">今日成功</div>
+            <div class="stat ok">
+              <div class="k"><span class="stat-ico" style="background:#ecfdf5;color:#10b981"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>今日成功</div>
               <div class="v">{{ dash.todaySuccess != null ? dash.todaySuccess : '—' }}</div>
               <div class="u">状态码 200~399</div>
             </div>
-            <div class="stat bad" style="--sc: linear-gradient(90deg,#ee4a5b,#ff8a5c)">
-              <div class="k">今日失败</div>
+            <div class="stat bad">
+              <div class="k"><span class="stat-ico" style="background:#fef2f2;color:#ef4444"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>今日失败</div>
               <div class="v">{{ dash.todayFail != null ? dash.todayFail : '—' }}</div>
               <div class="u">异常请求</div>
             </div>
-            <div class="stat" style="--sc: linear-gradient(90deg,#7c5cff,#b06bff)">
-              <div class="k">输入 Token</div>
-              <div class="v"><small>{{ fmtTokens(dash.todayInputTokens) }}</small></div>
+            <div class="stat">
+              <div class="k"><span class="stat-ico" style="background:#f5f3ff;color:#8b5cf6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></span>输入 Token</div>
+              <div class="v">{{ fmtTokens(dash.todayInputTokens) }}</div>
               <div class="u">提示词消耗</div>
             </div>
-            <div class="stat" style="--sc: linear-gradient(90deg,#00b4d8,#2dd4bf)">
-              <div class="k">输出 Token</div>
-              <div class="v"><small>{{ fmtTokens(dash.todayOutputTokens) }}</small></div>
+            <div class="stat">
+              <div class="k"><span class="stat-ico" style="background:#ecfeff;color:#06b6d4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg></span>输出 Token</div>
+              <div class="v">{{ fmtTokens(dash.todayOutputTokens) }}</div>
               <div class="u">生成内容消耗</div>
             </div>
-            <div class="stat" style="--sc: linear-gradient(90deg,#0faf7a,#2fd6a0)">
-              <div class="k">启用对客服务</div>
+            <div class="stat">
+              <div class="k"><span class="stat-ico" style="background:#eff6ff;color:#2563eb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2 20 3M15 8l2.5 2.5M17 6l2 2"/></svg></span>启用 API Key</div>
               <div class="v">{{ dash.enabledChannels != null ? dash.enabledChannels : '—' }}</div>
               <div class="u">对外暴露的模型</div>
             </div>
-            <div class="stat" style="--sc: linear-gradient(90deg,#2464ff,#00a3ff)">
-              <div class="k">启用模型服务</div>
+            <div class="stat">
+              <div class="k"><span class="stat-ico" style="background:#eef2ff;color:#6366f1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="7" rx="2"/><rect x="5" y="14" width="14" height="7" rx="2"/><path d="M9 6.5h.01M9 17.5h.01"/></svg></span>启用模型服务</div>
               <div class="v">{{ dash.enabledProviders != null ? dash.enabledProviders : '—' }}</div>
               <div class="u">已接入的上游</div>
+            </div>
+          </div>
+
+          <!-- Token 使用趋势 -->
+          <div class="panel">
+            <div class="panel-head">
+              <span class="panel-title"><span class="dot-mark"></span>Token 使用趋势<span class="sub">按小时聚合</span></span>
+              <div class="panel-toolbar">
+                <div class="seg-group">
+                  <button v-for="h in [24, 168]" :key="h" :class="{active: trendHours === h}" @click="switchHours(h)">
+                    {{ h === 24 ? '近24小时' : '近7天' }}
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="panel-body">
+              <div v-if="trendLoading" class="page-loading" style="min-height:180px"><div class="spinner"></div>&nbsp;加载趋势…</div>
+              <template v-else>
+                <div v-if="trend.length === 0" class="trend-chart">
+                  <div class="chart-placeholder">暂无调用数据，调用网关后这里会展示 Token 用量趋势</div>
+                </div>
+                <template v-else>
+                  <svg class="trend-chart" width="800" height="240" style="width:100%;height:auto"
+                       viewBox="0 0 800 240" preserveAspectRatio="none">
+                    <!-- 网格线 -->
+                    <line v-for="gy in [0,60,120,180,240]" :key="'g'+gy" x1="0" :y1="gy" x2="800" :y2="gy" stroke="#eef2f6" stroke-width="1"/>
+                    <!-- 输出区域（浅色） -->
+                    <path v-if="showOutput" :d="trendAreaPath('outputTokens', 800, 240)" fill="rgba(6,182,212,.08)"/>
+                    <!-- 输出折线 -->
+                    <path v-if="showOutput" :d="trendPath('outputTokens', 800, 240)" fill="none" stroke="#06b6d4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <!-- 输入折线 -->
+                    <path v-if="showInput" :d="trendPath('inputTokens', 800, 240)" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  <div class="trend-legend">
+                    <span class="lg-item" @click="showInput = !showInput" :class="{off: !showInput}">
+                      <span class="swatch" style="background:#2563eb"></span>输入 Token
+                    </span>
+                    <span class="lg-item" @click="showOutput = !showOutput" :class="{off: !showOutput}">
+                      <span class="swatch" style="background:#06b6d4"></span>输出 Token
+                    </span>
+                    <span class="muted" style="font-size:11.5px">峰值 {{ shortToken(trendMax()) }}</span>
+                  </div>
+                </template>
+              </template>
+            </div>
+          </div>
+
+          <!-- 模型分布 -->
+          <div class="panel">
+            <div class="panel-head">
+              <span class="panel-title"><span class="dot-mark"></span>模型分布<span class="sub">各模型调用与成功率</span></span>
+            </div>
+            <div class="panel-body">
+              <div v-if="distLoading" class="page-loading" style="min-height:120px"><div class="spinner"></div>&nbsp;加载中…</div>
+              <div v-else-if="dist.length === 0" class="model-dist"><div class="empty-tip">暂无调用数据</div></div>
+              <div v-else class="model-dist">
+                <div v-for="(d, i) in dist" :key="d.model" class="md-row">
+                  <span class="md-dot" :style="{background: distColor(i)}"></span>
+                  <span class="md-name" :title="d.model">{{ d.model }}</span>
+                  <span class="md-bar-wrap">
+                    <span class="md-bar" :style="{width: (d.calls / distMax() * 100) + '%', background: distColor(i)}"></span>
+                  </span>
+                  <span class="md-meta"><b>{{ d.calls }}</b> 次 · {{ shortToken(d.inputTokens + d.outputTokens) }} tok</span>
+                  <span class="md-rate" :class="distRateClass(d)">{{ distRate(d) }}</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -118,15 +148,15 @@
                 <div class="hint">
                   <div class="step">2</div>
                   <div>
-                    <div class="ht">创建对客服务</div>
-                    <div class="hd">在「对客服务」中新建一个名称并绑定一个或多个服务，多路自动轮询与故障切换。</div>
+                    <div class="ht">创建对外 API Key</div>
+                    <div class="hd">在「API Key」页新建一个名字并绑定一个或多个服务，多路自动轮询与故障切换。</div>
                   </div>
                 </div>
                 <div class="hint">
                   <div class="step">3</div>
                   <div>
                     <div class="ht">客户端接入</div>
-                    <div class="hd">调用 <code>POST /v1/chat/completions</code>，model 字段填写对客服务名即可。</div>
+                    <div class="hd">调用 <code>POST /v1/chat/completions</code>，携带专属 Key，model 字段填写 API Key 名称即可。</div>
                   </div>
                 </div>
                 <div class="hint">
@@ -145,20 +175,16 @@
     </div>
   </div>
 
-  <!-- Toast -->
-  <div class="toast-wrap">
-    <div v-for="t in toasts" :key="t.id" class="toast" :class="t.type">
-      <span class="dot"></span>{{ t.message }}
-    </div>
-  </div>
+  <!-- Toast（公共组件） -->
+  <x-toast :list="toasts"></x-toast>
 
 </div>
 
 <script src="lib/vue.global.prod.js"></script>
-<script src="js/common.js"></script>
+<script src="js/http.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/api.js"></script>
 <script src="js/pages/dashboard.js"></script>
-<script>
-Vue.createApp(DashboardApp).mount('#app');
-</script>
+<script>XUi.mount(DashboardApp);</script>
 </body>
 </html>

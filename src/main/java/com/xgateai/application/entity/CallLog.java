@@ -73,6 +73,12 @@ public class CallLog {
     private Integer httpStatus;
 
     /**
+     * 客户端原始请求体 JSON（用于日志详情展示）
+     */
+    @JsonProperty("request_body")
+    private String requestBody;
+
+    /**
      * 创建时间
      */
     @JsonProperty("created_at")

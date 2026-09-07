@@ -1481,3 +1481,36 @@ Caused by: org.sqlite.SQLiteException: [SQLITE_ERROR] SQL error or missing datab
 2026-09-07 10:44:37 [http-nio-0.0.0.0-8090-exec-8] INFO  c.x.application.aspect.GlobalAspect - IP             : 0:0:0:0:0:0:0:1
 2026-09-07 10:44:37 [http-nio-0.0.0.0-8090-exec-8] INFO  c.x.application.aspect.GlobalAspect - Request Args   : []
 2026-09-07 10:44:37 [http-nio-0.0.0.0-8090-exec-8] INFO  c.x.application.aspect.GlobalAspect - ============================ End ===========================
+2026-09-07 10:57:58 [background-preinit] INFO  o.h.validator.internal.util.Version - HV000001: Hibernate Validator 8.0.2.Final
+2026-09-07 10:57:58 [main] INFO  com.xgateai.XGateAiApplication - Starting XGateAiApplication using Java 17.0.14 with PID 54940 (F:\personal\x-gate-ai\target\x-gate-ai-1.0.0.jar started by yangsl25774 in F:\personal\x-gate-ai)
+2026-09-07 10:57:58 [main] INFO  com.xgateai.XGateAiApplication - No active profile set, falling back to 1 default profile: "default"
+2026-09-07 10:58:02 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8090 (http)
+2026-09-07 10:58:02 [main] INFO  o.a.coyote.http11.Http11NioProtocol - Initializing ProtocolHandler ["http-nio-0.0.0.0-8090"]
+2026-09-07 10:58:02 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-09-07 10:58:02 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.39]
+2026-09-07 10:58:02 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring embedded WebApplicationContext
+2026-09-07 10:58:02 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 3131 ms
+2026-09-07 10:58:04 [main] INFO  c.x.g.service.GatewayRouter - 网关路由刷新完成，对外模型数量: 0
+2026-09-07 10:58:04 [main] INFO  o.s.b.a.w.s.WelcomePageHandlerMapping - Adding welcome page: class path resource [static/index.html]
+2026-09-07 10:58:05 [main] INFO  o.a.coyote.http11.Http11NioProtocol - Starting ProtocolHandler ["http-nio-0.0.0.0-8090"]
+2026-09-07 10:58:05 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8090 (http) with context path '/'
+2026-09-07 10:58:05 [main] INFO  com.xgateai.XGateAiApplication - Started XGateAiApplication in 7.403 seconds (process running for 8.179)
+2026-09-07 10:58:22 [http-nio-0.0.0.0-8090-exec-1] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-09-07 10:58:22 [http-nio-0.0.0.0-8090-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-09-07 10:58:22 [http-nio-0.0.0.0-8090-exec-1] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 2 ms
+2026-09-07 10:58:25 [http-nio-0.0.0.0-8090-exec-8] INFO  c.x.application.aspect.GlobalAspect - 
+2026-09-07 10:58:25 [http-nio-0.0.0.0-8090-exec-8] INFO  c.x.application.aspect.GlobalAspect - =========================== Start ===========================
+2026-09-07 10:58:25 [http-nio-0.0.0.0-8090-exec-8] INFO  c.x.application.aspect.GlobalAspect - URL            : http://localhost:8090/admin/dashboard
+2026-09-07 10:58:25 [http-nio-0.0.0.0-8090-exec-8] INFO  c.x.application.aspect.GlobalAspect - HTTP Method    : GET
+2026-09-07 10:58:25 [http-nio-0.0.0.0-8090-exec-8] INFO  c.x.application.aspect.GlobalAspect - Class Method   : dashboard
+2026-09-07 10:58:25 [http-nio-0.0.0.0-8090-exec-8] INFO  c.x.application.aspect.GlobalAspect - IP             : 0:0:0:0:0:0:0:1
+2026-09-07 10:58:25 [http-nio-0.0.0.0-8090-exec-8] INFO  c.x.application.aspect.GlobalAspect - Request Args   : []
+2026-09-07 10:58:25 [http-nio-0.0.0.0-8090-exec-8] INFO  c.x.application.aspect.GlobalAspect - ============================ End ===========================
+2026-09-07 10:58:50 [http-nio-0.0.0.0-8090-exec-7] INFO  c.x.application.aspect.GlobalAspect - 
+2026-09-07 10:58:50 [http-nio-0.0.0.0-8090-exec-7] INFO  c.x.application.aspect.GlobalAspect - =========================== Start ===========================
+2026-09-07 10:58:50 [http-nio-0.0.0.0-8090-exec-7] INFO  c.x.application.aspect.GlobalAspect - URL            : http://localhost:8090/admin/dashboard
+2026-09-07 10:58:50 [http-nio-0.0.0.0-8090-exec-7] INFO  c.x.application.aspect.GlobalAspect - HTTP Method    : GET
+2026-09-07 10:58:50 [http-nio-0.0.0.0-8090-exec-7] INFO  c.x.application.aspect.GlobalAspect - Class Method   : dashboard
+2026-09-07 10:58:50 [http-nio-0.0.0.0-8090-exec-7] INFO  c.x.application.aspect.GlobalAspect - IP             : 0:0:0:0:0:0:0:1
+2026-09-07 10:58:50 [http-nio-0.0.0.0-8090-exec-7] INFO  c.x.application.aspect.GlobalAspect - Request Args   : []
+2026-09-07 10:58:50 [http-nio-0.0.0.0-8090-exec-7] INFO  c.x.application.aspect.GlobalAspect - ============================ End ===========================

@@ -93,7 +93,7 @@ public class OpenAiProxyAdapter {
      * @param publicModel 对外模型名
      * @return 上游调用结果（原始响应字符串 + 实际命中的上游 + 耗时）
      */
-    public UpstreamCallResult chat(JSONObject requestBody, String publicModel) {
+    public UpstreamCallResult chat(JSONObject requestBody, String publicModel, String callerKeyName) {
         List<UpstreamProvider> candidates = gatewayRouter.getCandidates(publicModel);
         String lastError = "";
         for (UpstreamProvider provider : candidates) {
@@ -106,7 +106,7 @@ public class OpenAiProxyAdapter {
                         .bodyToMono(String.class)
                         .block(Duration.ofMinutes(gatewayConfig.getTimeOutOfMinutes()));
                 long latencyMs = System.currentTimeMillis() - start;
-                recordCallLog(publicModel, provider, rawBody, latencyMs, 200);
+                recordCallLog(callerKeyName, publicModel, provider, requestBody.toJSONString(), rawBody, latencyMs, 200);
                 log.info("非流式 chat 透传成功，publicModel: {}, 上游: {}, 耗时: {}ms", publicModel, provider.getName(), latencyMs);
                 return new UpstreamCallResult(rawBody, provider, latencyMs);
             } catch (Exception e) {
@@ -126,14 +126,14 @@ public class OpenAiProxyAdapter {
      * @param publicModel 对外模型名
      * @return SSE 流式字节流
      */
-    public Flux<DataBuffer> chatStream(JSONObject requestBody, String publicModel) {
+    public Flux<DataBuffer> chatStream(JSONObject requestBody, String publicModel, String callerKeyName) {
         AtomicReference<UpstreamProvider> usedProviderRef = new AtomicReference<>();
         AtomicLong startRef = new AtomicLong(0);
         return Flux.defer(() -> {
             // 候选为空 / 模型不存在时由 getCandidates 抛 CommonException，转为 Flux.error 交还给下游
             List<UpstreamProvider> candidates = gatewayRouter.getCandidates(publicModel);
             startRef.compareAndSet(0, System.currentTimeMillis());
-            return streamAttempt(candidates, 0, requestBody, publicModel, usedProviderRef, new AtomicReference<>(""));
+            return streamAttempt(candidates, 0, requestBody, callerKeyName, publicModel, usedProviderRef, new AtomicReference<>(""));
         }).doFinally(signal -> {
             // 流结束或出错时统一记录调用日志（需在订阅期间记录最终使用的上游）
             UpstreamProvider provider = usedProviderRef.get();
@@ -141,7 +141,7 @@ public class OpenAiProxyAdapter {
                 return;
             }
             long latencyMs = System.currentTimeMillis() - startRef.get();
-            recordCallLog(publicModel, provider, null, latencyMs, 200);
+            recordCallLog(callerKeyName, publicModel, provider, requestBody.toJSONString(), null, latencyMs, 200);
         });
     }
 
@@ -152,7 +152,7 @@ public class OpenAiProxyAdapter {
      * @param publicModel 对外模型名
      * @return 上游调用结果
      */
-    public UpstreamCallResult embeddings(JSONObject requestBody, String publicModel) {
+    public UpstreamCallResult embeddings(JSONObject requestBody, String publicModel, String callerKeyName) {
         List<UpstreamProvider> candidates = gatewayRouter.getCandidates(publicModel);
         String lastError = "";
         for (UpstreamProvider provider : candidates) {
@@ -164,7 +164,7 @@ public class OpenAiProxyAdapter {
                         .bodyToMono(String.class)
                         .block(Duration.ofMinutes(gatewayConfig.getTimeOutOfMinutes()));
                 long latencyMs = System.currentTimeMillis() - start;
-                recordCallLog(publicModel, provider, rawBody, latencyMs, 200);
+                recordCallLog(callerKeyName, publicModel, provider, requestBody.toJSONString(), rawBody, latencyMs, 200);
                 log.info("embeddings 透传成功，publicModel: {}, 上游: {}, 耗时: {}ms", publicModel, provider.getName(), latencyMs);
                 return new UpstreamCallResult(rawBody, provider, latencyMs);
             } catch (Exception e) {
@@ -233,7 +233,8 @@ public class OpenAiProxyAdapter {
      * @return 流式字节 Flux
      */
     private Flux<DataBuffer> streamAttempt(List<UpstreamProvider> candidates, int index, JSONObject requestBody,
-                                           String publicModel, AtomicReference<UpstreamProvider> usedProviderRef,
+                                           String callerKeyName, String publicModel,
+                                           AtomicReference<UpstreamProvider> usedProviderRef,
                                            AtomicReference<String> lastErrorRef) {
         if (index >= candidates.size()) {
             // 全部候选均未开始输出即失败
@@ -261,7 +262,7 @@ public class OpenAiProxyAdapter {
                     log.warn("流式 chat 调用上游失败，上游: {}, 原因: {}", provider.getName(), error);
                     gatewayRouter.markCooldown(provider.getId());
                     // 尚未输出任何字节：冷却当前上游并尝试下一个候选
-                    return streamAttempt(candidates, index + 1, requestBody, publicModel, usedProviderRef, lastErrorRef);
+                    return streamAttempt(candidates, index + 1, requestBody, callerKeyName, publicModel, usedProviderRef, lastErrorRef);
                 });
     }
 
@@ -274,11 +275,11 @@ public class OpenAiProxyAdapter {
      * @param latencyMs   耗时（毫秒）
      * @param httpStatus  HTTP 状态码
      */
-    private void recordCallLog(String publicModel, UpstreamProvider provider, String rawBody,
-                               long latencyMs, int httpStatus) {
+    private void recordCallLog(String callerKeyName, String publicModel, UpstreamProvider provider, String requestBody,
+                               String rawBody, long latencyMs, int httpStatus) {
         try {
             CallLog callLog = new CallLog();
-            callLog.setApiKey(null);
+            callLog.setApiKey(callerKeyName);
             callLog.setPublicModel(publicModel);
             callLog.setUpstreamUrl(provider.getBaseUrl() + PATH_CHAT_COMPLETIONS);
             callLog.setUpstreamModel(provider.getModelName());
@@ -292,6 +293,7 @@ public class OpenAiProxyAdapter {
                     callLog.setOutputTokens(usage.getIntValue("completion_tokens", 0));
                 }
             }
+            callLog.setRequestBody(requestBody);
             callLog.setLatencyMs(latencyMs);
             callLog.setHttpStatus(httpStatus);
             callLog.setCreatedAt(DateUtil.formatDateTime(new Date()));

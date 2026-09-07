@@ -9,48 +9,12 @@
 <body>
 <div id="app" class="main-shell" v-cloak>
 
-  <!-- ==================== 侧栏（全站一致） ==================== -->
-  <aside class="sidebar">
-    <div class="brand">
-      <div class="brand-mark">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg>
-      </div>
-      <div class="brand-name">大模型统一网关<small>管理控制台</small></div>
-    </div>
-    <div class="nav-label">功能导航</div>
-    <nav class="menu">
-      <a class="menu-item" href="index.html">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg>
-        仪表盘
-      </a>
-      <a class="menu-item" href="models.html">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="18" r="2.4"/><circle cx="18" cy="6" r="2.4"/><path d="M8.3 7.3 15.7 16.7M8.3 4.7h7.4"/><path d="M4.7 8.3v7.4h9"/></svg>
-        对客服务
-      </a>
-      <a class="menu-item" href="services.html">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="7" rx="2"/><rect x="5" y="14" width="14" height="7" rx="2"/><path d="M9 6.5h.01M9 17.5h.01"/><path d="M12 10v4"/></svg>
-        模型服务
-      </a>
-      <a class="menu-item active" href="logs.html">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h9M4 12h16M4 18h7"/><circle cx="16.5" cy="6" r="1.8"/><circle cx="20" cy="18" r="1.8"/></svg>
-        调用日志
-      </a>
-    </nav>
-    <div class="side-foot">
-      <span class="pulse"></span>
-      <div>
-        <div class="t">服务运行中 <b>ONLINE</b></div>
-        <div class="v">/v1 · OpenAI 兼容</div>
-      </div>
-    </div>
-  </aside>
+  <!-- 侧栏（公共组件） -->
+  <x-nav active="logs"></x-nav>
 
-  <!-- ==================== 内容区 ==================== -->
   <div class="content">
-    <div class="head">
-      <h1><span class="bar"></span>调用日志</h1>
-      <span class="sub">CALL TRACE</span>
-    </div>
+    <!-- 顶栏（公共组件） -->
+    <x-head title="调用日志" sub="调用记录明细"></x-head>
 
     <div class="body">
       <div class="page">
@@ -58,13 +22,21 @@
         <div class="panel">
           <div class="panel-head">
             <span class="panel-title"><span class="dot-mark"></span>调用日志
-              <span class="sub">第 {{ log.page || 1 }} / {{ log.totalPages || 1 }} 页 · 共 {{ log.total }} 条</span>
+              <span class="sub">第 {{ page.num || 1 }} / {{ page.totalPages || 1 }} 页 · 共 {{ page.total }} 条</span>
             </span>
-            <div class="panel-toolbar">
-              <input class="input mono-input" style="width:200px;height:36px" v-model.trim="log.publicModel"
-                     placeholder="按对客服务名筛选">
-              <button class="btn btn-primary btn-sm" @click="searchLogs(1)">查询</button>
-              <button class="btn btn-ghost btn-sm" @click="resetLogs">重置</button>
+            <div class="log-toolbar">
+              <input class="input mono-input" v-model.trim="filter.model" placeholder="按模型名筛选">
+              <input class="input mono-input date" type="date" v-model="filter.dateFrom">
+              <span class="muted" style="font-size:12px">至</span>
+              <input class="input mono-input date" type="date" v-model="filter.dateTo">
+              <select class="input" style="width:120px;height:36px" v-model="filter.status">
+                <option value="">全部状态</option>
+                <option value="200">成功 200</option>
+                <option value="400">失败 4xx</option>
+                <option value="500">失败 5xx</option>
+              </select>
+              <button class="btn btn-primary btn-sm" @click="search(1)">查询</button>
+              <button class="btn btn-ghost btn-sm" @click="reset">重置</button>
             </div>
           </div>
 
@@ -72,33 +44,88 @@
             <table class="tbl">
               <thead>
                 <tr>
-                  <th>对客服务</th><th>接入地址</th><th>接入模型</th>
+                  <th style="width:36px"></th>
+                  <th>API Key</th><th>接入模型</th>
                   <th>输入 Token</th><th>输出 Token</th><th>耗时</th><th>状态</th><th>时间</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-if="logsLoading"><td colspan="8" class="empty-row"><div class="spinner"></div>&nbsp;加载中…</td></tr>
-                <tr v-else-if="logs.list.length === 0"><td colspan="8" class="empty-row">暂无调用日志</td></tr>
-                <tr v-for="l in logs.list" :key="l.id">
-                  <td><span class="mono" style="color:var(--accent);font-weight:600">{{ l.public_model }}</span></td>
-                  <td><span class="mono sub ellip" style="display:inline-block;vertical-align:middle" :title="l.upstream_url">{{ l.upstream_url }}</span></td>
-                  <td><span class="mono sub">{{ l.upstream_model }}</span></td>
-                  <td><span class="num">{{ fmtTokens(l.input_tokens) }}</span></td>
-                  <td><span class="num">{{ fmtTokens(l.output_tokens) }}</span></td>
-                  <td><span class="num">{{ l.latency_ms != null ? l.latency_ms : '—' }}</span> <span class="sub">ms</span></td>
-                  <td><span class="tag" :class="l.http_status != null && l.http_status < 400 ? 'tag-on' : 'tag-danger'">{{ l.http_status != null ? l.http_status : '—' }}</span></td>
-                  <td class="mono sub" style="white-space:nowrap">{{ l.created_at }}</td>
+                <tr v-if="loading"><td colspan="9" class="empty-row"><div class="spinner"></div>&nbsp;加载中…</td></tr>
+                <tr v-else-if="list.length === 0">
+                  <td colspan="9" class="empty-row">
+                    <div class="empty-state">
+                      <span class="es-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h9M4 12h12M4 18h7"/><circle cx="17" cy="6" r="1.6"/><circle cx="19" cy="18" r="1.6"/></svg>
+                      </span>
+                      <span class="es-text">暂无调用日志，调用网关后这里会展示记录</span>
+                    </div>
+                  </td>
                 </tr>
+                <template v-for="l in list" :key="l.id">
+                  <tr>
+                    <td>
+                      <span class="row-toggle" @click="toggleDetail(l)" :title="expanded === l.id ? '收起' : '查看详情'">
+                        <svg v-if="expanded === l.id" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                        <svg v-else viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+                      </span>
+                    </td>
+                    <td><span class="mono" style="color:var(--accent);font-weight:600">{{ l.public_model }}</span></td>
+                    <td><span class="mono sub">{{ l.upstream_model }}</span></td>
+                    <td><span class="num">{{ fmtTokens(l.input_tokens) }}</span></td>
+                    <td><span class="num">{{ fmtTokens(l.output_tokens) }}</span></td>
+                    <td><span class="num">{{ l.latency_ms != null ? l.latency_ms : '—' }}</span> <span class="sub">ms</span></td>
+                    <td><span class="tag" :class="l.http_status != null && l.http_status < 400 ? 'tag-on' : 'tag-danger'">{{ l.http_status != null ? l.http_status : '—' }}</span></td>
+                    <td class="mono sub" style="white-space:nowrap">{{ l.created_at }}</td>
+                  </tr>
+                  <tr v-if="expanded === l.id">
+                    <td colspan="9" class="log-detail">
+                      <!-- 概要卡 -->
+                      <div class="log-detail-grid">
+                        <div class="log-detail-card">
+                          <div class="ldc-k">上游地址</div>
+                          <div class="ldc-v" style="font-size:12px;word-break:break-all">{{ l.upstream_url }}</div>
+                        </div>
+                        <div class="log-detail-card">
+                          <div class="ldc-k">调用方 Key</div>
+                          <div class="ldc-v">{{ l.api_key || '—' }}</div>
+                        </div>
+                        <div class="log-detail-card">
+                          <div class="ldc-k">输入 / 输出 Token</div>
+                          <div class="ldc-v">{{ fmtTokens(l.input_tokens) }} / {{ fmtTokens(l.output_tokens) }}</div>
+                        </div>
+                        <div class="log-detail-card">
+                          <div class="ldc-k">耗时</div>
+                          <div class="ldc-v">{{ l.latency_ms != null ? l.latency_ms : '—' }} <span style="font-size:11px;color:var(--slate-400)">ms</span></div>
+                        </div>
+                      </div>
+
+                      <!-- 请求体消息 -->
+                      <div class="detail-section-title">请求消息</div>
+                      <div v-if="requestMessages(l).length" class="msg-list">
+                        <div v-for="(m, i) in requestMessages(l)" :key="i" class="msg-item">
+                          <span class="msg-badge" :class="roleClass(m.role)">{{ roleLabel(m.role) }}</span>
+                          <span class="msg-content">{{ m.content || '（空）' }}</span>
+                        </div>
+                      </div>
+                      <div v-else class="muted" style="font-size:12.5px">无请求体记录（历史日志未保存）</div>
+
+                      <!-- 原始请求 JSON -->
+                      <div class="detail-section-title" style="margin-top:16px">原始请求 JSON</div>
+                      <pre class="detail-json" v-if="l.request_body">{{ prettyJson(l.request_body) }}</pre>
+                      <div v-else class="muted" style="font-size:12.5px">无请求体记录</div>
+                    </td>
+                  </tr>
+                </template>
               </tbody>
             </table>
           </div>
 
           <div class="pagination">
-            <span class="total">共 <b>{{ log.total }}</b> 条记录 · 每页 {{ log.pageSize }} 条</span>
+            <span class="total">共 <b>{{ page.total }}</b> 条记录 · 每页 {{ page.size }} 条</span>
             <div class="page-op">
-              <button class="btn btn-ghost btn-sm" :disabled="log.page <= 1 || logsLoading" @click="searchLogs(log.page - 1)">‹ 上一页</button>
-              <span class="page-now">{{ log.page || 1 }} / {{ log.totalPages || 1 }}</span>
-              <button class="btn btn-ghost btn-sm" :disabled="log.page >= log.totalPages || logsLoading" @click="searchLogs(log.page + 1)">下一页 ›</button>
+              <button class="btn btn-ghost btn-sm" :disabled="page.num <= 1 || loading" @click="search(page.num - 1)">‹ 上一页</button>
+              <span class="page-now">{{ page.num || 1 }} / {{ page.totalPages || 1 }}</span>
+              <button class="btn btn-ghost btn-sm" :disabled="page.num >= page.totalPages || loading" @click="search(page.num + 1)">下一页 ›</button>
             </div>
           </div>
         </div>
@@ -107,20 +134,16 @@
     </div>
   </div>
 
-  <!-- Toast -->
-  <div class="toast-wrap">
-    <div v-for="t in toasts" :key="t.id" class="toast" :class="t.type">
-      <span class="dot"></span>{{ t.message }}
-    </div>
-  </div>
+  <!-- Toast（公共组件） -->
+  <x-toast :list="toasts"></x-toast>
 
 </div>
 
 <script src="lib/vue.global.prod.js"></script>
-<script src="js/common.js"></script>
+<script src="js/http.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/api.js"></script>
 <script src="js/pages/logs.js"></script>
-<script>
-Vue.createApp(LogsApp).mount('#app');
-</script>
+<script>XUi.mount(LogsApp);</script>
 </body>
 </html>
