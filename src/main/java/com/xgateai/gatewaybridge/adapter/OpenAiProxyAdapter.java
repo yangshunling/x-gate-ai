@@ -15,6 +15,7 @@ import com.xgateai.gatewaybridge.service.OpenAiClientFactory;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
@@ -129,15 +130,14 @@ public class OpenAiProxyAdapter {
     public Flux<DataBuffer> chatStream(JSONObject requestBody, String publicModel, String callerKeyName) {
         AtomicReference<UpstreamProvider> usedProviderRef = new AtomicReference<>();
         AtomicLong startRef = new AtomicLong(0);
+        AtomicReference<String> lastChunkRef = new AtomicReference<>("");
         log.info("[DEBUG] chatStream 被调用, publicModel: {}, stream: true");
         return Flux.defer(() -> {
-            // 候选为空 / 模型不存在时由 getCandidates 抛 CommonException，转为 Flux.error 交还给下游
             List<UpstreamProvider> candidates = gatewayRouter.getCandidates(publicModel);
             log.info("[DEBUG] 获取到 {} 个候选上游", candidates.size());
             startRef.compareAndSet(0, System.currentTimeMillis());
-            return streamAttempt(candidates, 0, requestBody, callerKeyName, publicModel, usedProviderRef, new AtomicReference<>(""));
+            return streamAttempt(candidates, 0, requestBody, callerKeyName, publicModel, usedProviderRef, new AtomicReference<>(""), lastChunkRef);
         }).doFinally(signal -> {
-            // 流结束或出错时统一记录调用日志（需在订阅期间记录最终使用的上游）
             UpstreamProvider provider = usedProviderRef.get();
             if (provider == null) {
                 log.warn("[DEBUG] 流结束但没有使用任何上游, signal: {}", signal);
@@ -145,7 +145,7 @@ public class OpenAiProxyAdapter {
             }
             long latencyMs = System.currentTimeMillis() - startRef.get();
             log.info("[DEBUG] 流结束, 使用上游: {}, 延迟: {}ms, signal: {}", provider.getName(), latencyMs, signal);
-            recordCallLog(callerKeyName, publicModel, provider, requestBody.toJSONString(), null, latencyMs, 200);
+            recordCallLog(callerKeyName, publicModel, provider, requestBody.toJSONString(), lastChunkRef.get(), latencyMs, 200);
         });
     }
 
@@ -239,11 +239,11 @@ public class OpenAiProxyAdapter {
     private Flux<DataBuffer> streamAttempt(List<UpstreamProvider> candidates, int index, JSONObject requestBody,
                                            String callerKeyName, String publicModel,
                                            AtomicReference<UpstreamProvider> usedProviderRef,
-                                           AtomicReference<String> lastErrorRef) {
+                                           AtomicReference<String> lastErrorRef,
+                                           AtomicReference<String> lastChunkRef) {
         log.info("[DEBUG] streamAttempt index: {}/{}, 候选上游: {}", index, candidates.size(), 
                 candidates.stream().map(UpstreamProvider::getName).toList());
         if (index >= candidates.size()) {
-            // 全部候选均未开始输出即失败
             log.error("[DEBUG] 所有候选上游都已尝试失败");
             return Flux.error(new CommonException("所有上游流式调用失败: " + lastErrorRef.get()));
         }
@@ -251,18 +251,27 @@ public class OpenAiProxyAdapter {
         JSONObject upstreamBody = copyBody(requestBody);
         upstreamBody.put("model", provider.getModelName());
         log.info("[DEBUG] 尝试上游: {}, baseUrl: {}, modelName: {}", provider.getName(), provider.getBaseUrl(), provider.getModelName());
-        // 标记当前候选是否已经开始向客户端输出字节
         AtomicBoolean hasOutput = new AtomicBoolean(false);
         return openAiClientFactory.postJson(webClient, provider, PATH_CHAT_COMPLETIONS, upstreamBody, true)
                 .bodyToFlux(DataBuffer.class)
                 .doOnNext(dataBuffer -> {
-                    // 一旦有字节流出即记录最终使用的上游，供 doFinally 记账
-                    hasOutput.set(true);
-                    usedProviderRef.compareAndSet(null, provider);
-                    log.info("[DEBUG] 开始输出字节, 上游: {}", provider.getName());
+                    if (hasOutput.compareAndSet(false, true)) {
+                        usedProviderRef.compareAndSet(null, provider);
+                        log.info("[DEBUG] 开始输出字节, 上游: {}", provider.getName());
+                    }
+                    // 拷贝一份用于解析 usage（不影响原始 buffer 继续流向下游）
+                    try {
+                        byte[] bytes = new byte[dataBuffer.readableByteCount()];
+                        dataBuffer.read(bytes);
+                        String chunk = new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+                        if (chunk.contains("\"usage\"")) {
+                            lastChunkRef.set(chunk);
+                        }
+                    } catch (Exception e) {
+                        log.debug("[DEBUG] 缓存 chunk 失败: {}", e.getMessage());
+                    }
                 })
                 .onErrorResume(throwable -> {
-                    // 已在输出中断流：原样抛给客户端，不再切换
                     if (hasOutput.get()) {
                         log.warn("[DEBUG] 上游 {} 输出中途失败", provider.getName());
                         return Flux.error(throwable);
@@ -271,8 +280,7 @@ public class OpenAiProxyAdapter {
                     lastErrorRef.set(error);
                     log.error("[DEBUG] 上游 {} 调用失败, 错误: {}", provider.getName(), error, throwable);
                     gatewayRouter.markCooldown(provider.getId());
-                    // 尚未输出任何字节：冷却当前上游并尝试下一个候选
-                    return streamAttempt(candidates, index + 1, requestBody, callerKeyName, publicModel, usedProviderRef, lastErrorRef);
+                    return streamAttempt(candidates, index + 1, requestBody, callerKeyName, publicModel, usedProviderRef, lastErrorRef, lastChunkRef);
                 });
     }
 
@@ -295,7 +303,7 @@ public class OpenAiProxyAdapter {
             callLog.setUpstreamModel(provider.getModelName());
             callLog.setInputTokens(0);
             callLog.setOutputTokens(0);
-            // 尽量从响应 usage 解析 token 统计
+            // 从响应 usage 解析 token 统计
             if (StrUtil.isNotBlank(rawBody)) {
                 JSONObject usage = JSONObject.parseObject(rawBody).getJSONObject("usage");
                 if (usage != null) {
@@ -309,7 +317,6 @@ public class OpenAiProxyAdapter {
             callLog.setCreatedAt(DateUtil.formatDateTime(new Date()));
             callLogService.save(callLog);
         } catch (Exception e) {
-            // 日志记录失败不影响主链路
             log.error("记录调用日志失败, publicModel: {}, provider: {}", publicModel, provider.getName(), e);
         }
     }
