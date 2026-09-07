@@ -74,7 +74,7 @@ const ModelsApp = {
     async save() {
       const f = this.modal.form;
       if (!f.publicModelName) { this.message('请输入模型名', 'warn'); return; }
-      if (!this.modal.selectedIds.length) { this.message('请至少绑定一个启用的模型服务', 'warn'); return; }
+      if (!this.modal.selectedIds.length) { this.message('请至少绑定一个启用的渠道', 'warn'); return; }
       const body = {
         publicModelName: f.publicModelName,
         enabled: f.enabled ? 1 : 0,

@@ -1,21 +1,27 @@
-# Build and Release Folders
-bin-debug/
-bin-release/
-[Oo]bj/
-[Bb]in/
-
-# Other files and folders
+# IDE
+.idea/
+*.iml
+.vscode/
 .settings/
+.classpath
+.project
 
 # Maven build output
 target/
 
-# Executables
-*.swf
-*.air
-*.ipa
-*.apk
+# Logs
+logs/
+*.log
 
-# Project files, i.e. `.project`, `.actionScriptProperties` and `.flexProperties`
-# should NOT be excluded as they contain compiler settings and other important
-# information for Eclipse / Flash Builder.
+# Runtime data (SQLite)
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local config
+start.bat.local

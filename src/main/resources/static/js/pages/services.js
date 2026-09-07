@@ -1,5 +1,5 @@
 /* ============================================================
- * 模型服务页面（真实接入的上游大模型）
+ * 渠道管理页面（真实接入的上游大模型）
  * ============================================================ */
 
 const ServicesApp = {
@@ -65,7 +65,7 @@ const ServicesApp = {
       this.modal.saving = true;
       try {
         await XApi.saveProvider(body, editing);
-        this.message(editing ? '模型服务已更新' : '模型服务新增成功');
+        this.message(editing ? '渠道已更新' : '渠道新增成功');
         this.modal.open = false;
         await this.load();
       } catch (e) {
@@ -82,7 +82,7 @@ const ServicesApp = {
       const body = { name: p.name, baseUrl: p.baseUrl, apiKey: '', modelName: p.modelName, enabled: p.enabled, remark: p.remark || '' };
       try {
         await XApi.saveProvider({ ...body, id: p.id }, true);
-        this.message(p.enabled ? '模型服务已启用' : '模型服务已停用');
+        this.message(p.enabled ? '渠道已启用' : '渠道已停用');
       } catch (e) {
         p.enabled = prev;
         this.toastError(e);
@@ -105,10 +105,10 @@ const ServicesApp = {
     },
 
     async remove(p) {
-      if (!confirm(`确定删除模型服务「${p.name}」吗？`)) return;
+      if (!confirm(`确定删除渠道「${p.name}」吗？`)) return;
       try {
         await XApi.deleteProvider(p.id);
-        this.message('模型服务已删除');
+        this.message('渠道已删除');
         await this.load();
       } catch (e) {
         this.toastError(e);

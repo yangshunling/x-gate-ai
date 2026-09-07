@@ -17,7 +17,7 @@ const XApi = {
   },
   deleteKey(id) { return XHttp.delete('/admin/channel/' + id); },
 
-  /* ---------------- 模型服务 ---------------- */
+  /* ---------------- 渠道管理 ---------------- */
   listProviders() { return XHttp.get('/admin/providers'); },
   listEnabledProviders() { return XHttp.get('/admin/providers/enabled'); },
   saveProvider(dto, editing) {

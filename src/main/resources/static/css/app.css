@@ -318,18 +318,18 @@ input:focus, select:focus, textarea:focus {
 .log-toolbar .input.date { width: 150px; }
 
 /* ============ 接入示例页 ============ */
-.code-block { position: relative; border-radius: 14px; overflow: hidden; background: #0f172a; margin-bottom: 18px; }
+.code-block { position: relative; border-radius: 14px; overflow: hidden; background: #f6f8fa; border: 1px solid #d0d7de; margin-bottom: 18px; }
 .code-block .cb-head {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 16px; background: rgba(255,255,255,.04); border-bottom: 1px solid rgba(255,255,255,.08);
+  padding: 10px 16px; background: #f6f8fa; border-bottom: 1px solid #d0d7de;
 }
-.code-block .cb-title { font-family: var(--mono); font-size: 12px; color: #7dd3fc; font-weight: 500; }
+.code-block .cb-title { font-family: var(--mono); font-size: 12px; color: #57606a; font-weight: 500; }
 .code-block .cb-copy {
-  border: 1px solid rgba(255,255,255,.15); background: transparent; color: #94a3b8;
+  border: 1px solid #d0d7de; background: #e6e9ed; color: #57606a;
   border-radius: 8px; padding: 4px 12px; font-size: 12px; cursor: pointer; transition: all .14s;
 }
-.code-block .cb-copy:hover { color: #fff; border-color: rgba(255,255,255,.35); }
-.code-block pre { margin: 0; padding: 16px; overflow-x: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.7; color: #cbd5e1; white-space: pre; }
+.code-block .cb-copy:hover { color: #24292f; border-color: #afb8c1; background: #e9ecf0; }
+.code-block pre { margin: 0; padding: 16px; overflow-x: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.7; color: #1f2328; white-space: pre; }
 .usage-pick { max-width: 420px; }
 
 /* ============ 表格 ============ */

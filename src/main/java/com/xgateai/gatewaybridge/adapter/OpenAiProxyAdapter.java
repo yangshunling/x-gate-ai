@@ -129,18 +129,22 @@ public class OpenAiProxyAdapter {
     public Flux<DataBuffer> chatStream(JSONObject requestBody, String publicModel, String callerKeyName) {
         AtomicReference<UpstreamProvider> usedProviderRef = new AtomicReference<>();
         AtomicLong startRef = new AtomicLong(0);
+        log.info("[DEBUG] chatStream 被调用, publicModel: {}, stream: true");
         return Flux.defer(() -> {
             // 候选为空 / 模型不存在时由 getCandidates 抛 CommonException，转为 Flux.error 交还给下游
             List<UpstreamProvider> candidates = gatewayRouter.getCandidates(publicModel);
+            log.info("[DEBUG] 获取到 {} 个候选上游", candidates.size());
             startRef.compareAndSet(0, System.currentTimeMillis());
             return streamAttempt(candidates, 0, requestBody, callerKeyName, publicModel, usedProviderRef, new AtomicReference<>(""));
         }).doFinally(signal -> {
             // 流结束或出错时统一记录调用日志（需在订阅期间记录最终使用的上游）
             UpstreamProvider provider = usedProviderRef.get();
             if (provider == null) {
+                log.warn("[DEBUG] 流结束但没有使用任何上游, signal: {}", signal);
                 return;
             }
             long latencyMs = System.currentTimeMillis() - startRef.get();
+            log.info("[DEBUG] 流结束, 使用上游: {}, 延迟: {}ms, signal: {}", provider.getName(), latencyMs, signal);
             recordCallLog(callerKeyName, publicModel, provider, requestBody.toJSONString(), null, latencyMs, 200);
         });
     }
@@ -236,13 +240,17 @@ public class OpenAiProxyAdapter {
                                            String callerKeyName, String publicModel,
                                            AtomicReference<UpstreamProvider> usedProviderRef,
                                            AtomicReference<String> lastErrorRef) {
+        log.info("[DEBUG] streamAttempt index: {}/{}, 候选上游: {}", index, candidates.size(), 
+                candidates.stream().map(UpstreamProvider::getName).toList());
         if (index >= candidates.size()) {
             // 全部候选均未开始输出即失败
+            log.error("[DEBUG] 所有候选上游都已尝试失败");
             return Flux.error(new CommonException("所有上游流式调用失败: " + lastErrorRef.get()));
         }
         UpstreamProvider provider = candidates.get(index);
         JSONObject upstreamBody = copyBody(requestBody);
         upstreamBody.put("model", provider.getModelName());
+        log.info("[DEBUG] 尝试上游: {}, baseUrl: {}, modelName: {}", provider.getName(), provider.getBaseUrl(), provider.getModelName());
         // 标记当前候选是否已经开始向客户端输出字节
         AtomicBoolean hasOutput = new AtomicBoolean(false);
         return openAiClientFactory.postJson(webClient, provider, PATH_CHAT_COMPLETIONS, upstreamBody, true)
@@ -251,15 +259,17 @@ public class OpenAiProxyAdapter {
                     // 一旦有字节流出即记录最终使用的上游，供 doFinally 记账
                     hasOutput.set(true);
                     usedProviderRef.compareAndSet(null, provider);
+                    log.info("[DEBUG] 开始输出字节, 上游: {}", provider.getName());
                 })
                 .onErrorResume(throwable -> {
                     // 已在输出中断流：原样抛给客户端，不再切换
                     if (hasOutput.get()) {
+                        log.warn("[DEBUG] 上游 {} 输出中途失败", provider.getName());
                         return Flux.error(throwable);
                     }
                     String error = resolveMessage(throwable);
                     lastErrorRef.set(error);
-                    log.warn("流式 chat 调用上游失败，上游: {}, 原因: {}", provider.getName(), error);
+                    log.error("[DEBUG] 上游 {} 调用失败, 错误: {}", provider.getName(), error, throwable);
                     gatewayRouter.markCooldown(provider.getId());
                     // 尚未输出任何字节：冷却当前上游并尝试下一个候选
                     return streamAttempt(candidates, index + 1, requestBody, callerKeyName, publicModel, usedProviderRef, lastErrorRef);

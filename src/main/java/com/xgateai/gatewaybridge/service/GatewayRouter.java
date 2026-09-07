@@ -97,18 +97,25 @@ public class GatewayRouter {
         // 加载启用的通道
         List<ModelChannel> channels = modelChannelMapper.selectList(
                 new LambdaQueryWrapper<ModelChannel>().eq(ModelChannel::getEnabled, 1));
+        log.info("[DEBUG] 从数据库加载到 {} 个启用的通道", channels.size());
         for (ModelChannel channel : channels) {
             channelCache.put(channel.getPublicModelName(), channel);
+            log.info("[DEBUG] 通道: {}, id: {}", channel.getPublicModelName(), channel.getId());
             // 加载该通道绑定的启用上游，按 sort 升序
             List<ChannelUpstream> binds = channelUpstreamMapper.selectList(
                     new LambdaQueryWrapper<ChannelUpstream>()
                             .eq(ChannelUpstream::getChannelId, channel.getId())
                             .orderByAsc(ChannelUpstream::getSort));
+            log.info("[DEBUG] 通道 {} 绑定了 {} 个上游", channel.getPublicModelName(), binds.size());
             List<UpstreamProvider> providers = new ArrayList<>();
             for (ChannelUpstream bind : binds) {
                 UpstreamProvider provider = upstreamProviderMapper.selectById(bind.getProviderId());
-                if (provider != null && provider.getEnabled() == 1) {
-                    providers.add(provider);
+                if (provider != null) {
+                    log.info("[DEBUG]   上游: {}, enabled: {}, baseUrl: {}, modelName: {}", 
+                            provider.getName(), provider.getEnabled(), provider.getBaseUrl(), provider.getModelName());
+                    if (provider.getEnabled() == 1) {
+                        providers.add(provider);
+                    }
                 }
             }
             providers.sort(Comparator.comparingInt(p -> {
@@ -117,9 +124,12 @@ public class GatewayRouter {
             }));
             if (!providers.isEmpty()) {
                 providerCache.put(channel.getId(), providers);
+                log.info("[DEBUG] 通道 {} 有 {} 个可用上游", channel.getPublicModelName(), providers.size());
+            } else {
+                log.warn("[DEBUG] 通道 {} 没有可用上游！", channel.getPublicModelName());
             }
         }
-        log.info("网关路由刷新完成，对外模型数量: {}", channelCache.size());
+        log.info("网关路由刷新完成，对外模型数量: {}, 可用通道数: {}", channelCache.size(), providerCache.size());
     }
 
     /**
@@ -129,12 +139,16 @@ public class GatewayRouter {
      * @return 候选上游列表（按轮询旋转后的顺序）
      */
     public List<UpstreamProvider> getCandidates(String publicModel) {
+        log.info("[DEBUG] getCandidates 被调用, publicModel: {}, 缓存中的模型: {}", publicModel, channelCache.keySet());
         ModelChannel channel = channelCache.get(publicModel);
         if (channel == null) {
+            log.error("[DEBUG] 找不到通道: {}", publicModel);
             throw new CommonException("对外模型不存在或未启用: " + publicModel);
         }
         List<UpstreamProvider> all = providerCache.get(channel.getId());
+        log.info("[DEBUG] 通道 {} 的上游列表: {}", publicModel, all != null ? all.size() : "null");
         if (all == null || all.isEmpty()) {
+            log.error("[DEBUG] 通道 {} 没有可用上游", publicModel);
             throw new CommonException("对外模型未绑定可用的上游: " + publicModel);
         }
         long now = System.currentTimeMillis();

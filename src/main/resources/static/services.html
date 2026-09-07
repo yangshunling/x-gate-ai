@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>模型服务 · 大模型统一网关</title>
+<title>渠道管理 · 大模型统一网关</title>
 <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
@@ -14,19 +14,19 @@
 
   <div class="content">
     <!-- 顶栏（公共组件） -->
-    <x-head title="模型服务" sub="上游接入服务"></x-head>
+    <x-head title="渠道管理" sub="上游接入渠道"></x-head>
 
     <div class="body">
       <div class="page">
 
         <div class="panel">
           <div class="panel-head">
-            <span class="panel-title"><span class="dot-mark"></span>模型服务<span class="sub">共 {{ providers.length }} 个</span></span>
+            <span class="panel-title"><span class="dot-mark"></span>渠道管理<span class="sub">共 {{ providers.length }} 个</span></span>
             <div class="panel-toolbar">
               <button class="btn btn-ghost btn-sm" @click="load">刷新</button>
               <button class="btn btn-primary btn-sm" @click="openModal()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-                新增模型服务
+                新增渠道
               </button>
             </div>
           </div>
@@ -47,7 +47,7 @@
                       <span class="es-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="8" rx="2"/><rect x="4" y="13" width="16" height="8" rx="2"/><path d="M9 7h.01M9 17h.01"/></svg>
                       </span>
-                      <span class="es-text">暂无模型服务，点击右上角<b>「新增模型服务」</b>接入</span>
+                      <span class="es-text">暂无渠道，点击右上角<b>「新增渠道」</b>接入</span>
                     </div>
                   </td>
                 </tr>
@@ -84,7 +84,7 @@
   <div v-if="modal.open" class="modal-mask">
     <div class="modal">
       <div class="modal-head">
-        <span class="modal-title">{{ modal.editId ? '编辑模型服务' : '新增模型服务' }}</span>
+        <span class="modal-title">{{ modal.editId ? '编辑渠道' : '新增渠道' }}</span>
         <button class="modal-close" @click="closeModal">✕</button>
       </div>
       <div class="modal-body">
@@ -94,7 +94,7 @@
             <input class="input" v-model.trim="modal.form.name" placeholder="如：DeepSeek 官方">
           </div>
           <div class="form-item">
-            <label>模型名 <span class="req">*</span> <span class="form-hint">该服务提供的模型</span></label>
+            <label>模型名 <span class="req">*</span> <span class="form-hint">该渠道提供的模型</span></label>
             <input class="input mono-input" v-model.trim="modal.form.modelName" placeholder="如：deepseek-chat">
           </div>
         </div>
@@ -104,7 +104,7 @@
         </div>
         <div class="form-item">
           <label>API Key <span class="req" v-if="!modal.editId">*</span>
-            <span class="form-hint">{{ modal.editId ? '留空表示不修改，不回显原值' : '该服务的调用密钥' }}</span>
+            <span class="form-hint">{{ modal.editId ? '留空表示不修改，不回显原值' : '该渠道的调用密钥' }}</span>
           </label>
           <input class="input mono-input" type="password" v-model.trim="modal.form.apiKey"
                  :placeholder="modal.editId ? '留空保持不变' : '请输入 API Key'">
@@ -114,7 +114,7 @@
             <label>状态</label>
             <div class="check-cell">
               <label class="checkbox-line">
-                <input type="checkbox" v-model="modal.form.enabled"> <span class="txt">启用该服务</span>
+                <input type="checkbox" v-model="modal.form.enabled"> <span class="txt">启用该渠道</span>
               </label>
             </div>
           </div>

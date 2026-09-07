@@ -22,7 +22,7 @@
         <!-- 客户端接入信息：BaseURL / Access Key / 模型名 -->
         <div class="conn-card">
           <div class="cc-title"><span class="dot-mark"></span>客户端接入信息</div>
-          <div class="cc-desc">每个 API Key 对应一个对外模型服务。创建后自动生成专属 Key，发给客户端三个要素缺一不可。</div>
+          <div class="cc-desc">每个 API Key 对应一个对外渠道。创建后自动生成专属 Key，发给客户端三个要素缺一不可。</div>
           <div class="conn-rows">
             <div class="conn-row">
               <div class="cr-k"><span class="n">1</span>BASE URL 网关地址</div>
@@ -55,7 +55,7 @@
             <table class="tbl">
               <thead>
                 <tr>
-                  <th>模型名</th><th>专属 Key</th><th>状态</th><th>绑定模型服务</th>
+                  <th>模型名</th><th>专属 Key</th><th>状态</th><th>绑定渠道</th>
                   <th>策略</th><th>备注</th><th>操作</th>
                 </tr>
               </thead>
@@ -141,7 +141,7 @@
           <textarea class="input" rows="2" v-model.trim="modal.form.remark" placeholder="选填"></textarea>
         </div>
         <div class="form-item" style="margin-bottom:0">
-          <label>绑定模型服务 <span class="form-hint">勾选顺序即转发顺序 · 仅启用中的服务可选</span></label>
+          <label>绑定渠道 <span class="form-hint">勾选顺序即转发顺序 · 仅启用中的渠道可选</span></label>
           <div class="pick-group">
             <label class="pick-item" v-for="p in enabledProviders" :key="p.id">
               <input type="checkbox" :value="p.id" v-model="modal.selectedIds">
@@ -149,7 +149,7 @@
               <span class="pi-model">{{ p.modelName }}</span>
             </label>
             <div v-if="!enabledProviders.length" class="pick-empty">
-              暂无启用中的模型服务 — 请先到「模型服务」添加并启用
+              暂无启用中的渠道 — 请先到「渠道管理」添加并启用
             </div>
           </div>
         </div>

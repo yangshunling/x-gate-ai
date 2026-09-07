@@ -3,6 +3,7 @@ package com.xgateai.application.config;
 import com.xgateai.gatewaybridge.interceptor.ApiKeyInterceptor;
 import jakarta.annotation.Resource;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.config.annotation.AsyncSupportConfigurer;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -29,5 +30,14 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(apiKeyInterceptor).addPathPatterns("/v1/**");
+    }
+
+    /**
+     * 启用异步请求处理支持，使 Flux<DataBuffer> 能正确写入 SSE 响应
+     */
+    @Override
+    public void configureAsyncSupport(AsyncSupportConfigurer configurer) {
+        // 设置异步请求超时时间为 5 分钟，适配长耗时的大模型生成任务
+        configurer.setDefaultTimeout(5 * 60 * 1000L);
     }
 }

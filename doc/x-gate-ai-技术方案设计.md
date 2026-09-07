@@ -44,7 +44,7 @@
                     ▼                               ▼
           【对外 API + 鉴权 + 路由调度】      【Web 控制台】
                 │ 轮询 / 故障转移 / 模型名映射          前端（vue.global + 静态资源）
-                ▼                            (随 jar 一起发布)
+                ▼                       ![img.png](img.png)     (随 jar 一起发布)
         ┌────────┼────────┬────────┐
         ▼        ▼        ▼        ▼
    DeepSeek   通义千问   OpenAI    vLLM 本地    ...（任意 OpenAI 兼容服务）

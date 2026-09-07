@@ -12,8 +12,10 @@ import com.xgateai.gatewaybridge.constant.GatewayConstant;
 import com.xgateai.gatewaybridge.service.GatewayRouter;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -24,7 +26,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * <p>
@@ -62,7 +67,7 @@ public class GatewayController {
      * @return 非流式为 JSON 字符串响应体；流式为 text/event-stream 的字节 Flux
      */
     @PostMapping("/chat/completions")
-    public ResponseEntity<?> chatCompletions(@RequestBody String rawBody, HttpServletRequest request) {
+    public ResponseEntity<?> chatCompletions(@RequestBody String rawBody, HttpServletRequest request, HttpServletResponse response) throws IOException {
         try {
             JSONObject body = JSON.parseObject(rawBody);
             if (body == null) {
@@ -70,19 +75,58 @@ public class GatewayController {
             }
             ModelChannel channel = resolveChannel(request);
             if (channel == null) {
+                log.error("[DEBUG] 无法识别调用方对客服务，request attribute: {}", request.getAttribute(GatewayConstant.ATTR_API_KEY));
                 throw new CommonException("无法识别调用方对客服务");
             }
             String publicModel = channel.getPublicModelName();
             String callerKeyName = channel.getPublicModelName();
             boolean stream = body.getBooleanValue("stream");
+            log.info("[DEBUG] 开始处理请求, publicModel: {}, stream: {}, apiKey: {}", publicModel, stream, callerKeyName);
             if (stream) {
-                // SSE 流式：字节级原样转发上游
-                Flux<DataBuffer> flux = openAiProxyAdapter.chatStream(body, publicModel, callerKeyName);
-                return ResponseEntity.ok()
-                        .contentType(MediaType.TEXT_EVENT_STREAM)
-                        .body(flux);
+                log.info("[DEBUG] 进入流式处理分支");
+                // SSE 流式：直接写入 HttpServletResponse
+                // 不能用 ResponseEntity<StreamingResponseBody> + text/event-stream，Spring MVC 无对应 converter
+                response.setContentType(MediaType.TEXT_EVENT_STREAM_VALUE);
+                response.setCharacterEncoding("UTF-8");
+                response.flushBuffer();
+                AtomicBoolean hasError = new AtomicBoolean(false);
+                AtomicReference<String> errorMsg = new AtomicReference<>("");
+                try {
+                    Flux<DataBuffer> flux = openAiProxyAdapter.chatStream(body, publicModel, callerKeyName)
+                            .doOnError(throwable -> {
+                                hasError.set(true);
+                                errorMsg.set(resolveSSEErrorMessage(throwable));
+                                log.warn("SSE 流式调用失败，publicModel: {}, 错误: {}", publicModel, throwable.getMessage());
+                            });
+                    flux.doOnNext(dataBuffer -> {
+                        try {
+                            int size = dataBuffer.readableByteCount();
+                            byte[] bytes = new byte[size];
+                            dataBuffer.read(bytes);
+                            response.getOutputStream().write(bytes);
+                            response.getOutputStream().flush();
+                        } catch (IOException e) {
+                            log.error("SSE 流式写出失败", e);
+                            throw new RuntimeException("SSE 流式写出失败", e);
+                        } finally {
+                            DataBufferUtils.release(dataBuffer);
+                        }
+                    }).blockLast();
+                } catch (Exception e) {
+                    hasError.set(true);
+                    errorMsg.set(resolveSSEErrorMessage(e));
+                    log.error("SSE 流式处理异常，publicModel: {}", publicModel, e);
+                }
+                if (hasError.get() && !errorMsg.get().isEmpty()) {
+                    String errorEvent = "data: {\"error\":{\"message\":\"" + errorMsg.get().replace("\"", "\\\\\"") + "\",\"type\":\"upstream_error\",\"code\":null}}\n\n";
+                    response.getOutputStream().write(errorEvent.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    response.getOutputStream().flush();
+                }
+                log.info("[DEBUG] SSE 流式响应完毕");
+                return null;
             }
             // 非流式：完整 JSON 原样返回
+            log.info("[DEBUG] 进入非流式处理分支");
             UpstreamCallResult result = openAiProxyAdapter.chat(body, publicModel, callerKeyName);
             return ResponseEntity.ok()
                     .contentType(MediaType.APPLICATION_JSON)
@@ -181,5 +225,27 @@ public class GatewayController {
         return ResponseEntity.status(httpStatus)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body.toJSONString());
+    }
+
+    /**
+     * 从异常中提取可读的错误消息（用于 SSE 错误事件）
+     *
+     * @param throwable 异常
+     * @return 错误消息
+     */
+    private String resolveSSEErrorMessage(Throwable throwable) {
+        Throwable cause = throwable;
+        while (cause.getCause() != null && cause.getCause() != cause) {
+            cause = cause.getCause();
+        }
+        String message = cause.getMessage();
+        if (StrUtil.isBlank(message)) {
+            message = cause.getClass().getSimpleName();
+        }
+        // 截取前 200 字符避免过长
+        if (message.length() > 200) {
+            message = message.substring(0, 200) + "...";
+        }
+        return message;
     }
 }
