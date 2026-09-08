@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
 	<!-- traceId 转换器：MDC 有 traceId 时输出 "[tid=xxx] " 前缀 -->
-	<conversionRule conversionWord="traceId" converterClass="com.xgateai.gatewaybridge.logging.TraceIdConverter"/>
+	<conversionRule conversionWord="traceId" converterClass="com.xgateai.logging.TraceIdConverter"/>
 
 	<!-- 控制台彩色日志输出 -->
 	<appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
 		<encoder>
-			<pattern>%d{HH:mm:ss.SSS} %highlight(%-5level) %traceId%cyan(%logger{24}) - %msg%n</pattern>
+			<pattern>%d{HH:mm:ss} %highlight(%-5level) %traceId%cyan(%logger{24}) - %msg%n</pattern>
 		</encoder>
 	</appender>
 
@@ -25,7 +25,7 @@
 			<maxHistory>30</maxHistory>
 		</rollingPolicy>
 		<encoder>
-			<pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %traceId%logger{36} - %msg%n</pattern>
+			<pattern>%d{yyyy-MM-dd HH:mm:ss} %-5level [%thread] %traceId%logger{36} - %msg%n</pattern>
 		</encoder>
 	</appender>
 
@@ -37,7 +37,7 @@
 			<maxHistory>30</maxHistory>
 		</rollingPolicy>
 		<encoder>
-			<pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %traceId%msg%n</pattern>
+			<pattern>%d{yyyy-MM-dd HH:mm:ss} %traceId%msg%n</pattern>
 		</encoder>
 	</appender>
 

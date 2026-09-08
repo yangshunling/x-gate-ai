@@ -26,17 +26,6 @@ const ModelsApp = {
   },
 
   methods: {
-    async initBaseURL() {
-      try {
-        const info = await XApi.serverInfo();
-        if (info && info.host && info.port) {
-          this.baseURL = `${window.location.protocol}//${info.host}:${info.port}/v1`;
-        }
-      } catch (e) {
-        // 回退到 window.location.origin
-      }
-    },
-
     /* ---------------- 列表 ---------------- */
     async load() {
       this.loading = true;
@@ -145,27 +134,7 @@ const ModelsApp = {
       this.keyResult.open = false;
       this.keyResult.key = '';
     },
-    async copyText(text) {
-      let done = false;
-      if (navigator.clipboard && window.isSecureContext) {
-        try { await navigator.clipboard.writeText(text); done = true; } catch (e) { /* fallback */ }
-      }
-      if (!done) {
-        try {
-          const ta = document.createElement('textarea');
-          ta.value = text;
-          ta.style.position = 'fixed';
-          ta.style.opacity = '0';
-          document.body.appendChild(ta);
-          ta.focus();
-          ta.select();
-          done = document.execCommand('copy');
-          document.body.removeChild(ta);
-        } catch (e) { done = false; }
-      }
-      this.message(done ? 'Key 已复制' : '复制失败，请手动复制', done ? 'success' : 'error');
-    },
-    copyKey() { this.copyText(this.keyResult.key); },
-    copyListKey(c, text) { this.copyText(text || c.api_key); },
+    copyKey() { this.copyText(this.keyResult.key, 'Key 已复制'); },
+    copyListKey(c, text) { this.copyText(text || c.api_key, 'Key 已复制'); },
   },
 };

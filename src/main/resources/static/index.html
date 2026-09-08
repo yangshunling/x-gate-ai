@@ -14,7 +14,7 @@
 
   <div class="content">
     <!-- 顶栏（公共组件） -->
-    <x-head title="仪表盘" sub="实时总览"></x-head>
+    <x-head title="仪表盘"></x-head>
 
     <div class="body">
       <div class="page">
@@ -26,32 +26,47 @@
         </div>
 
         <template v-else>
-          <!-- 指标卡 -->
+          <!-- 指标卡（每行 5 个） -->
           <div class="stat-grid">
             <div class="stat">
+              <div class="k"><span class="stat-ico" style="background:#eef2ff;color:#6366f1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M12 8v6M8 11h8"/></svg></span>调用总数</div>
+              <div class="v">{{ dash.totalCalls != null ? fmtTokens(dash.totalCalls) : '—' }}</div>
+              <div class="u">历史累计请求</div>
+            </div>
+            <div class="stat ok">
+              <div class="k"><span class="stat-ico" style="background:#ecfdf5;color:#10b981"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>成功总数</div>
+              <div class="v">{{ dash.totalSuccess != null ? fmtTokens(dash.totalSuccess) : '—' }}</div>
+              <div class="u">历史累计成功</div>
+            </div>
+            <div class="stat bad">
+              <div class="k"><span class="stat-ico" style="background:#fef2f2;color:#ef4444"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>失败总数</div>
+              <div class="v">{{ dash.totalFail != null ? fmtTokens(dash.totalFail) : '—' }}</div>
+              <div class="u">历史累计失败</div>
+            </div>
+            <div class="stat">
               <div class="k"><span class="stat-ico" style="background:#eff6ff;color:#2563eb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 3v6h6"/></svg></span>今日调用</div>
-              <div class="v">{{ dash.todayCalls != null ? dash.todayCalls : '—' }}</div>
-              <div class="u">请求总次数</div>
+              <div class="v">{{ dash.todayCalls != null ? fmtTokens(dash.todayCalls) : '—' }}</div>
+              <div class="u">今日请求总次数</div>
             </div>
             <div class="stat ok">
               <div class="k"><span class="stat-ico" style="background:#ecfdf5;color:#10b981"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>今日成功</div>
-              <div class="v">{{ dash.todaySuccess != null ? dash.todaySuccess : '—' }}</div>
+              <div class="v">{{ dash.todaySuccess != null ? fmtTokens(dash.todaySuccess) : '—' }}</div>
               <div class="u">状态码 200~399</div>
             </div>
             <div class="stat bad">
               <div class="k"><span class="stat-ico" style="background:#fef2f2;color:#ef4444"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>今日失败</div>
-              <div class="v">{{ dash.todayFail != null ? dash.todayFail : '—' }}</div>
+              <div class="v">{{ dash.todayFail != null ? fmtTokens(dash.todayFail) : '—' }}</div>
               <div class="u">异常请求</div>
             </div>
             <div class="stat">
               <div class="k"><span class="stat-ico" style="background:#f5f3ff;color:#8b5cf6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></span>输入 Token</div>
               <div class="v">{{ fmtTokens(dash.todayInputTokens) }}</div>
-              <div class="u">提示词消耗</div>
+              <div class="u">今日提示词消耗</div>
             </div>
             <div class="stat">
               <div class="k"><span class="stat-ico" style="background:#ecfeff;color:#06b6d4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg></span>输出 Token</div>
               <div class="v">{{ fmtTokens(dash.todayOutputTokens) }}</div>
-              <div class="u">生成内容消耗</div>
+              <div class="u">今日生成内容消耗</div>
             </div>
             <div class="stat">
               <div class="k"><span class="stat-ico" style="background:#eff6ff;color:#2563eb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2 20 3M15 8l2.5 2.5M17 6l2 2"/></svg></span>启用 API Key</div>
@@ -96,56 +111,42 @@
                     </tr>
                   </tbody>
                 </table>
-              </div>
-            </div>
-          </div>
+               </div>
+             </div>
+           </div>
 
-          <!-- Token 使用趋势 -->
-          <div class="panel">
-            <div class="panel-head">
-              <span class="panel-title"><span class="dot-mark"></span>Token 使用趋势<span class="sub">按小时聚合</span></span>
-              <div class="panel-toolbar">
-                <div class="seg-group">
-                  <button v-for="h in [24, 168]" :key="h" :class="{active: trendHours === h}" @click="switchHours(h)">
-                    {{ h === 24 ? '近24小时' : '近7天' }}
-                  </button>
+            <!-- 模型调用权重 -->
+            <div class="panel">
+              <div class="panel-head">
+                <span class="panel-title"><span class="dot-mark"></span>模型调用权重<span class="sub">失败越少优先级越高</span></span>
+              </div>
+              <div class="panel-body">
+                <div v-if="weightLoading" class="page-loading" style="min-height:80px"><div class="spinner"></div>&nbsp;加载中…</div>
+                <div v-else-if="weightStats.length === 0" class="model-dist"><div class="empty-tip">暂无渠道数据</div></div>
+                <div v-else class="cust-table">
+                  <table class="tbl cust-tbl">
+                    <thead>
+                      <tr>
+                        <th style="width:44px">#</th>
+                        <th>渠道名</th>
+                        <th>模型名</th>
+                        <th>失败次数</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="(p, i) in weightStats" :key="p.name">
+                        <td><span class="cust-rank">{{ i + 1 }}</span></td>
+                        <td class="cust-name">{{ p.name }}</td>
+                        <td class="num">{{ p.model }}</td>
+                        <td class="num" :style="{ color: i < 3 ? 'var(--success)' : 'var(--destructive)' }"><b>{{ p.failCount }}</b></td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
-            <div class="panel-body">
-              <div v-if="trendLoading" class="page-loading" style="min-height:180px"><div class="spinner"></div>&nbsp;加载趋势…</div>
-              <template v-else>
-                <div v-if="trend.length === 0" class="trend-chart">
-                  <div class="chart-placeholder">暂无调用数据，调用网关后这里会展示 Token 用量趋势</div>
-                </div>
-                <template v-else>
-                  <svg class="trend-chart" width="800" height="240" style="width:100%;height:auto"
-                       viewBox="0 0 800 240" preserveAspectRatio="none">
-                    <!-- 网格线 -->
-                    <line v-for="gy in [0,60,120,180,240]" :key="'g'+gy" x1="0" :y1="gy" x2="800" :y2="gy" stroke="#eef2f6" stroke-width="1"/>
-                    <!-- 输出区域（浅色） -->
-                    <path v-if="showOutput" :d="trendAreaPath('outputTokens', 800, 240)" fill="rgba(6,182,212,.08)"/>
-                    <!-- 输出折线 -->
-                    <path v-if="showOutput" :d="trendPath('outputTokens', 800, 240)" fill="none" stroke="#06b6d4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    <!-- 输入折线 -->
-                    <path v-if="showInput" :d="trendPath('inputTokens', 800, 240)" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                  </svg>
-                  <div class="trend-legend">
-                    <span class="lg-item" @click="showInput = !showInput" :class="{off: !showInput}">
-                      <span class="swatch" style="background:#2563eb"></span>输入 Token
-                    </span>
-                    <span class="lg-item" @click="showOutput = !showOutput" :class="{off: !showOutput}">
-                      <span class="swatch" style="background:#06b6d4"></span>输出 Token
-                    </span>
-                    <span class="muted" style="font-size:11.5px">峰值 {{ shortToken(trendMax()) }}</span>
-                  </div>
-                </template>
-              </template>
-            </div>
-          </div>
 
-
-        </template>
+         </template>
 
       </div>
     </div>

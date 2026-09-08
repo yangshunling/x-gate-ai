@@ -14,7 +14,7 @@
 
   <div class="content">
     <!-- 顶栏（公共组件） -->
-    <x-head title="客户管理" sub="对外 API Key 与接入权限"></x-head>
+    <x-head title="客户管理"></x-head>
 
     <div class="body">
       <div class="page">
@@ -22,7 +22,7 @@
         <!-- 客户端接入信息：BaseURL / Access Key / 请求 model -->
         <div class="conn-card">
           <div class="cc-title"><span class="dot-mark"></span>客户端接入信息</div>
-          <div class="cc-desc">每个 API Key 对应一个客户。客户端调用时携带专属 Key 并在请求体里填 model：网关在全部启用渠道中精确匹配提供该模型的渠道，轮询与故障转移只在同模型渠道间发生。</div>
+          <div class="cc-desc">每个 API Key 对应一个客户。网关按请求体中的 model 精确匹配渠道，不同模型的渠道不参与同模型轮询。</div>
           <div class="conn-rows">
             <div class="conn-row">
               <div class="cr-k"><span class="n">1</span>BASE URL 网关地址</div>
@@ -34,7 +34,7 @@
             </div>
             <div class="conn-row">
               <div class="cr-k"><span class="n">3</span>MODEL 请求模型</div>
-              <div class="cr-v"><small>请求体 model 字段必传。default 客户可填池内任意模型；限定模型客户只能填被限定的模型</small></div>
+              <div class="cr-v"><small>请求体 model 必传：default 可填任意模型；限定客户仅限所限模型</small></div>
             </div>
           </div>
         </div>
@@ -52,17 +52,17 @@
           </div>
 
           <div class="tbl-wrap">
-            <table class="tbl">
+            <table class="tbl tbl-fixed">
               <thead>
                 <tr>
-                  <th>客户名</th><th>限定模型</th><th>专属 Key</th><th>可用渠道</th>
-                  <th>状态</th><th>备注</th><th>操作</th>
+                  <th style="width:150px">客户名</th><th style="width:200px">限定模型</th><th>专属 Key</th>
+                  <th style="width:80px">状态</th><th style="width:140px">备注</th><th style="width:140px">操作</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-if="loading"><td colspan="7" class="empty-row"><div class="spinner"></div>&nbsp;加载中…</td></tr>
+                <tr v-if="loading"><td colspan="6" class="empty-row"><div class="spinner"></div>&nbsp;加载中…</td></tr>
                 <tr v-else-if="channels.length === 0">
-                  <td colspan="7" class="empty-row">
+                  <td colspan="6" class="empty-row">
                     <div class="empty-state">
                       <span class="es-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v5h5"/><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M9 13h6M9 17h4"/></svg>
@@ -80,19 +80,9 @@
                      </div>
                    </td>
                   <td>
-                    <div class="flex" style="gap:8px">
-                      <span class="mono ellip" style="max-width:150px;display:inline-block;vertical-align:middle" :title="c.api_key">{{ c.api_key }}</span>
+                    <div class="flex" style="gap:8px;width:100%">
+                      <span class="mono ellip" style="flex:1;min-width:0;display:inline-block;vertical-align:middle" :title="c.api_key">{{ c.api_key }}</span>
                       <a class="row-link" style="white-space:nowrap" @click="copyListKey(c)">复制</a>
-                    </div>
-                  </td>
-                  <td>
-                    <div class="link-list">
-                      <template v-if="c.providers.length">
-                        <span class="link-pill" v-for="p in c.providers" :key="p.id" :title="p.model_name">
-                          <span class="bdot"></span>{{ p.name }}（{{ p.model_name }}）
-                        </span>
-                      </template>
-                      <span v-else class="muted">暂无可用渠道</span>
                     </div>
                   </td>
                   <td>
@@ -103,7 +93,7 @@
                   </td>
                   <td class="sub">{{ c.remark || '—' }}</td>
                   <td>
-                    <div class="ops">
+                    <div class="ops" style="justify-content:flex-start">
                       <a class="row-link" @click="openModal(c)">编辑</a>
                       <span class="sep"></span>
                       <a class="row-link danger" @click="remove(c)">删除</a>
@@ -156,7 +146,7 @@
         </div>
         <div class="form-item" style="margin-bottom:0">
           <div style="padding:10px 14px;background:#f8f9fb;border-radius:8px;font-size:13px;color:var(--ink-3);line-height:1.6">
-            客户端请求体里的 <b>model</b> 必传，网关按它在全池启用的渠道中精确匹配（相同 model 的渠道参与轮询与故障转移，其它模型的渠道不参与）。
+            请求体 <b>model</b> 必传：default 可选任意模型；限定客户仅限所限模型。
           </div>
         </div>
       </div>
@@ -187,7 +177,7 @@
           客户端调用方式：<br>
           <span class="mono">POST {{ baseURL }}/chat/completions</span><br>
           <span class="mono">Authorization: Bearer {{ keyResult.key }}</span><br>
-          <span class="muted">请求体 model 字段必传：default 客户可填池内任意模型；限定模型客户请填被限定的模型。</span>
+          <span class="muted">请求体 model 必传：default 可填任意模型；限定客户仅限所限模型。</span>
         </div>
       </div>
       <div class="modal-foot">

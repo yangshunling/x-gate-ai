@@ -14,7 +14,7 @@
 
   <div class="content">
     <!-- 顶栏（公共组件） -->
-    <x-head title="调用日志" sub="调用记录明细"></x-head>
+    <x-head title="调用日志"></x-head>
 
     <div class="body">
       <div class="page">
@@ -46,13 +46,13 @@
                 <tr>
                   <th style="width:36px"></th>
                   <th>客户名</th><th>上游模型</th>
-                  <th>输入 Token</th><th>输出 Token</th><th>耗时</th><th>状态</th><th>时间</th>
+                  <th>输入 Token</th><th>输出 Token</th><th>Tool Calls</th><th>耗时</th><th>状态</th><th>时间</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-if="loading"><td colspan="9" class="empty-row"><div class="spinner"></div>&nbsp;加载中…</td></tr>
+                <tr v-if="loading"><td colspan="10" class="empty-row"><div class="spinner"></div>&nbsp;加载中…</td></tr>
                 <tr v-else-if="list.length === 0">
-                  <td colspan="9" class="empty-row">
+                  <td colspan="10" class="empty-row">
                     <div class="empty-state">
                       <span class="es-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h9M4 12h12M4 18h7"/><circle cx="17" cy="6" r="1.6"/><circle cx="19" cy="18" r="1.6"/></svg>
@@ -73,12 +73,13 @@
                     <td><span class="mono sub">{{ l.upstream_model }}</span></td>
                     <td><span class="num">{{ fmtTokens(l.input_tokens) }}</span></td>
                     <td><span class="num">{{ fmtTokens(l.output_tokens) }}</span></td>
+                    <td><span class="num">{{ l.tool_calls_count != null ? l.tool_calls_count : '—' }}</span></td>
                     <td><span class="num">{{ l.latency_ms != null ? l.latency_ms : '—' }}</span> <span class="sub">ms</span></td>
                     <td><span class="tag" :class="l.http_status != null && l.http_status < 400 ? 'tag-on' : 'tag-danger'">{{ l.http_status != null ? l.http_status : '—' }}</span></td>
                     <td class="mono sub" style="white-space:nowrap">{{ l.created_at }}</td>
                   </tr>
                   <tr v-if="expanded === l.id">
-                    <td colspan="9" class="log-detail">
+                       <td colspan="10" class="log-detail">
                       <!-- 概要卡 -->
                       <div class="log-detail-grid">
                         <div class="log-detail-card">

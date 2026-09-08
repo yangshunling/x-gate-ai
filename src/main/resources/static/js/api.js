@@ -10,8 +10,9 @@ const XApi = {
 
   /* ---------------- 仪表盘 ---------------- */
   dashboard() { return XHttp.get('/admin/dashboard'); },
-  tokenTrend(hours) { return XHttp.get('/admin/dashboard/trend?hours=' + (hours || 24)); },
   modelStats() { return XHttp.get('/admin/dashboard/models'); },
+  modelFailStats() { return XHttp.get('/admin/dashboard/model-fail-stats'); },
+  modelWeightStats() { return XHttp.get('/admin/dashboard/model-weight-stats'); },
   customerStats() { return XHttp.get('/admin/dashboard/customers'); },
 
   /* ---------------- API Key（对外客户） ---------------- */
@@ -31,6 +32,7 @@ const XApi = {
   },
   deleteProvider(id) { return XHttp.delete('/admin/provider/' + id); },
   testProvider(id) { return XHttp.post('/admin/provider/' + id + '/test'); },
+  testAllProviders() { return XHttp.post('/admin/providers/test-all'); },
 
   /* ---------------- 调用日志 ---------------- */
   queryLogs(params) {

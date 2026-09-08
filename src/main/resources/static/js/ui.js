@@ -26,10 +26,6 @@ const XUi = (() => {
       key: 'logs', label: '调用日志', href: 'logs.html',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h9M4 12h16M4 18h7"/><circle cx="16.5" cy="6" r="1.8"/><circle cx="20" cy="18" r="1.8"/></svg>',
     },
-    {
-      key: 'usage', label: '接入示例', href: 'usage.html',
-      icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v5h5"/><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M10 14l-1.5-1.5L10 11M14 11l1.5 1.5L14 14"/></svg>',
-    },
   ];
 
   /* ---------------- 通用组件 ---------------- */
@@ -54,29 +50,20 @@ const XUi = (() => {
             <span>{{ item.label }}</span>
           </a>
         </nav>
-        <div class="side-foot">
-          <span class="pulse"></span>
-          <div>
-            <div class="t">服务运行中 <b>ONLINE</b></div>
-            <div class="v">/v1 · OpenAI 兼容</div>
-          </div>
-        </div>
       </aside>
     `,
     data() { return { items: NAV_ITEMS }; },
   };
 
-  /* 顶栏 */
+  /* 顶栏：左侧标题，右侧常驻服务状态 */
   const Head = {
     name: 'XHead',
     props: {
       title: { type: String, required: true },
-      sub: { type: String, default: '' },
     },
     template: `
       <div class="head">
         <h1><span class="bar"></span>{{ title }}</h1>
-        <span class="sub">{{ sub }}</span>
       </div>
     `,
   };
@@ -121,6 +108,37 @@ const XUi = (() => {
         if (num >= 100000000) return (num / 100000000).toFixed(2) + ' 亿';
         if (num >= 10000) return (num / 10000).toFixed(1) + ' 万';
         return String(num);
+      },
+      /* 复制文本到剪贴板（浏览器安全上下文优先，失败降级到 execCommand） */
+      async copyText(text, successMsg = '已复制') {
+        let done = false;
+        if (navigator.clipboard && window.isSecureContext) {
+          try { await navigator.clipboard.writeText(text); done = true; } catch (e) { /* fallback */ }
+        }
+        if (!done) {
+          try {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            done = document.execCommand('copy');
+            document.body.removeChild(ta);
+          } catch (e) { done = false; }
+        }
+        this.message(done ? successMsg : '复制失败，请手动复制', done ? 'success' : 'error');
+      },
+      /* 初始化示例 BaseURL：优先使用服务端提供的局域网 IP，失败回退 origin */
+      async initBaseURL() {
+        if (!this.baseURL) this.baseURL = window.location.origin + '/v1';
+        try {
+          const info = await XApi.serverInfo();
+          if (info && info.host && info.port) {
+            this.baseURL = `${window.location.protocol}//${info.host}:${info.port}/v1`;
+          }
+        } catch (e) { /* 回退 window.location.origin */ }
       },
     },
   };

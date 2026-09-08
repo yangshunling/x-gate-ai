@@ -208,8 +208,7 @@ x-gate-ai
 │           ├── index.html               # 仪表盘
 │           ├── models.html              # 模型通道
 │           ├── services.html            # 上游服务
-│           ├── logs.html                # 调用日志
-│           ├── usage.html               # 用量统计
+│           └── logs.html                # 调用日志
 │           └── js/ / css/ / lib/        # 前端资源
 ├── pom.xml
 └── LICENSE                              # Apache-2.0

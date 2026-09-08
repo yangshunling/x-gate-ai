@@ -8,9 +8,11 @@ const ServicesApp = {
     return {
       providers: [],
       loading: false,
+      testingAll: false,
+      connMap: {},  // { id: { ok, latencyMs, message } }
       modal: {
         open: false, editId: null, saving: false,
-        form: { name: '', baseUrl: '', apiKey: '', modelName: '', enabled: true, remark: '' },
+        form: { name: '', baseUrl: '', apiKey: '', modelName: '', enabled: true, weight: 100, remark: '' },
       },
     };
   },
@@ -18,6 +20,37 @@ const ServicesApp = {
   created() { this.load(); },
 
   methods: {
+    /* ---------------- 全局 / 单个测试 ---------------- */
+    async testAll() {
+      this.testingAll = true;
+      try {
+        const results = await XApi.testAllProviders();
+        if (Array.isArray(results)) {
+          this.connMap = {};
+          for (const r of results) this.connMap[r.id] = { ok: r.ok, latencyMs: r.latencyMs, message: r.message };
+          if (results.length === 0) {
+            this.message('暂无渠道可测试', 'warn');
+          } else {
+            this.message(`已完成 ${results.length} 个渠道的全局连通测试`);
+          }
+        }
+      } catch (e) {
+        this.toastError(e);
+      } finally {
+        this.testingAll = false;
+      }
+    },
+    async testOne(p) {
+      try {
+        const r = await XApi.testProvider(p.id);
+        this.connMap[p.id] = { ok: r.ok, latencyMs: r.latencyMs, message: r.message };
+        this.message(`${p.name}：${r.ok ? '已连通' : '未连通'} · ${r.latencyMs != null ? r.latencyMs + 'ms' : ''}`, r.ok ? 'success' : 'error');
+      } catch (e) {
+        this.connMap[p.id] = { ok: false, message: e.message };
+        this.toastError(e);
+      }
+    },
+
     /* ---------------- 列表 ---------------- */
     async load() {
       this.loading = true;
@@ -37,11 +70,11 @@ const ServicesApp = {
         this.modal.editId = p.id;
         this.modal.form = {
           name: p.name, baseUrl: p.baseUrl, apiKey: '', // 编辑不回显 Key，留空 = 不修改
-          modelName: p.modelName, enabled: !!p.enabled, remark: p.remark || '',
+          modelName: p.modelName, enabled: !!p.enabled, weight: p.weight || 100, remark: p.remark || '',
         };
       } else {
         this.modal.editId = null;
-        this.modal.form = { name: '', baseUrl: '', apiKey: '', modelName: '', enabled: true, remark: '' };
+        this.modal.form = { name: '', baseUrl: '', apiKey: '', modelName: '', enabled: true, weight: 100, remark: '' };
       }
       this.modal.open = true;
     },
@@ -59,7 +92,7 @@ const ServicesApp = {
       if (!editing && !f.apiKey) { this.message('请填写 API Key', 'warn'); return; }
       const body = {
         name: f.name, baseUrl: f.baseUrl, apiKey: editing ? (f.apiKey || '') : f.apiKey,
-        modelName: f.modelName, enabled: f.enabled ? 1 : 0, remark: f.remark || '',
+          modelName: f.modelName, enabled: f.enabled ? 1 : 0, weight: f.weight || 100, remark: f.remark || '',
       };
       if (editing) body.id = this.modal.editId;
       this.modal.saving = true;
@@ -79,7 +112,7 @@ const ServicesApp = {
     async toggle(p) {
       const prev = p.enabled;
       p.enabled = prev ? 0 : 1;
-      const body = { name: p.name, baseUrl: p.baseUrl, apiKey: '', modelName: p.modelName, enabled: p.enabled, remark: p.remark || '' };
+      const body = { name: p.name, baseUrl: p.baseUrl, apiKey: '', modelName: p.modelName, enabled: p.enabled, weight: p.weight || 100, remark: p.remark || '' };
       try {
         await XApi.saveProvider({ ...body, id: p.id }, true);
         this.message(p.enabled ? '渠道已启用' : '渠道已停用');
@@ -89,20 +122,7 @@ const ServicesApp = {
       }
     },
 
-    /* ---------------- 连通测试 ---------------- */
-    async test(p) {
-      this.message(`正在测试「${p.name}」连通性…`, 'info');
-      try {
-        const r = await XApi.testProvider(p.id);
-        if (r && r.ok) {
-          this.message(`「${p.name}」连通正常 · 耗时 ${r.latencyMs != null ? r.latencyMs : '-'} ms`);
-        } else {
-          this.message(`「${p.name}」连通失败：${(r && r.message) || '未知原因'}`, 'error');
-        }
-      } catch (e) {
-        this.toastError(e);
-      }
-    },
+    /* ---------------- 连通测试（行内「测试」链接，复用 testOne） ---------------- */
 
     async remove(p) {
       if (!confirm(`确定删除渠道「${p.name}」吗？`)) return;

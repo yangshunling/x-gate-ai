@@ -14,7 +14,7 @@
 
   <div class="content">
     <!-- 顶栏（公共组件） -->
-    <x-head title="渠道管理" sub="上游接入渠道"></x-head>
+    <x-head title="渠道管理"></x-head>
 
     <div class="body">
       <div class="page">
@@ -22,27 +22,32 @@
         <div class="panel">
           <div class="panel-head">
             <span class="panel-title"><span class="dot-mark"></span>渠道管理<span class="sub">共 {{ providers.length }} 个</span></span>
-            <div class="panel-toolbar">
-              <button class="btn btn-ghost btn-sm" @click="load">刷新</button>
-              <button class="btn btn-primary btn-sm" @click="openModal()">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-                新增渠道
-              </button>
-            </div>
+             <div class="panel-toolbar">
+               <button class="btn btn-ghost btn-sm" @click="load">刷新</button>
+                <button class="btn btn-ghost btn-sm" :disabled="testingAll" @click="testAll">
+                  <span v-if="testingAll" class="spinner"></span>
+                  <svg v-if="!testingAll" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                  {{ testingAll ? '测试中…' : '全局测试' }}
+                </button>
+               <button class="btn btn-primary btn-sm" @click="openModal()">
+                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                 新增渠道
+               </button>
+             </div>
           </div>
 
           <div class="tbl-wrap">
-            <table class="tbl">
+            <table class="tbl tbl-fixed">
               <thead>
                 <tr>
-                  <th>名称</th><th>Base URL</th><th>模型名</th>
-                  <th>状态</th><th>备注</th><th>操作</th>
+                  <th style="width:150px">名称</th><th style="width:200px">模型名</th><th>Base URL</th>
+                  <th style="width:80px">状态</th><th style="width:230px">操作</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-if="loading"><td colspan="6" class="empty-row"><div class="spinner"></div>&nbsp;加载中…</td></tr>
+                <tr v-if="loading"><td colspan="5" class="empty-row"><div class="spinner"></div>&nbsp;加载中…</td></tr>
                 <tr v-else-if="providers.length === 0">
-                  <td colspan="6" class="empty-row">
+                  <td colspan="5" class="empty-row">
                     <div class="empty-state">
                       <span class="es-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="8" rx="2"/><rect x="4" y="13" width="16" height="8" rx="2"/><path d="M9 7h.01M9 17h.01"/></svg>
@@ -52,24 +57,30 @@
                   </td>
                 </tr>
                 <tr v-for="p in providers" :key="p.id">
-                  <td style="font-weight:600">{{ p.name }}</td>
-                   <td><span class="mono" style="word-break:break-all;white-space:normal;max-width:220px;display:inline-block;vertical-align:middle" :title="p.baseUrl">{{ p.baseUrl }}</span></td>
-                  <td><span class="mono" style="color:var(--slate-700)">{{ p.modelName }}</span></td>
-                  <td>
-                    <label class="switch" :title="p.enabled ? '点击停用' : '点击启用'">
-                      <input type="checkbox" :checked="p.enabled" @change="toggle(p)">
-                      <span class="slider"></span>
-                    </label>
-                  </td>
-                  <td class="sub">{{ p.remark || '—' }}</td>
-                  <td>
-                    <div class="ops">
-                      <button class="btn btn-ghost btn-sm" @click="test(p)">测试连通</button>
-                      <a class="row-link" @click="openModal(p)">编辑</a>
-                      <span class="sep"></span>
-                      <a class="row-link danger" @click="remove(p)">删除</a>
-                    </div>
-                  </td>
+                    <td style="font-weight:600">{{ p.name }}</td>
+                    <td><span class="mono" style="color:var(--slate-700)">{{ p.modelName }}</span></td>
+                    <td><span class="mono" style="word-break:break-all;white-space:normal;display:inline-block;vertical-align:middle" :title="p.baseUrl">{{ p.baseUrl }}</span></td>
+                    <td>
+                      <label class="switch" :title="p.enabled ? '点击停用' : '点击启用'">
+                        <input type="checkbox" :checked="p.enabled" @change="toggle(p)">
+                        <span class="slider"></span>
+                      </label>
+                    </td>
+                    <td>
+                      <div class="ops" style="justify-content:flex-start">
+                        <span
+                          class="conn-dot"
+                          :class="{ 'conn-ok': connMap[p.id]?.ok, 'conn-fail': connMap[p.id] && !connMap[p.id].ok }"
+                          :title="connMap[p.id] ? (connMap[p.id].ok ? '已连通 · ' + (connMap[p.id].latencyMs || '-') + 'ms' : connMap[p.id].message) : '未测试'"
+                          @click="testOne(p)"
+                          style="cursor:pointer"
+                        ></span>
+                        <button class="btn btn-ghost btn-sm" @click="testOne(p)">测试</button>
+                        <a class="row-link" @click="openModal(p)">编辑</a>
+                        <span class="sep"></span>
+                        <a class="row-link danger" @click="remove(p)">删除</a>
+                      </div>
+                    </td>
                 </tr>
               </tbody>
             </table>
@@ -118,6 +129,12 @@
               </label>
             </div>
           </div>
+          <div class="form-item">
+            <label>调用权重 <span class="form-hint">越高越优先被调用（默认 100）</span></label>
+            <input class="input" type="number" v-model.number="modal.form.weight" placeholder="100">
+          </div>
+        </div>
+        <div class="form-grid">
           <div class="form-item">
             <label>备注</label>
             <input class="input" v-model.trim="modal.form.remark" placeholder="选填">
