@@ -1,6 +1,6 @@
 /* ============================================================
  * 调用日志页面
- * 含：高级筛选（模型/日期/状态码）、行内详情展开
+ * 含：高级筛选（客户名/日期/状态码）、行内详情展开
  * ============================================================ */
 
 const LogsApp = {
@@ -8,7 +8,7 @@ const LogsApp = {
   data() {
     return {
       /* 筛选条件 */
-      filter: { model: '', dateFrom: '', dateTo: '', status: '' },
+      filter: { customerName: '', dateFrom: '', dateTo: '', status: '' },
 
       /* 分页 */
       page: { num: 1, size: 10, total: 0, totalPages: 1 },
@@ -27,7 +27,7 @@ const LogsApp = {
       this.loading = true;
       try {
         const r = await XApi.queryLogs({
-          publicModel: this.filter.model,
+          publicModel: this.filter.customerName,
           dateFrom: this.filter.dateFrom,
           dateTo: this.filter.dateTo,
           status: this.filter.status,
@@ -47,7 +47,7 @@ const LogsApp = {
       }
     },
     reset() {
-      this.filter = { model: '', dateFrom: '', dateTo: '', status: '' };
+      this.filter = { customerName: '', dateFrom: '', dateTo: '', status: '' };
       this.search(1);
     },
 

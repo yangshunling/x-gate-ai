@@ -23,4 +23,7 @@ public class GatewayConstant {
     // 对外 API 端点路径
     public static final String PATH_CHAT_COMPLETIONS = "/chat/completions";
     public static final String PATH_EMBEDDINGS = "/embeddings";
+
+    // 全池路由通配模型：default 客户请求该 model 时自动在池内所有启用渠道中轮询转发
+    public static final String MODEL_POOL = "default";
 }

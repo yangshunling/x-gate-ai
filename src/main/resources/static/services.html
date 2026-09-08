@@ -53,8 +53,8 @@
                 </tr>
                 <tr v-for="p in providers" :key="p.id">
                   <td style="font-weight:600">{{ p.name }}</td>
-                  <td><span class="mono ellip" style="display:inline-block;vertical-align:middle" :title="p.baseUrl">{{ p.baseUrl }}</span></td>
-                  <td><span class="mono sub">{{ p.modelName }}</span></td>
+                   <td><span class="mono" style="word-break:break-all;white-space:normal;max-width:220px;display:inline-block;vertical-align:middle" :title="p.baseUrl">{{ p.baseUrl }}</span></td>
+                  <td><span class="mono" style="color:var(--slate-700)">{{ p.modelName }}</span></td>
                   <td>
                     <label class="switch" :title="p.enabled ? '点击停用' : '点击启用'">
                       <input type="checkbox" :checked="p.enabled" @change="toggle(p)">

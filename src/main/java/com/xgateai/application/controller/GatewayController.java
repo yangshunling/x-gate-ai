@@ -51,19 +51,18 @@ public class GatewayController {
             if (body == null) throw new CommonException("请求体为空或不是合法 JSON");
             ModelChannel channel = resolveChannel(request);
             if (channel == null) throw new CommonException("无法识别调用方对客服务");
-            String publicModel = channel.getPublicModelName();
 
             if (body.getBooleanValue("stream")) {
                 initSse(response);
                 try {
-                    proxyAdapter.chatStream(rawBody, publicModel, publicModel, bytes -> writeBytes(out, bytes));
+                    proxyAdapter.chatStream(channel, rawBody, bytes -> writeBytes(out, bytes));
                 } catch (Exception ex) {
                     // 所有上游均在开始输出前失败，回写 SSE 错误事件（headers 已提交，不能改写状态码）
-                    log.error("流式调用上游全部失败, model: {}", publicModel, ex);
+                    log.error("流式调用上游全部失败, model: {}", channel.getPublicModelName(), ex);
                     writeSseError(out, ex.getMessage());
                 }
             } else {
-                String upstreamJson = proxyAdapter.chat(rawBody, publicModel, publicModel);
+                String upstreamJson = proxyAdapter.chat(channel, rawBody);
                 response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                 response.setCharacterEncoding(StandardCharsets.UTF_8.name());
                 out.write(upstreamJson.getBytes(StandardCharsets.UTF_8));
@@ -88,7 +87,7 @@ public class GatewayController {
             if (body == null) throw new CommonException("请求体为空或不是合法 JSON");
             ModelChannel channel = resolveChannel(request);
             if (channel == null) throw new CommonException("无法识别调用方对客服务");
-            String upstreamJson = proxyAdapter.embeddings(rawBody, channel.getPublicModelName(), channel.getPublicModelName());
+            String upstreamJson = proxyAdapter.embeddings(channel, rawBody);
             return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(upstreamJson);
         } catch (CommonException ex) {
             return buildErrorResponse(400, "invalid_request_error", ex.getMessage());
@@ -99,23 +98,18 @@ public class GatewayController {
     }
 
     /**
-     * Models：返回当前 Key 对应的对客服务
+     * Models：返回当前 Key 可用的模型列表（限定模型的 Key 仅返回该模型，default 返回全池模型）
      */
     @GetMapping("/models")
     public ResponseEntity<String> listModels(HttpServletRequest request) {
         ModelChannel channel = resolveChannel(request);
-        JSONArray data = new JSONArray();
-        if (channel != null) {
-            JSONObject item = new JSONObject();
-            item.put("id", channel.getPublicModelName());
-            item.put("object", "model");
-            item.put("created", 1686935002);
-            item.put("owned_by", "x-gate-ai");
-            data.add(item);
-        }
         JSONObject result = new JSONObject();
         result.put("object", "list");
-        result.put("data", data);
+        if (channel != null) {
+            result.put("data", proxyAdapter.listAvailableModels(channel));
+        } else {
+            result.put("data", new JSONArray());
+        }
         return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(result.toJSONString());
     }
 

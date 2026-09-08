@@ -83,4 +83,10 @@ public class CallLog {
      */
     @JsonProperty("created_at")
     private String createdAt;
+
+    /**
+     * 客户名称（冗余，关联 model_channels.public_model_name）
+     */
+    @JsonProperty("customer_name")
+    private String customerName;
 }

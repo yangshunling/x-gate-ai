@@ -26,6 +26,10 @@ const DashboardApp = {
       /* 模型分布 */
       dist: [],
       distLoading: false,
+
+      /* 客户用量 Top5 */
+      custStats: [],
+      custLoading: false,
     };
   },
 
@@ -33,6 +37,7 @@ const DashboardApp = {
     this.loadDash();
     this.loadTrend();
     this.loadDist();
+    this.loadCustomers();
   },
 
   methods: {
@@ -72,6 +77,18 @@ const DashboardApp = {
         this.toastError(e);
       } finally {
         this.distLoading = false;
+      }
+    },
+
+    /* ---------------- 客户用量 Top5 ---------------- */
+    async loadCustomers() {
+      this.custLoading = true;
+      try {
+        this.custStats = await XApi.customerStats() || [];
+      } catch (e) {
+        this.toastError(e);
+      } finally {
+        this.custLoading = false;
       }
     },
 

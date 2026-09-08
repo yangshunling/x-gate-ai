@@ -25,10 +25,17 @@ public class ModelChannel {
     private Long id;
 
     /**
-     * 对外模型名（对外稳定暴露）
+     * 客户名（对外展示归属，创建时必填）
      */
     @JsonProperty("public_model_name")
     private String publicModelName;
+
+    /**
+     * 限定模型名（可空）：为空/null 表示 default，该 Key 可调用池内所有模型；
+     * 非空则仅允许调用该模型
+     */
+    @JsonProperty("model_name")
+    private String modelName;
 
     /**
      * 该对客服务专属的调用 Key（创建时自动生成）

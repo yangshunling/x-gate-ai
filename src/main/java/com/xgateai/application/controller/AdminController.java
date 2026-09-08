@@ -8,6 +8,7 @@ import com.xgateai.application.model.dto.ChannelDTO;
 import com.xgateai.application.model.dto.ProviderDTO;
 import com.xgateai.application.model.response.HttpResponse;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -88,16 +89,6 @@ public class AdminController {
     }
 
     /**
-     * 查询全部启用状态的上游 Provider（供通道绑定时下拉）
-     *
-     * @return 启用的 Provider 列表
-     */
-    @GetMapping("/providers/enabled")
-    public HttpResponse enabledProviders() {
-        return HttpResponse.object(adminService.listEnabledProviders());
-    }
-
-    /**
      * 连通性测试：探测指定上游 Provider 是否可用
      *
      * @param id Provider ID
@@ -109,9 +100,9 @@ public class AdminController {
     }
 
     /**
-     * 查询全部对外模型通道列表（含绑定上游信息与顺序）
+     * 查询全部对外客户 API Key 列表（含该 Key 可路由到的渠道）
      *
-     * @return 通道列表
+     * @return 客户 Key 列表
      */
     @GetMapping("/channels")
     public HttpResponse channels() {
@@ -119,10 +110,10 @@ public class AdminController {
     }
 
     /**
-     * 新增对外模型通道
+     * 新增对外客户 API Key
      *
-     * @param dto 通道参数
-     * @return 保存成功
+     * @param dto 客户 Key 参数
+     * @return 保存成功，新增时返回自动生成的专属 Key
      */
     @PostMapping("/channel")
     public HttpResponse saveChannel(@RequestBody @Valid ChannelDTO dto) {
@@ -131,9 +122,9 @@ public class AdminController {
     }
 
     /**
-     * 更新对外模型通道
+     * 更新对外客户 API Key
      *
-     * @param dto 通道参数
+     * @param dto 客户 Key 参数
      * @return 更新成功
      */
     @PutMapping("/channel")
@@ -143,9 +134,9 @@ public class AdminController {
     }
 
     /**
-     * 删除对外模型通道
+     * 删除对外客户 API Key
      *
-     * @param id 通道 ID
+     * @param id 客户 Key ID
      * @return 删除成功
      */
     @DeleteMapping("/channel/{id}")
@@ -194,5 +185,21 @@ public class AdminController {
     @GetMapping("/dashboard")
     public HttpResponse dashboard() {
         return HttpResponse.object(adminService.dashboard());
+    }
+
+    /**
+     * 查询今日客户用量 Top5
+     */
+    @GetMapping("/dashboard/customers")
+    public HttpResponse customers() {
+        return HttpResponse.object(adminService.customerStats());
+    }
+
+    /**
+     * 当前服务信息（局域网 IP 与端口），供前端渲染 Base URL
+     */
+    @GetMapping("/server-info")
+    public HttpResponse serverInfo(HttpServletRequest request) {
+        return HttpResponse.object(adminService.serverInfo(request));
     }
 }

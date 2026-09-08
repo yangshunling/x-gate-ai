@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.xgateai.application.constant.CommonConstant;
 import com.xgateai.application.entity.ModelChannel;
 import com.xgateai.gatewaybridge.constant.GatewayConstant;
+import com.xgateai.gatewaybridge.logging.GatewayLog;
 import com.xgateai.mapper.ModelChannelMapper;
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.HttpServletRequest;
@@ -49,6 +50,7 @@ public class ApiKeyInterceptor implements HandlerInterceptor {
         }
         String key = resolveApiKey(request);
         if (StrUtil.isBlank(key)) {
+            log.warn("API Key 为空, 拒绝访问, ip: {}", request.getRemoteAddr());
             writeUnauthorized(response);
             return false;
         }
@@ -58,10 +60,17 @@ public class ApiKeyInterceptor implements HandlerInterceptor {
                 .eq(ModelChannel::getEnabled, CommonConstant.ENABLED)
                 .last("LIMIT 1"));
         if (channel == null) {
+            log.warn("API Key 校验失败(未匹配启用通道), ip: {}, key: {}",
+                    request.getRemoteAddr(), GatewayLog.maskKey(key));
             writeUnauthorized(response);
             return false;
         }
         request.setAttribute(GatewayConstant.ATTR_API_KEY, channel);
+        // 通道身份写入 MDC，供本次请求所有日志统一展示（key 脱敏）
+        GatewayLog.putChannelId(String.valueOf(channel.getId()));
+        GatewayLog.putChannelName(channel.getPublicModelName());
+        GatewayLog.putChannelModel(StrUtil.blankToDefault(channel.getModelName(), "default"));
+        GatewayLog.putChannelKey(GatewayLog.maskKey(channel.getApiKey()));
         return true;
     }
 

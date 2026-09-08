@@ -8,7 +8,6 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.xgateai.adminbridge.component.EncryptUtil;
 import com.xgateai.application.constant.CommonConstant;
 import com.xgateai.application.entity.CallLog;
-import com.xgateai.application.entity.ChannelUpstream;
 import com.xgateai.application.entity.ModelChannel;
 import com.xgateai.application.entity.UpstreamProvider;
 import com.xgateai.application.exceptions.CommonException;
@@ -16,19 +15,23 @@ import com.xgateai.application.model.dto.ChannelDTO;
 import com.xgateai.application.model.dto.ProviderDTO;
 import com.xgateai.gatewaybridge.adapter.ProxyAdapter;
 import com.xgateai.gatewaybridge.service.CallLogService;
-import com.xgateai.mapper.ChannelUpstreamMapper;
 import com.xgateai.mapper.ModelChannelMapper;
 import com.xgateai.mapper.UpstreamProviderMapper;
 import jakarta.annotation.Resource;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
 
 /**
  * <p>
- * AdminService 管理端服务：Provider/通道/API Key 管理、调用日志与看板
+ * AdminService 管理端服务：上游渠道/对外客户 API Key 管理、调用日志与看板
  * </p>
  *
  * @author xgateai
@@ -45,9 +48,6 @@ public class AdminService {
 
     @Resource
     ModelChannelMapper modelChannelMapper;
-
-    @Resource
-    ChannelUpstreamMapper channelUpstreamMapper;
 
     @Resource
     EncryptUtil encryptUtil;
@@ -69,7 +69,9 @@ public class AdminService {
     }
 
     /**
-     * 新增或更新上游 Provider：新增时 apiKey 必填并加密入库；编辑时 apiKey 为空保留原值
+     * 新增或更新上游 Provider：新增时 apiKey 必填并加密入库；编辑时 apiKey 为空保留原值。
+     * 路由池为全量动态的：网关按客户端请求的 model 在全部启用的渠道中精确匹配，
+     * 因此新增/修改/启停渠道无需任何手动绑定操作，改动即时生效。
      */
     public void saveProvider(ProviderDTO dto) {
         boolean isNew = dto.getId() == null;
@@ -94,23 +96,10 @@ public class AdminService {
     }
 
     /**
-     * 删除上游 Provider，同时删除其在各通道的绑定
+     * 删除上游 Provider
      */
     public void deleteProvider(Long id) {
-        channelUpstreamMapper.delete(new LambdaQueryWrapper<ChannelUpstream>().eq(ChannelUpstream::getProviderId, id));
         upstreamProviderMapper.deleteById(id);
-    }
-
-    /**
-     * 查询全部启用的上游 Provider（供通道绑定时下拉），apiKey 脱敏
-     */
-    public List<UpstreamProvider> listEnabledProviders() {
-        List<UpstreamProvider> providers = upstreamProviderMapper.selectList(
-                new LambdaQueryWrapper<UpstreamProvider>()
-                        .eq(UpstreamProvider::getEnabled, CommonConstant.ENABLED)
-                        .orderByAsc(UpstreamProvider::getId));
-        for (UpstreamProvider p : providers) p.setApiKey(null);
-        return providers;
     }
 
     /**
@@ -123,23 +112,21 @@ public class AdminService {
     }
 
     /**
-     * 查询全部对外模型通道，附带绑定上游信息
+     * 查询全部对外客户 API Key，附带该 Key 可路由到的渠道（按其限定模型或全池计算）
      */
     public List<JSONObject> listChannels() {
         List<ModelChannel> channels = modelChannelMapper.selectList(
                 new LambdaQueryWrapper<ModelChannel>().orderByAsc(ModelChannel::getId));
+        List<UpstreamProvider> enabled = upstreamProviderMapper.selectList(
+                new LambdaQueryWrapper<UpstreamProvider>().eq(UpstreamProvider::getEnabled, CommonConstant.ENABLED)
+                        .orderByAsc(UpstreamProvider::getId));
         List<JSONObject> list = new ArrayList<>();
         for (ModelChannel channel : channels) {
-            List<ChannelUpstream> binds = channelUpstreamMapper.selectList(
-                    new LambdaQueryWrapper<ChannelUpstream>()
-                            .eq(ChannelUpstream::getChannelId, channel.getId())
-                            .orderByAsc(ChannelUpstream::getSort));
-            List<Long> providerIds = new ArrayList<>();
+            String pinned = StrUtil.blankToDefault(channel.getModelName(), "");
             List<JSONObject> providers = new ArrayList<>();
-            for (ChannelUpstream bind : binds) {
-                UpstreamProvider p = upstreamProviderMapper.selectById(bind.getProviderId());
-                if (p == null) continue;
-                providerIds.add(p.getId());
+            for (UpstreamProvider p : enabled) {
+                // default(全池) 或限定模型匹配时才可作为该 Key 的路由候选
+                if (StrUtil.isNotBlank(pinned) && !pinned.equals(p.getModelName())) continue;
                 JSONObject item = new JSONObject();
                 item.put("id", p.getId());
                 item.put("name", p.getName());
@@ -150,11 +137,11 @@ public class AdminService {
             JSONObject obj = new JSONObject();
             obj.put("id", channel.getId());
             obj.put("public_model_name", channel.getPublicModelName());
+            obj.put("model_name", channel.getModelName());
             obj.put("api_key", channel.getApiKey());
             obj.put("enabled", channel.getEnabled());
             obj.put("strategy", channel.getStrategy());
             obj.put("remark", channel.getRemark());
-            obj.put("provider_ids", providerIds);
             obj.put("providers", providers);
             list.add(obj);
         }
@@ -162,8 +149,8 @@ public class AdminService {
     }
 
     /**
-     * 新增或更新对外模型通道，按 providerIds 顺序重建绑定
-     * 新增时自动生成专属调用 Key
+     * 新增或更新对外客户 API Key。
+     * 新增时自动生成专属 Key；modelName 为空表示 default（可调用池内所有模型），否则仅限该模型。
      */
     public String saveChannel(ChannelDTO dto) {
         boolean isNew = dto.getId() == null;
@@ -176,36 +163,23 @@ public class AdminService {
             channel.setApiKey(generatedKey);
         }
         channel.setPublicModelName(StrUtil.trim(dto.getPublicModelName()));
+        channel.setModelName(StrUtil.blankToDefault(StrUtil.trim(dto.getModelName()), ""));
         channel.setEnabled(dto.getEnabled() == null ? CommonConstant.ENABLED : dto.getEnabled());
-        channel.setStrategy(StrUtil.isBlank(dto.getStrategy()) ? STRATEGY_ROUND_ROBIN : dto.getStrategy());
+        channel.setStrategy(STRATEGY_ROUND_ROBIN);
         channel.setRemark(dto.getRemark());
 
         if (isNew) modelChannelMapper.insert(channel);
         else modelChannelMapper.updateById(channel);
-        log.info("{}对外模型通道: {} ({})", isNew ? "新增" : "更新", channel.getPublicModelName(), channel.getId());
-
-        Long channelId = channel.getId();
-        channelUpstreamMapper.delete(new LambdaQueryWrapper<ChannelUpstream>().eq(ChannelUpstream::getChannelId, channelId));
-        if (dto.getProviderIds() != null) {
-            int sort = 0;
-            for (Long providerId : dto.getProviderIds()) {
-                if (providerId == null) continue;
-                ChannelUpstream bind = new ChannelUpstream();
-                bind.setChannelId(channelId);
-                bind.setProviderId(providerId);
-                bind.setWeight(CommonConstant.ONE);
-                bind.setSort(sort++);
-                channelUpstreamMapper.insert(bind);
-            }
-        }
+        log.info("{}客户 API Key: {} ({}){}", isNew ? "新增" : "更新",
+                channel.getPublicModelName(), channel.getId(),
+                StrUtil.isBlank(channel.getModelName()) ? " [default 全池]" : " [限定 " + channel.getModelName() + "]");
         return generatedKey;
     }
 
     /**
-     * 删除对外模型通道及其绑定
+     * 删除对外客户 API Key
      */
     public void deleteChannel(Long id) {
-        channelUpstreamMapper.delete(new LambdaQueryWrapper<ChannelUpstream>().eq(ChannelUpstream::getChannelId, id));
         modelChannelMapper.deleteById(id);
     }
 
@@ -218,4 +192,39 @@ public class AdminService {
     public List<JSONObject> tokenTrend(int hours) { return callLogService.tokenTrend(hours); }
     public List<JSONObject> modelStats() { return callLogService.modelStats(); }
     public JSONObject dashboard() { return callLogService.dashboard(); }
+    public List<JSONObject> customerStats() { return callLogService.customerStats(); }
+
+    /**
+     * 当前部署服务信息：返回本机局域网 IP 与端口，供前端展示接入 Base URL
+     */
+    public JSONObject serverInfo(HttpServletRequest request) {
+        JSONObject info = new JSONObject();
+        info.put("host", resolveLanIp());
+        info.put("port", request.getServerPort());
+        return info;
+    }
+
+    /**
+     * 解析本机第一个非回环的 IPv4 局域网地址（优先 site-local），失败回退 localhost
+     */
+    private String resolveLanIp() {
+        try {
+            Enumeration<NetworkInterface> ifaces = NetworkInterface.getNetworkInterfaces();
+            while (ifaces.hasMoreElements()) {
+                NetworkInterface ni = ifaces.nextElement();
+                if (ni == null || !ni.isUp() || ni.isLoopback() || ni.isVirtual()) continue;
+                Enumeration<InetAddress> addrs = ni.getInetAddresses();
+                while (addrs.hasMoreElements()) {
+                    InetAddress addr = addrs.nextElement();
+                    if (addr instanceof Inet4Address inet4
+                            && !inet4.isLoopbackAddress() && inet4.isSiteLocalAddress()) {
+                        return inet4.getHostAddress();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("解析本机 IP 失败", e);
+        }
+        return "localhost";
+    }
 }

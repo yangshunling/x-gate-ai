@@ -25,7 +25,7 @@
               <span class="sub">第 {{ page.num || 1 }} / {{ page.totalPages || 1 }} 页 · 共 {{ page.total }} 条</span>
             </span>
             <div class="log-toolbar">
-              <input class="input mono-input" v-model.trim="filter.model" placeholder="按模型名筛选">
+              <input class="input" v-model.trim="filter.customerName" placeholder="按客户名筛选">
               <input class="input mono-input date" type="date" v-model="filter.dateFrom">
               <span class="muted" style="font-size:12px">至</span>
               <input class="input mono-input date" type="date" v-model="filter.dateTo">
@@ -45,7 +45,7 @@
               <thead>
                 <tr>
                   <th style="width:36px"></th>
-                  <th>API Key</th><th>接入模型</th>
+                  <th>客户名</th><th>上游模型</th>
                   <th>输入 Token</th><th>输出 Token</th><th>耗时</th><th>状态</th><th>时间</th>
                 </tr>
               </thead>
@@ -69,7 +69,7 @@
                         <svg v-else viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
                       </span>
                     </td>
-                    <td><span class="mono" style="color:var(--accent);font-weight:600">{{ l.public_model }}</span></td>
+                    <td><span class="mono" style="color:var(--primary);font-weight:600">{{ l.public_model }}</span></td>
                     <td><span class="mono sub">{{ l.upstream_model }}</span></td>
                     <td><span class="num">{{ fmtTokens(l.input_tokens) }}</span></td>
                     <td><span class="num">{{ fmtTokens(l.output_tokens) }}</span></td>

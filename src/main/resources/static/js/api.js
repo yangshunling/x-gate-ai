@@ -5,21 +5,27 @@
  * ============================================================ */
 
 const XApi = {
+  /* ---------------- 服务信息 ---------------- */
+  serverInfo() { return XHttp.get('/admin/server-info'); },
+
   /* ---------------- 仪表盘 ---------------- */
   dashboard() { return XHttp.get('/admin/dashboard'); },
   tokenTrend(hours) { return XHttp.get('/admin/dashboard/trend?hours=' + (hours || 24)); },
   modelStats() { return XHttp.get('/admin/dashboard/models'); },
+  customerStats() { return XHttp.get('/admin/dashboard/customers'); },
 
-  /* ---------------- API Key（对客服务） ---------------- */
+  /* ---------------- API Key（对外客户） ---------------- */
   listKeys() { return XHttp.get('/admin/channels'); },
   saveKey(dto, editing) {
     return XHttp.request('/admin/channel', { method: editing ? 'PUT' : 'POST', body: dto });
+  },
+  updateKey(dto) {
+    return XHttp.put('/admin/channel', dto);
   },
   deleteKey(id) { return XHttp.delete('/admin/channel/' + id); },
 
   /* ---------------- 渠道管理 ---------------- */
   listProviders() { return XHttp.get('/admin/providers'); },
-  listEnabledProviders() { return XHttp.get('/admin/providers/enabled'); },
   saveProvider(dto, editing) {
     return XHttp.request('/admin/provider', { method: editing ? 'PUT' : 'POST', body: dto });
   },

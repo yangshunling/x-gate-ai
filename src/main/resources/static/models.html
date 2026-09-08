@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>API Key · 大模型统一网关</title>
+<title>客户管理 · 大模型统一网关</title>
 <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
@@ -14,15 +14,15 @@
 
   <div class="content">
     <!-- 顶栏（公共组件） -->
-    <x-head title="API Key" sub="客户端接入密钥"></x-head>
+    <x-head title="客户管理" sub="对外 API Key 与接入权限"></x-head>
 
     <div class="body">
       <div class="page">
 
-        <!-- 客户端接入信息：BaseURL / Access Key / 模型名 -->
+        <!-- 客户端接入信息：BaseURL / Access Key / 请求 model -->
         <div class="conn-card">
           <div class="cc-title"><span class="dot-mark"></span>客户端接入信息</div>
-          <div class="cc-desc">每个 API Key 对应一个对外渠道。创建后自动生成专属 Key，发给客户端三个要素缺一不可。</div>
+          <div class="cc-desc">每个 API Key 对应一个客户。客户端调用时携带专属 Key 并在请求体里填 model：网关在全部启用渠道中精确匹配提供该模型的渠道，轮询与故障转移只在同模型渠道间发生。</div>
           <div class="conn-rows">
             <div class="conn-row">
               <div class="cr-k"><span class="n">1</span>BASE URL 网关地址</div>
@@ -30,11 +30,11 @@
             </div>
             <div class="conn-row">
               <div class="cr-k"><span class="n">2</span>ACCESS KEY 访问密钥</div>
-              <div class="cr-v"><small>服务创建时自动生成，列表「专属 Key」列可随时复制</small></div>
+              <div class="cr-v"><small>创建时自动生成，列表「专属 Key」列可随时复制</small></div>
             </div>
             <div class="conn-row">
-              <div class="cr-k"><span class="n">3</span>MODEL 模型名</div>
-              <div class="cr-v"><small>即下方「模型名」，如 deepseek</small></div>
+              <div class="cr-k"><span class="n">3</span>MODEL 请求模型</div>
+              <div class="cr-v"><small>请求体 model 字段必传。default 客户可填池内任意模型；限定模型客户只能填被限定的模型</small></div>
             </div>
           </div>
         </div>
@@ -55,8 +55,8 @@
             <table class="tbl">
               <thead>
                 <tr>
-                  <th>模型名</th><th>专属 Key</th><th>状态</th><th>绑定渠道</th>
-                  <th>策略</th><th>备注</th><th>操作</th>
+                  <th>客户名</th><th>限定模型</th><th>专属 Key</th><th>可用渠道</th>
+                  <th>状态</th><th>备注</th><th>操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -67,30 +67,40 @@
                       <span class="es-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v5h5"/><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M9 13h6M9 17h4"/></svg>
                       </span>
-                      <span class="es-text">暂无数据，点击右上角<b>「新建 API Key」</b>开始</span>
+                      <span class="es-text">暂无客户 Key，点击右上角<b>「新建 API Key」</b>开始</span>
                     </div>
                   </td>
                 </tr>
                 <tr v-for="c in channels" :key="c.id">
-                  <td><span class="mono" style="color:var(--accent);font-weight:600">{{ c.public_model_name }}</span></td>
+                  <td><span style="color:var(--primary);font-weight:600">{{ c.public_model_name }}</span></td>
+                   <td>
+                     <div class="flex" style="gap:8px;align-items:center">
+                       <span class="mono">{{ c.model_name || 'default' }}</span>
+                       <a class="row-link" style="white-space:nowrap;font-size:12px" @click="copyListKey(c, c.model_name || 'default')">复制</a>
+                     </div>
+                   </td>
                   <td>
                     <div class="flex" style="gap:8px">
                       <span class="mono ellip" style="max-width:150px;display:inline-block;vertical-align:middle" :title="c.api_key">{{ c.api_key }}</span>
                       <a class="row-link" style="white-space:nowrap" @click="copyListKey(c)">复制</a>
                     </div>
                   </td>
-                  <td><span class="tag" :class="c.enabled ? 'tag-on' : 'tag-off'">{{ c.enabled ? '启用' : '停用' }}</span></td>
                   <td>
                     <div class="link-list">
                       <template v-if="c.providers.length">
-                        <span class="link-pill" v-for="p in c.providers" :key="p.id" :class="{off: !p.enabled}">
-                          <span class="bdot"></span>{{ p.name }}{{ p.enabled ? '' : '（停用）' }}
+                        <span class="link-pill" v-for="p in c.providers" :key="p.id" :title="p.model_name">
+                          <span class="bdot"></span>{{ p.name }}（{{ p.model_name }}）
                         </span>
                       </template>
-                      <span v-else class="muted">未绑定服务</span>
+                      <span v-else class="muted">暂无可用渠道</span>
                     </div>
                   </td>
-                  <td><span class="strategy">{{ c.strategy || 'ROUND_ROBIN' }}</span></td>
+                  <td>
+                    <label class="switch">
+                      <input type="checkbox" :checked="c.enabled" @change="toggleEnabled(c, $event)">
+                      <span class="slider"></span>
+                    </label>
+                  </td>
                   <td class="sub">{{ c.remark || '—' }}</td>
                   <td>
                     <div class="ops">
@@ -118,22 +128,26 @@
       </div>
       <div class="modal-body">
         <div class="form-item">
-          <label>模型名 <span class="req">*</span> <span class="form-hint">客户端请求 model 字段填写的值</span></label>
-          <input class="input mono-input" v-model.trim="modal.form.publicModelName"
-                 :disabled="!!modal.editId" placeholder="如：deepseek / my-llm">
+          <label>客户名 <span class="req">*</span> <span class="form-hint">该 Key 归属的客户 / 用途，仅作管理标识</span></label>
+          <input class="input" v-model.trim="modal.form.customerName"
+                 placeholder="如：客户A / 张三团队 / 内部测试">
         </div>
-        <div class="form-grid">
-          <div class="form-item">
-            <label>调度策略</label>
-            <input class="input mono-input" value="ROUND_ROBIN" disabled title="当前版本固定轮询">
+        <div class="form-item">
+          <label>限定模型 <span class="form-hint">default 不限制，客户端可请求池内任意模型；选择具体模型则仅允许该模型</span></label>
+          <select class="input" v-model="modal.form.modelName">
+            <option value="">default（不限制，路由池内所有模型）</option>
+            <option v-for="m in modelOptions" :key="m" :value="m">{{ m }}</option>
+          </select>
+          <div v-if="modelOptions.length === 0" style="margin-top:6px;font-size:12px;color:var(--slate-400)">
+            当前尚无启用的渠道，请先到「渠道管理」接入模型。
           </div>
-          <div class="form-item">
-            <label>状态</label>
-            <div class="check-cell">
-              <label class="checkbox-line">
-                <input type="checkbox" v-model="modal.form.enabled"> <span class="txt">启用该服务</span>
-              </label>
-            </div>
+        </div>
+        <div class="form-item">
+          <label>状态</label>
+          <div class="check-cell">
+            <label class="checkbox-line">
+              <input type="checkbox" v-model="modal.form.enabled"> <span class="txt">启用该 Key</span>
+            </label>
           </div>
         </div>
         <div class="form-item">
@@ -141,16 +155,8 @@
           <textarea class="input" rows="2" v-model.trim="modal.form.remark" placeholder="选填"></textarea>
         </div>
         <div class="form-item" style="margin-bottom:0">
-          <label>绑定渠道 <span class="form-hint">勾选顺序即转发顺序 · 仅启用中的渠道可选</span></label>
-          <div class="pick-group">
-            <label class="pick-item" v-for="p in enabledProviders" :key="p.id">
-              <input type="checkbox" :value="p.id" v-model="modal.selectedIds">
-              <span class="pi-name">{{ p.name }}</span>
-              <span class="pi-model">{{ p.modelName }}</span>
-            </label>
-            <div v-if="!enabledProviders.length" class="pick-empty">
-              暂无启用中的渠道 — 请先到「渠道管理」添加并启用
-            </div>
+          <div style="padding:10px 14px;background:#f8f9fb;border-radius:8px;font-size:13px;color:var(--ink-3);line-height:1.6">
+            客户端请求体里的 <b>model</b> 必传，网关按它在全池启用的渠道中精确匹配（相同 model 的渠道参与轮询与故障转移，其它模型的渠道不参与）。
           </div>
         </div>
       </div>
@@ -172,7 +178,7 @@
       </div>
       <div class="modal-body">
         <div style="padding:12px 14px;border:1px solid #f3d98b;background:#fff9ea;border-radius:10px;font-size:13px;color:#9a6b00;line-height:1.6">
-          服务 <b>{{ keyResult.serviceName }}</b> 的专属 Key 已自动生成，仅本次展示，请复制后妥善保存（列表页也可随时复制）。
+          客户 <b>{{ keyResult.serviceName }}</b> 的专属 Key 已自动生成，仅本次展示，请复制后妥善保存（列表页也可随时复制）。
         </div>
         <div style="margin:14px 0;padding:14px 16px;background:#0d1830;color:#7dd3fc;border-radius:10px;font-family:var(--mono);font-size:13px;word-break:break-all">
           {{ keyResult.key }}
@@ -180,7 +186,8 @@
         <div style="font-size:13px;color:var(--ink-3);line-height:1.8">
           客户端调用方式：<br>
           <span class="mono">POST {{ baseURL }}/chat/completions</span><br>
-          <span class="mono">Authorization: Bearer {{ keyResult.key }}</span>
+          <span class="mono">Authorization: Bearer {{ keyResult.key }}</span><br>
+          <span class="muted">请求体 model 字段必传：default 客户可填池内任意模型；限定模型客户请填被限定的模型。</span>
         </div>
       </div>
       <div class="modal-foot">

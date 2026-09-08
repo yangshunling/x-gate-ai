@@ -21,16 +21,17 @@
 
         <div class="conn-card">
           <div class="cc-title"><span class="dot-mark"></span>选择要演示的 API Key</div>
-          <div class="cc-desc">选择一个对客服务，下方会自动生成对应的调用代码；代码中的地址、Key、模型名已为你填好。</div>
+          <div class="cc-desc">选择一个客户的 API Key，下方自动生成调用代码。客户端请求体里的 model 字段<b>必传</b>：网关按它在全池渠道中精确匹配提供该模型的渠道；default 客户可任填池内模型，限定模型的客户只能填被限定的模型。</div>
           <div class="usage-pick">
             <select class="input" v-model="selectedKey" :disabled="loading || keys.length === 0">
               <option v-for="k in keys" :key="k.id" :value="String(k.id)">
-                {{ k.public_model_name }} — {{ k.api_key }}
+                {{ k.public_model_name }} · {{ k.model_name ? '限定 ' + k.model_name : 'default · 全池' }}
               </option>
             </select>
           </div>
+          <div v-if="currentKey" style="margin-top:10px;font-size:13px;color:var(--ink-3)">{{ scopeNote }}</div>
           <div v-if="!loading && keys.length === 0" class="muted" style="margin-top:12px;font-size:13px">
-            还没有 API Key，请先到「API Key」页创建。
+            还没有 API Key，请先到「客户管理」页为你的客户创建一个。
           </div>
         </div>
 

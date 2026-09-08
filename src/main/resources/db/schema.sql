@@ -14,21 +14,15 @@ CREATE TABLE IF NOT EXISTS model_channels (
     api_key TEXT NOT NULL UNIQUE,
     enabled INTEGER NOT NULL DEFAULT 1,
     strategy TEXT NOT NULL DEFAULT 'ROUND_ROBIN',
+    model_name TEXT,
     remark TEXT
-);
-
-CREATE TABLE IF NOT EXISTS channel_upstreams (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    channel_id INTEGER NOT NULL,
-    provider_id INTEGER NOT NULL,
-    weight INTEGER NOT NULL DEFAULT 1,
-    sort INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS call_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     api_key TEXT,
     public_model TEXT,
+    customer_name TEXT,
     upstream_url TEXT,
     upstream_model TEXT,
     input_tokens INTEGER NOT NULL DEFAULT 0,

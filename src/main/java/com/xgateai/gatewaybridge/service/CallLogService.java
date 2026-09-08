@@ -133,19 +133,19 @@ public class CallLogService {
     }
 
     /**
-     * 按对外模型聚合统计（调用次数 / Token / 成功率 / 平均耗时）
+     * 按上游真实模型聚合统计（调用次数 / Token / 成功率 / 平均耗时）
      *
      * @return [{model, calls, successCalls, inputTokens, outputTokens, avgLatencyMs}] 按调用次数倒序
      */
     public List<JSONObject> modelStats() {
         QueryWrapper<CallLog> wrapper = new QueryWrapper<CallLog>()
-                .select("public_model AS model",
+                .select("upstream_model AS model",
                         "COUNT(*) AS calls",
                         "SUM(CASE WHEN http_status >= 200 AND http_status < 400 THEN 1 ELSE 0 END) AS success_calls",
                         "COALESCE(SUM(input_tokens), 0) AS input_tokens",
                         "COALESCE(SUM(output_tokens), 0) AS output_tokens",
                         "COALESCE(AVG(latency_ms), 0) AS avg_latency_ms")
-                .groupBy("public_model")
+                .groupBy("upstream_model")
                 .orderByDesc("calls");
         List<Map<String, Object>> rows = callLogMapper.selectMaps(wrapper);
         List<JSONObject> result = new ArrayList<>();
@@ -162,8 +162,7 @@ public class CallLogService {
         return result;
     }
 
-    private long toLong(Object value) {
-        if (value == null) {
+    private long toLong(Object value) {        if (value == null) {
             return 0;
         }
         if (value instanceof Number number) {
@@ -224,6 +223,37 @@ public class CallLogService {
         result.put("enabledChannels", enabledChannels);
         result.put("enabledProviders", enabledProviders);
 
+        return result;
+    }
+
+    /**
+     * 今日按客户名称聚合的调用统计（Top5）
+     *
+     * @return [{customerName, calls, inputTokens, outputTokens}] 按调用次数倒序，最多 5 条
+     */
+    public List<JSONObject> customerStats() {
+        String todayStart = DateUtil.format(DateUtil.beginOfDay(new Date()), CommonConstant.DATETIME_FORMAT);
+        QueryWrapper<CallLog> wrapper = new QueryWrapper<CallLog>()
+                .select("customer_name AS customerName",
+                        "COUNT(*) AS calls",
+                        "COALESCE(SUM(input_tokens), 0) AS inputTokens",
+                        "COALESCE(SUM(output_tokens), 0) AS outputTokens")
+                .ge("created_at", todayStart)
+                .ne("customer_name", "")
+                .isNotNull("customer_name")
+                .groupBy("customer_name")
+                .orderByDesc("calls")
+                .last("LIMIT 5");
+        List<Map<String, Object>> rows = callLogMapper.selectMaps(wrapper);
+        List<JSONObject> result = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            JSONObject item = new JSONObject();
+            item.put("customerName", String.valueOf(row.get("customerName")));
+            item.put("calls", toLong(row.get("calls")));
+            item.put("inputTokens", toLong(row.get("inputTokens")));
+            item.put("outputTokens", toLong(row.get("outputTokens")));
+            result.add(item);
+        }
         return result;
     }
 }

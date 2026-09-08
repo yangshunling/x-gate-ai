@@ -1,14 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
+	<!-- traceId 转换器：MDC 有 traceId 时输出 "[tid=xxx] " 前缀 -->
+	<conversionRule conversionWord="traceId" converterClass="com.xgateai.gatewaybridge.logging.TraceIdConverter"/>
+
 	<!-- 控制台彩色日志输出 -->
 	<appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
 		<encoder>
-			<!-- 关键配置：使用 %highlight() 包裹日志级别 -->
-			<pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %highlight(%-5level) %logger{36} - %msg%n</pattern>
+			<pattern>%d{HH:mm:ss.SSS} %highlight(%-5level) %traceId%cyan(%logger{24}) - %msg%n</pattern>
 		</encoder>
 	</appender>
 
-	<!-- 文件输出 -->
+	<!-- 控制台框式日志输出（GATEWAY_CONSOLE 专用）：msg 原样多行打印，无任何前缀 -->
+	<appender name="CONSOLE_BOXED" class="ch.qos.logback.core.ConsoleAppender">
+		<encoder>
+			<pattern>%msg%n</pattern>
+		</encoder>
+	</appender>
+
+	<!-- 全量日志文件（滚动保留 30 天） -->
 	<appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
 		<file>logs/application.log</file>
 		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
@@ -16,11 +25,33 @@
 			<maxHistory>30</maxHistory>
 		</rollingPolicy>
 		<encoder>
-			<pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n</pattern>
+			<pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %traceId%logger{36} - %msg%n</pattern>
 		</encoder>
 	</appender>
 
-	<!-- 设置根日志级别 -->
+	<!-- 网关业务日志文件（请求分块、调用链、故障转移，独立文件便于实时 tail） -->
+	<appender name="GATEWAY_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<file>logs/gateway.log</file>
+		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+			<fileNamePattern>logs/gateway.%d{yyyy-MM-dd}.log</fileNamePattern>
+			<maxHistory>30</maxHistory>
+		</rollingPolicy>
+		<encoder>
+			<pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %traceId%msg%n</pattern>
+		</encoder>
+	</appender>
+
+	<!-- 网关业务专用 Logger：仅输出到控制台与 gateway.log，不重复叠加到 application.log -->
+	<logger name="GATEWAY" level="INFO" additivity="false">
+		<appender-ref ref="CONSOLE"/>
+		<appender-ref ref="GATEWAY_FILE"/>
+	</logger>
+
+	<!-- 网关框式日志 Logger：仅输出到控制台（纯 msg），不落文件 -->
+	<logger name="GATEWAY_CONSOLE" level="INFO" additivity="false">
+		<appender-ref ref="CONSOLE_BOXED"/>
+	</logger>
+
 	<root level="INFO">
 		<appender-ref ref="CONSOLE"/>
 		<appender-ref ref="FILE"/>

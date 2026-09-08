@@ -56,12 +56,47 @@
             <div class="stat">
               <div class="k"><span class="stat-ico" style="background:#eff6ff;color:#2563eb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2 20 3M15 8l2.5 2.5M17 6l2 2"/></svg></span>启用 API Key</div>
               <div class="v">{{ dash.enabledChannels != null ? dash.enabledChannels : '—' }}</div>
-              <div class="u">对外暴露的模型</div>
+              <div class="u">对外开放的客户 Key</div>
             </div>
             <div class="stat">
               <div class="k"><span class="stat-ico" style="background:#eef2ff;color:#6366f1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="7" rx="2"/><rect x="5" y="14" width="14" height="7" rx="2"/><path d="M9 6.5h.01M9 17.5h.01"/></svg></span>启用渠道</div>
               <div class="v">{{ dash.enabledProviders != null ? dash.enabledProviders : '—' }}</div>
               <div class="u">已接入的上游</div>
+            </div>
+          </div>
+
+          <!-- 客户用量 Top5 -->
+          <div class="panel">
+            <div class="panel-head">
+              <span class="panel-title"><span class="dot-mark"></span>客户用量 Top5<span class="sub">今日累计</span></span>
+            </div>
+            <div class="panel-body">
+              <div v-if="custLoading" class="page-loading" style="min-height:80px"><div class="spinner"></div>&nbsp;加载中…</div>
+              <div v-else-if="custStats.length === 0" class="model-dist"><div class="empty-tip">暂无调用数据</div></div>
+              <div v-else class="cust-table">
+                <table class="tbl cust-tbl">
+                  <thead>
+                    <tr>
+                      <th style="width:44px">#</th>
+                      <th>客户名称</th>
+                      <th>调用次数</th>
+                      <th>输入 Token</th>
+                      <th>输出 Token</th>
+                      <th>合计 Token</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(c, i) in custStats" :key="c.customerName">
+                      <td><span class="cust-rank">{{ i + 1 }}</span></td>
+                      <td class="cust-name">{{ c.customerName || '—' }}</td>
+                      <td class="num">{{ c.calls }}</td>
+                      <td class="num">{{ shortToken(c.inputTokens) }}</td>
+                      <td class="num">{{ shortToken(c.outputTokens) }}</td>
+                      <td class="num"><b>{{ shortToken(c.inputTokens + c.outputTokens) }}</b></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
 
@@ -109,66 +144,7 @@
             </div>
           </div>
 
-          <!-- 模型分布 -->
-          <div class="panel">
-            <div class="panel-head">
-              <span class="panel-title"><span class="dot-mark"></span>模型分布<span class="sub">各模型调用与成功率</span></span>
-            </div>
-            <div class="panel-body">
-              <div v-if="distLoading" class="page-loading" style="min-height:120px"><div class="spinner"></div>&nbsp;加载中…</div>
-              <div v-else-if="dist.length === 0" class="model-dist"><div class="empty-tip">暂无调用数据</div></div>
-              <div v-else class="model-dist">
-                <div v-for="(d, i) in dist" :key="d.model" class="md-row">
-                  <span class="md-dot" :style="{background: distColor(i)}"></span>
-                  <span class="md-name" :title="d.model">{{ d.model }}</span>
-                  <span class="md-bar-wrap">
-                    <span class="md-bar" :style="{width: (d.calls / distMax() * 100) + '%', background: distColor(i)}"></span>
-                  </span>
-                  <span class="md-meta"><b>{{ d.calls }}</b> 次 · {{ shortToken(d.inputTokens + d.outputTokens) }} tok</span>
-                  <span class="md-rate" :class="distRateClass(d)">{{ distRate(d) }}</span>
-                </div>
-              </div>
-            </div>
-          </div>
 
-          <!-- 快速上手 -->
-          <div class="panel">
-            <div class="panel-head">
-              <span class="panel-title"><span class="dot-mark"></span>快速上手<span class="sub">使用指南</span></span>
-            </div>
-            <div class="panel-body">
-              <div class="hint-grid">
-                <div class="hint">
-                  <div class="step">1</div>
-                  <div>
-                    <div class="ht">接入真实渠道</div>
-                    <div class="hd">在「渠道管理」中添加大模型服务商，填入 Base URL 与 API Key，可先「测试连通」。</div>
-                  </div>
-                </div>
-                <div class="hint">
-                  <div class="step">2</div>
-                  <div>
-                    <div class="ht">创建对外 API Key</div>
-                    <div class="hd">在「API Key」页新建一个名字并绑定一个或多个服务，多路自动轮询与故障切换。</div>
-                  </div>
-                </div>
-                <div class="hint">
-                  <div class="step">3</div>
-                  <div>
-                    <div class="ht">客户端接入</div>
-                    <div class="hd">调用 <code>POST /v1/chat/completions</code>，携带专属 Key，model 字段填写 API Key 名称即可。</div>
-                  </div>
-                </div>
-                <div class="hint">
-                  <div class="step">4</div>
-                  <div>
-                    <div class="ht">查看调用明细</div>
-                    <div class="hd">「调用日志」记录每次转发耗时与 Token 用量，本页汇总今日整体概况。</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
         </template>
 
       </div>

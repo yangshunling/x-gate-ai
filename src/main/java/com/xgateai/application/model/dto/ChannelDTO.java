@@ -4,11 +4,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
-import java.util.List;
-
 /**
  * <p>
- * ChannelDTO 对外模型通道新增/编辑请求参数
+ * ChannelDTO 对外客户 API Key 新增/编辑请求参数
  * </p>
  *
  * @author xgateai
@@ -23,11 +21,17 @@ public class ChannelDTO {
     private Long id;
 
     /**
-     * 对外模型名（对外稳定暴露）
+     * 客户名（对外展示归属）
      */
     @JsonProperty("publicModelName")
-    @NotBlank(message = "对外模型名不能为空")
+    @NotBlank(message = "客户名不能为空")
     private String publicModelName;
+
+    /**
+     * 限定模型名（可空）：空/default 表示不限制，可调用池内所有模型
+     */
+    @JsonProperty("modelName")
+    private String modelName;
 
     /**
      * 是否启用（为空默认 1）
@@ -35,18 +39,7 @@ public class ChannelDTO {
     private Integer enabled;
 
     /**
-     * 负载策略（为空默认 ROUND_ROBIN）
-     */
-    private String strategy;
-
-    /**
      * 备注
      */
     private String remark;
-
-    /**
-     * 绑定的上游 Provider ID 列表（列表顺序即绑定顺序，可为空列表）
-     */
-    @JsonProperty("providerIds")
-    private List<Long> providerIds;
 }

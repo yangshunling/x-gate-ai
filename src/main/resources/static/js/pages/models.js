@@ -1,5 +1,5 @@
 /* ============================================================
- * API Key 页面（对客服务）
+ * API Key 页面（对外客户接入）
  * ============================================================ */
 
 const ModelsApp = {
@@ -7,13 +7,12 @@ const ModelsApp = {
   data() {
     return {
       channels: [],
+      modelOptions: [],
       loading: false,
-      enabledProviders: [],
 
       modal: {
         open: false, editId: null, saving: false,
-        form: { publicModelName: '', enabled: true, remark: '', strategy: 'ROUND_ROBIN' },
-        selectedIds: [],
+        form: { customerName: '', modelName: '', enabled: true, remark: '' },
       },
 
       keyResult: { open: false, key: '', serviceName: '', copying: false },
@@ -22,16 +21,29 @@ const ModelsApp = {
   },
 
   created() {
+    this.initBaseURL();
     this.load();
-    this.loadEnabledProviders();
   },
 
   methods: {
+    async initBaseURL() {
+      try {
+        const info = await XApi.serverInfo();
+        if (info && info.host && info.port) {
+          this.baseURL = `${window.location.protocol}//${info.host}:${info.port}/v1`;
+        }
+      } catch (e) {
+        // 回退到 window.location.origin
+      }
+    },
+
     /* ---------------- 列表 ---------------- */
     async load() {
       this.loading = true;
       try {
-        this.channels = await XApi.listKeys() || [];
+        const [keys, providers] = await Promise.all([XApi.listKeys(), XApi.listProviders()]);
+        this.channels = keys || [];
+        this.modelOptions = this.collectModels(providers || []);
       } catch (e) {
         this.toastError(e);
       } finally {
@@ -39,12 +51,18 @@ const ModelsApp = {
       }
     },
 
-    async loadEnabledProviders() {
-      try {
-        this.enabledProviders = await XApi.listEnabledProviders() || [];
-      } catch (e) {
-        this.toastError(e);
-      }
+    /* 汇总池内渠道提供的去重模型名（仅启用渠道），default 之外的选项 */
+    collectModels(providers) {
+      const set = [];
+      const seen = {};
+      (providers || []).forEach(p => {
+        if (p.enabled !== 1 || !p.modelName) return;
+        if (!seen[p.modelName]) {
+          seen[p.modelName] = true;
+          set.push(p.modelName);
+        }
+      });
+      return set;
     },
 
     /* ---------------- 弹窗 ---------------- */
@@ -53,16 +71,14 @@ const ModelsApp = {
       if (c) {
         this.modal.editId = c.id;
         this.modal.form = {
-          publicModelName: c.public_model_name,
+          customerName: c.public_model_name,
+          modelName: c.model_name || '',
           enabled: !!c.enabled,
           remark: c.remark || '',
-          strategy: c.strategy || 'ROUND_ROBIN',
         };
-        this.modal.selectedIds = (c.provider_ids || []).slice();
       } else {
         this.modal.editId = null;
-        this.modal.form = { publicModelName: '', enabled: true, remark: '', strategy: 'ROUND_ROBIN' };
-        this.modal.selectedIds = [];
+        this.modal.form = { customerName: '', modelName: '', enabled: true, remark: '' };
       }
       this.modal.open = true;
     },
@@ -73,14 +89,12 @@ const ModelsApp = {
 
     async save() {
       const f = this.modal.form;
-      if (!f.publicModelName) { this.message('请输入模型名', 'warn'); return; }
-      if (!this.modal.selectedIds.length) { this.message('请至少绑定一个启用的渠道', 'warn'); return; }
+      if (!f.customerName) { this.message('请输入客户名', 'warn'); return; }
       const body = {
-        publicModelName: f.publicModelName,
+        publicModelName: f.customerName,
+        modelName: f.modelName || '',
         enabled: f.enabled ? 1 : 0,
-        strategy: 'ROUND_ROBIN',
         remark: f.remark || '',
-        providerIds: this.modal.selectedIds.slice(),
       };
       if (this.modal.editId) body.id = this.modal.editId;
       this.modal.saving = true;
@@ -101,13 +115,28 @@ const ModelsApp = {
     },
 
     async remove(c) {
-      if (!confirm(`确定删除 API Key「${c.public_model_name}」吗？删除后使用该 Key 的客户端将立即无法访问。`)) return;
+      if (!confirm(`确定删除客户「${c.public_model_name}」的 API Key 吗？删除后使用该 Key 的客户端将立即无法访问。`)) return;
       try {
         await XApi.deleteKey(c.id);
         this.message('API Key 已删除');
         await this.load();
       } catch (e) {
         this.toastError(e);
+      }
+    },
+
+    async toggleEnabled(c, evt) {
+      const enabled = evt.target.checked ? 1 : 0;
+      evt.target.disabled = true;
+      try {
+        await XApi.updateKey({ id: c.id, publicModelName: c.public_model_name, modelName: c.model_name || '', enabled, remark: c.remark || '' });
+        c.enabled = enabled;
+        this.message(enabled ? '已启用' : '已停用');
+      } catch (e) {
+        evt.target.checked = !enabled;
+        this.toastError(e);
+      } finally {
+        evt.target.disabled = false;
       }
     },
 
@@ -137,6 +166,6 @@ const ModelsApp = {
       this.message(done ? 'Key 已复制' : '复制失败，请手动复制', done ? 'success' : 'error');
     },
     copyKey() { this.copyText(this.keyResult.key); },
-    copyListKey(c) { this.copyText(c.api_key); },
+    copyListKey(c, text) { this.copyText(text || c.api_key); },
   },
 };
