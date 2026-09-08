@@ -31,11 +31,11 @@
 ## 核心特性
 
 - **统一出口**：对外仅暴露 `/v1/chat/completions`、`/v1/embeddings`、`/v1/models`，协议与 OpenAI 完全兼容，OpenAI SDK、Cherry Studio、Dify、各类 Agent 框架可直接接入
-- **流式透传**：`chat/completions` 基于 WebFlux 实现 SSE（`text/event-stream`）字节级原样转发，非流式则原样返回完整 JSON
-- **通道与多上游**：一个对外模型名（通道）可绑定多个上游服务，按权重分配，默认轮询策略
-- **故障转移**：上游调用失败自动切换到可用上游；失败上游进入冷却期，超时时间可配
+- **流式透传**：`chat/completions` 经 OkHttp 读取上游 SSE（`text/event-stream`）字节后原样写回，非流式则原样返回完整 JSON
+- **通道与多上游**：一个对外模型名（通道）可绑定多个上游服务，按排序轮询调度
+- **故障转移**：上游连接失败 / 非 2xx 自动切换到下一个可用上游重试，全部失败才返回错误
 - **零重启热切换**：新增 / 编辑 / 启停上游、调整通道绑定均在控制台完成，即时生效
-- **调用观测**：记录每次调用的 Token（JTokkit 统计）、延迟、HTTP 状态，控制台提供日志查询与用量统计
+- **调用观测**：记录每次调用的 Token（取上游返回的 usage，不做本地统计）、延迟、HTTP 状态，控制台提供日志查询与用量统计
 - **轻量存储**：SQLite 单文件数据库，无外部依赖，首次启动自动建库建表；上游 Key 加密存储
 - **自动清理**：调用日志按天滚动保留（默认 30 天），定时任务自动清理
 
@@ -59,20 +59,19 @@
    DeepSeek  通义千问   OpenAI   vLLM 本地   ... 任意 OpenAI 兼容服务
 ```
 
-核心链路：请求进入 → 按对外模型名查找通道 → 按权重轮询选择一个可用上游 → 动态构建客户端并指向上游 `baseUrl / apiKey / modelName` → 转发 → 流式透传 / JSON 返回。
+核心链路：请求进入 → 按对外模型名实时查库加载上游候选（按 sort 排序 + 轮询）→ 经共享 OkHttpClient 原样转发（仅替换 `model` 字段）→ 失败自动切换下一候选 → 流式透传 / JSON 返回。
 
 ## 技术栈
 
 | 分类 | 选型 | 版本 |
 |---|---|---|
 | 语言 | Java | 17 |
-| 框架 | Spring Boot | 3.4.4 |
-| 反应式 | Spring WebFlux（SSE 流式转发） | 3.4.4 |
-| 模型接入 | LangChain4j `open-ai` starter | 1.0.0-beta3 |
+| 框架 | Spring Boot（MVC，Servlet） | 3.4.4 |
+| 出站 HTTP/SSE | OkHttp | 4.12.0 |
 | 数据访问 | MyBatis-Plus（spring-boot3 starter） | 3.5.11 |
 | 数据库 | SQLite（xerial jdbc） | 3.46.1.3 |
 | 前端 | 静态页 + Vue 3（vue.global.prod.js，内嵌于 jar） | — |
-| 工具库 | HuTool / Fastjson2 / JTokkit（token 统计）/ Lombok | 5.8.47 / 2.0.64 / 1.1.0 / 1.18.46 |
+| 工具库 | HuTool / Fastjson2 / Lombok | 5.8.47 / 2.0.64 / 1.18.46 |
 
 ## 快速开始
 
@@ -110,7 +109,6 @@ java -jar target/x-gate-ai-1.0.0.jar
 | `server.port` | `8090` | 服务端口 |
 | `spring.datasource.url` | `jdbc:sqlite:./x-gate-ai.db` | SQLite 数据文件位置 |
 | `gateway.time-out-of-minutes` | `3` | 上游调用超时时间（分钟），用于耗时较长的生成任务 |
-| `gateway.cool-down-seconds` | `30` | 失败上游冷却时间（秒），冷却期内不再分配 |
 | `gateway.log-retention-days` | `30` | 调用日志保留天数，按天滚动清理 |
 | `gateway.encrypt-key` | `xgate-ai-encrypt-2026` | 上游 api_key 加密密钥，**生产环境务必通过环境变量 `XGATE_ENCRYPT_KEY` 覆盖** |
 
@@ -201,7 +199,7 @@ x-gate-ai
 │   │   ├── XGateAiApplication.java      # 启动类
 │   │   ├── adminbridge/                 # 控制台管理（上游/通道服务、Key 加密）
 │   │   ├── application/                 # 对外 API 控制器、实体、异常处理
-│   │   ├── gatewaybridge/               # 网关桥接（路由调度、OpenAI 适配、日志清理）
+│   │   ├── gatewaybridge/               # 网关桥接（ProxyAdapter 统一出站透传、故障转移、日志清理）
 │   │   └── mapper/                      # MyBatis-Plus Mapper
 │   └── resources/
 │       ├── application.properties       # 配置文件

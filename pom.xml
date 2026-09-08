@@ -14,14 +14,13 @@
         <!-- Springboot 生态 -->
         <spring-boot.version>3.4.4</spring-boot.version>
         <!-- 开源框架 -->
-        <langchain4j.version>1.0.0-beta3</langchain4j.version>
+        <okhttp.version>4.12.0</okhttp.version>
         <mybatis-plus.version>3.5.11</mybatis-plus.version>
         <jsqlparser.version>4.9</jsqlparser.version>
         <sqlite.version>3.46.1.3</sqlite.version>
         <!-- 常用工具 -->
         <hutool.version>5.8.47</hutool.version>
         <fastjson.version>2.0.64</fastjson.version>
-        <jtokkit.version>1.1.0</jtokkit.version>
         <lombok.version>1.18.46</lombok.version>
     </properties>
     <dependencies>
@@ -29,11 +28,6 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
-        </dependency>
-        <!-- AOP 切面 -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-aop</artifactId>
         </dependency>
         <!-- Validation 校验 -->
         <dependency>
@@ -46,20 +40,9 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
-        <!-- WebFlux（SSE 流式转发） -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-webflux</artifactId>
-        </dependency>
 
         <!--========================【开源框架】========================-->
 
-        <!-- LangChain4j OpenAI -->
-        <dependency>
-            <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j-open-ai-spring-boot-starter</artifactId>
-            <version>${langchain4j.version}</version>
-        </dependency>
         <!-- MyBatis-Plus -->
         <dependency>
             <groupId>com.baomidou</groupId>
@@ -78,6 +61,12 @@
             <artifactId>sqlite-jdbc</artifactId>
             <version>${sqlite.version}</version>
         </dependency>
+        <!-- OkHttp（出站 HTTP/SSE 客户端） -->
+        <dependency>
+            <groupId>com.squareup.okhttp3</groupId>
+            <artifactId>okhttp</artifactId>
+            <version>${okhttp.version}</version>
+        </dependency>
 
         <!--========================【常用工具】========================-->
 
@@ -92,12 +81,6 @@
             <groupId>com.alibaba</groupId>
             <artifactId>fastjson</artifactId>
             <version>${fastjson.version}</version>
-        </dependency>
-        <!-- JTokkit（token 统计） -->
-        <dependency>
-            <groupId>com.knuddels</groupId>
-            <artifactId>jtokkit</artifactId>
-            <version>${jtokkit.version}</version>
         </dependency>
         <!-- Lombok -->
         <dependency>

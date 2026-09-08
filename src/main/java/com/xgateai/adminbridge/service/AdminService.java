@@ -14,9 +14,8 @@ import com.xgateai.application.entity.UpstreamProvider;
 import com.xgateai.application.exceptions.CommonException;
 import com.xgateai.application.model.dto.ChannelDTO;
 import com.xgateai.application.model.dto.ProviderDTO;
-import com.xgateai.gatewaybridge.adapter.OpenAiProxyAdapter;
+import com.xgateai.gatewaybridge.adapter.ProxyAdapter;
 import com.xgateai.gatewaybridge.service.CallLogService;
-import com.xgateai.gatewaybridge.service.GatewayRouter;
 import com.xgateai.mapper.ChannelUpstreamMapper;
 import com.xgateai.mapper.ModelChannelMapper;
 import com.xgateai.mapper.UpstreamProviderMapper;
@@ -39,158 +38,92 @@ import java.util.List;
 @Service
 public class AdminService {
 
-    /**
-     * 默认负载策略
-     */
     private static final String STRATEGY_ROUND_ROBIN = "ROUND_ROBIN";
 
-    /**
-     * 上游 Provider Mapper
-     */
     @Resource
     UpstreamProviderMapper upstreamProviderMapper;
 
-    /**
-     * 对外模型通道 Mapper
-     */
     @Resource
     ModelChannelMapper modelChannelMapper;
 
-    /**
-     * 通道-上游绑定 Mapper
-     */
     @Resource
     ChannelUpstreamMapper channelUpstreamMapper;
 
-    /**
-     * 上游 API Key 加解密工具
-     */
     @Resource
     EncryptUtil encryptUtil;
 
-    /**
-     * 网关路由调度器（配置变更后刷新路由缓存）
-     */
-    @Resource
-    GatewayRouter gatewayRouter;
-
-    /**
-     * 调用日志服务
-     */
     @Resource
     CallLogService callLogService;
 
-    /**
-     * 上游连通性测试适配器
-     */
     @Resource
-    OpenAiProxyAdapter openAiProxyAdapter;
+    ProxyAdapter proxyAdapter;
 
     /**
-     * 查询全部上游 Provider（按 id 升序），apiKey 脱敏为 null 不外泄
-     *
-     * @return Provider 列表
+     * 查询全部上游 Provider 列表，apiKey 脱敏为 null 不外泄
      */
     public List<UpstreamProvider> listProviders() {
         List<UpstreamProvider> providers = upstreamProviderMapper.selectList(
                 new LambdaQueryWrapper<UpstreamProvider>().orderByAsc(UpstreamProvider::getId));
-        for (UpstreamProvider provider : providers) {
-            provider.setApiKey(null);
-        }
+        for (UpstreamProvider p : providers) p.setApiKey(null);
         return providers;
     }
 
     /**
-     * 新增或更新上游 Provider：
-     * 新增时 apiKey 必填并加密入库；编辑时 apiKey 为空表示保留原值，baseUrl 去除尾部 "/"
-     *
-     * @param dto Provider 参数
+     * 新增或更新上游 Provider：新增时 apiKey 必填并加密入库；编辑时 apiKey 为空保留原值
      */
     public void saveProvider(ProviderDTO dto) {
         boolean isNew = dto.getId() == null;
-        UpstreamProvider provider;
-        if (isNew) {
-            if (StrUtil.isBlank(dto.getApiKey())) {
-                throw new CommonException("apiKey 不能为空");
-            }
-            provider = new UpstreamProvider();
-        } else {
-            provider = upstreamProviderMapper.selectById(dto.getId());
-            if (provider == null) {
-                throw new CommonException("Provider 不存在");
-            }
-        }
+        UpstreamProvider provider = isNew ? new UpstreamProvider()
+                : upstreamProviderMapper.selectById(dto.getId());
+        if (!isNew && provider == null) throw new CommonException("Provider 不存在");
+        if (isNew && StrUtil.isBlank(dto.getApiKey())) throw new CommonException("apiKey 不能为空");
+
         provider.setName(StrUtil.trim(dto.getName()));
-        // baseUrl 去除尾部 "/"，统一 baseUrl 规范
         String baseUrl = StrUtil.trim(dto.getBaseUrl());
-        while (baseUrl.length() > 1 && baseUrl.endsWith(CommonConstant.SLASH)) {
+        while (baseUrl.length() > 1 && baseUrl.endsWith(CommonConstant.SLASH))
             baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
-        }
         provider.setBaseUrl(baseUrl);
         provider.setModelName(StrUtil.trim(dto.getModelName()));
         provider.setEnabled(dto.getEnabled() == null ? CommonConstant.ENABLED : dto.getEnabled());
         provider.setRemark(dto.getRemark());
-        // 新增必填 apiKey；编辑时 apiKey 非空则更新（重新加密），为空保留原值
-        if (StrUtil.isNotBlank(dto.getApiKey())) {
-            provider.setApiKey(encryptUtil.encrypt(dto.getApiKey()));
-        }
-        if (isNew) {
-            upstreamProviderMapper.insert(provider);
-            log.info("新增上游 Provider: {} ({})", provider.getName(), provider.getId());
-        } else {
-            upstreamProviderMapper.updateById(provider);
-            log.info("更新上游 Provider: {} ({})", provider.getName(), provider.getId());
-        }
-        // 配置变更后刷新路由缓存，实时生效
-        gatewayRouter.refresh();
+        if (StrUtil.isNotBlank(dto.getApiKey())) provider.setApiKey(encryptUtil.encrypt(dto.getApiKey()));
+
+        if (isNew) upstreamProviderMapper.insert(provider);
+        else upstreamProviderMapper.updateById(provider);
+        log.info("{}上游 Provider: {} ({})", isNew ? "新增" : "更新", provider.getName(), provider.getId());
     }
 
     /**
-     * 删除上游 Provider，同时删除其在各通道的绑定，并刷新路由缓存
-     *
-     * @param id Provider ID
+     * 删除上游 Provider，同时删除其在各通道的绑定
      */
     public void deleteProvider(Long id) {
-        channelUpstreamMapper.delete(new LambdaQueryWrapper<ChannelUpstream>()
-                .eq(ChannelUpstream::getProviderId, id));
+        channelUpstreamMapper.delete(new LambdaQueryWrapper<ChannelUpstream>().eq(ChannelUpstream::getProviderId, id));
         upstreamProviderMapper.deleteById(id);
-        gatewayRouter.refresh();
     }
 
     /**
-     * 查询全部启用状态的上游 Provider（供通道绑定时下拉选择），apiKey 脱敏不外泄
-     *
-     * @return 启用的 Provider 列表
+     * 查询全部启用的上游 Provider（供通道绑定时下拉），apiKey 脱敏
      */
     public List<UpstreamProvider> listEnabledProviders() {
         List<UpstreamProvider> providers = upstreamProviderMapper.selectList(
                 new LambdaQueryWrapper<UpstreamProvider>()
                         .eq(UpstreamProvider::getEnabled, CommonConstant.ENABLED)
                         .orderByAsc(UpstreamProvider::getId));
-        for (UpstreamProvider provider : providers) {
-            provider.setApiKey(null);
-        }
+        for (UpstreamProvider p : providers) p.setApiKey(null);
         return providers;
     }
 
     /**
-     * 连通性测试：委托 OpenAiProxyAdapter 探测指定上游 Provider 是否可用
-     *
-     * @param id Provider ID
-     * @return 探测结果 JSON（如是否成功、耗时、返回信息等）
+     * 连通性测试
      */
     public JSONObject testProvider(Long id) {
         UpstreamProvider provider = upstreamProviderMapper.selectById(id);
-        if (provider == null) {
-            throw new CommonException("Provider 不存在");
-        }
-        return openAiProxyAdapter.testProvider(provider);
+        if (provider == null) throw new CommonException("Provider 不存在");
+        return proxyAdapter.testProvider(provider);
     }
 
     /**
-     * 查询全部对外模型通道（按 id 升序），附带绑定上游信息与顺序
-     *
-     * @return 通道列表，每项含 id/public_model_name/enabled/strategy/remark/provider_ids/providers
+     * 查询全部对外模型通道，附带绑定上游信息
      */
     public List<JSONObject> listChannels() {
         List<ModelChannel> channels = modelChannelMapper.selectList(
@@ -204,16 +137,14 @@ public class AdminService {
             List<Long> providerIds = new ArrayList<>();
             List<JSONObject> providers = new ArrayList<>();
             for (ChannelUpstream bind : binds) {
-                UpstreamProvider provider = upstreamProviderMapper.selectById(bind.getProviderId());
-                if (provider == null) {
-                    continue;
-                }
-                providerIds.add(provider.getId());
+                UpstreamProvider p = upstreamProviderMapper.selectById(bind.getProviderId());
+                if (p == null) continue;
+                providerIds.add(p.getId());
                 JSONObject item = new JSONObject();
-                item.put("id", provider.getId());
-                item.put("name", provider.getName());
-                item.put("model_name", provider.getModelName());
-                item.put("enabled", provider.getEnabled());
+                item.put("id", p.getId());
+                item.put("name", p.getName());
+                item.put("model_name", p.getModelName());
+                item.put("enabled", p.getEnabled());
                 providers.add(item);
             }
             JSONObject obj = new JSONObject();
@@ -231,49 +162,34 @@ public class AdminService {
     }
 
     /**
-     * 新增或更新对外模型通道，并按 providerIds 顺序重建通道-上游绑定，随后刷新路由缓存
-     * 新增时自动生成该服务专属的调用 Key
-     *
-     * @param dto 通道参数
-     * @return 新增时返回生成的专属 Key（编辑时为 null）
+     * 新增或更新对外模型通道，按 providerIds 顺序重建绑定
+     * 新增时自动生成专属调用 Key
      */
     public String saveChannel(ChannelDTO dto) {
         boolean isNew = dto.getId() == null;
         String generatedKey = null;
-        ModelChannel channel;
+        ModelChannel channel = isNew ? new ModelChannel()
+                : modelChannelMapper.selectById(dto.getId());
+        if (!isNew && channel == null) throw new CommonException("通道不存在");
         if (isNew) {
-            channel = new ModelChannel();
-            // 每个对客服务独属一个调用 Key
             generatedKey = "xgate-" + RandomUtil.randomString(32);
             channel.setApiKey(generatedKey);
-        } else {
-            channel = modelChannelMapper.selectById(dto.getId());
-            if (channel == null) {
-                throw new CommonException("通道不存在");
-            }
         }
         channel.setPublicModelName(StrUtil.trim(dto.getPublicModelName()));
         channel.setEnabled(dto.getEnabled() == null ? CommonConstant.ENABLED : dto.getEnabled());
         channel.setStrategy(StrUtil.isBlank(dto.getStrategy()) ? STRATEGY_ROUND_ROBIN : dto.getStrategy());
         channel.setRemark(dto.getRemark());
-        if (isNew) {
-            modelChannelMapper.insert(channel);
-            log.info("新增对外模型通道: {} ({})", channel.getPublicModelName(), channel.getId());
-        } else {
-            modelChannelMapper.updateById(channel);
-            log.info("更新对外模型通道: {} ({})", channel.getPublicModelName(), channel.getId());
-        }
+
+        if (isNew) modelChannelMapper.insert(channel);
+        else modelChannelMapper.updateById(channel);
+        log.info("{}对外模型通道: {} ({})", isNew ? "新增" : "更新", channel.getPublicModelName(), channel.getId());
+
         Long channelId = channel.getId();
-        // 删除旧绑定后按 providerIds 顺序重建绑定（weight=1，sort 从 0 起）
-        channelUpstreamMapper.delete(new LambdaQueryWrapper<ChannelUpstream>()
-                .eq(ChannelUpstream::getChannelId, channelId));
-        List<Long> providerIds = dto.getProviderIds();
-        if (providerIds != null) {
+        channelUpstreamMapper.delete(new LambdaQueryWrapper<ChannelUpstream>().eq(ChannelUpstream::getChannelId, channelId));
+        if (dto.getProviderIds() != null) {
             int sort = 0;
-            for (Long providerId : providerIds) {
-                if (providerId == null) {
-                    continue;
-                }
+            for (Long providerId : dto.getProviderIds()) {
+                if (providerId == null) continue;
                 ChannelUpstream bind = new ChannelUpstream();
                 bind.setChannelId(channelId);
                 bind.setProviderId(providerId);
@@ -282,61 +198,24 @@ public class AdminService {
                 channelUpstreamMapper.insert(bind);
             }
         }
-        gatewayRouter.refresh();
         return generatedKey;
     }
 
     /**
-     * 删除对外模型通道及其通道-上游绑定，并刷新路由缓存
-     *
-     * @param id 通道 ID
+     * 删除对外模型通道及其绑定
      */
     public void deleteChannel(Long id) {
-        channelUpstreamMapper.delete(new LambdaQueryWrapper<ChannelUpstream>()
-                .eq(ChannelUpstream::getChannelId, id));
+        channelUpstreamMapper.delete(new LambdaQueryWrapper<ChannelUpstream>().eq(ChannelUpstream::getChannelId, id));
         modelChannelMapper.deleteById(id);
-        gatewayRouter.refresh();
     }
 
-    /**
-     * 分页查询调用日志（透传网关日志服务）
-     *
-     * @param publicModel 对外模型名（可选）
-     * @param apiKeyName  API Key（可选）
-     * @param model       上游真实模型名（可选）
-     * @param dateFrom    起始日期 yyyy-MM-dd（可选）
-     * @param dateTo      结束日期 yyyy-MM-dd（可选）
-     * @param status      HTTP 状态码（可选）
-     * @param pageNum     页码
-     * @param pageSize    每页条数
-     * @return 调用日志分页结果
-     */
     public Page<CallLog> queryLogs(String publicModel, String apiKeyName, String model,
                                    String dateFrom, String dateTo, Integer status,
                                    int pageNum, int pageSize) {
         return callLogService.pageQuery(publicModel, apiKeyName, model, dateFrom, dateTo, status, pageNum, pageSize);
     }
 
-    /**
-     * 查询 Token 用量趋势（透传网关日志服务）
-     */
-    public List<JSONObject> tokenTrend(int hours) {
-        return callLogService.tokenTrend(hours);
-    }
-
-    /**
-     * 查询模型分布统计（透传网关日志服务）
-     */
-    public List<JSONObject> modelStats() {
-        return callLogService.modelStats();
-    }
-
-    /**
-     * 查询控制台看板统计（透传网关日志服务）
-     *
-     * @return 看板统计 JSON
-     */
-    public JSONObject dashboard() {
-        return callLogService.dashboard();
-    }
+    public List<JSONObject> tokenTrend(int hours) { return callLogService.tokenTrend(hours); }
+    public List<JSONObject> modelStats() { return callLogService.modelStats(); }
+    public JSONObject dashboard() { return callLogService.dashboard(); }
 }

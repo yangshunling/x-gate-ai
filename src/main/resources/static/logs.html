@@ -99,9 +99,31 @@
                         </div>
                       </div>
 
-                      <!-- 请求体消息 -->
+                      <!-- 请求消息：新日志为轻量摘要，历史日志兼容完整 messages -->
                       <div class="detail-section-title">请求消息</div>
-                      <div v-if="requestMessages(l).length" class="msg-list">
+                      <template v-if="requestSummary(l)">
+                        <div v-if="requestSummary(l).type === 'chat'" class="msg-list">
+                          <div class="msg-item">
+                            <span class="msg-badge role-tool">摘要</span>
+                            <span class="msg-content">{{ summaryRolesText(requestSummary(l)) || '（无消息）' }}</span>
+                          </div>
+                          <div class="msg-item">
+                            <span class="msg-badge role-user">User</span>
+                            <span class="msg-content">{{ requestSummary(l).preview || '（无文本内容）' }}</span>
+                          </div>
+                        </div>
+                        <div v-else class="msg-list">
+                          <div class="msg-item">
+                            <span class="msg-badge role-tool">摘要</span>
+                            <span class="msg-content">向量输入 {{ requestSummary(l).input_count != null ? requestSummary(l).input_count : requestSummary(l).inputCount }} 条</span>
+                          </div>
+                          <div v-if="requestSummary(l).preview" class="msg-item">
+                            <span class="msg-badge role-user">User</span>
+                            <span class="msg-content">{{ requestSummary(l).preview }}</span>
+                          </div>
+                        </div>
+                      </template>
+                      <div v-else-if="requestMessages(l).length" class="msg-list">
                         <div v-for="(m, i) in requestMessages(l)" :key="i" class="msg-item">
                           <span class="msg-badge" :class="roleClass(m.role)">{{ roleLabel(m.role) }}</span>
                           <span class="msg-content">{{ m.content || '（空）' }}</span>

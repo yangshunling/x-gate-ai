@@ -23,11 +23,6 @@ public class GatewayConfig {
     private long timeOutOfMinutes = 3;
 
     /**
-     * 失败上游冷却时间（秒）
-     */
-    private long coolDownSeconds = 30;
-
-    /**
      * 调用日志保留天数
      */
     private int logRetentionDays = 30;

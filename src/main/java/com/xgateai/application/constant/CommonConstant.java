@@ -12,9 +12,6 @@ public class CommonConstant {
 
     /******************************************************************************/
 
-    // 日志前缀常量
-    public static final String BASE_COMMON_ASPECT = "XGateAspect";
-
     // 数字常量
     public static final int ZERO = 0;
     public static final int ONE = 1;
