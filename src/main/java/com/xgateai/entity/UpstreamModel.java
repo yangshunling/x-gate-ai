@@ -50,6 +50,12 @@ public class UpstreamModel {
     private Integer failCount;
 
     /**
+     * 并发上限：0 表示不限制。在途请求达到该值时跳过该模型，故障转移到下一候选。
+     */
+    @JsonProperty("max_concurrency")
+    private Integer maxConcurrency;
+
+    /**
      * 备注信息
      */
     private String remark;

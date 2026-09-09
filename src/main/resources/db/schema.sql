@@ -4,7 +4,7 @@
 -- 表名统一以 x_gate_ 为前缀，语义：
 --   x_gate_channel   渠道/上游账号（name/base_url/api_key/enabled）
 --   x_gate_model     渠道下挂载的模型（channel_id 挂接，fail_count 在模型行）
---   x_gate_customer  客户/对外 API Key（原 model_channels）
+--   x_gate_customer  客户/API KEY（原 model_channels）
 --   x_gate_call_log  调用日志（原 call_logs）
 -- 老库（旧三表 upstream_providers/model_channels/call_logs）由
 -- DatabaseMigrateRunner 在启动时自动迁移为上述新表。
@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS x_gate_model (
     model_name TEXT NOT NULL,
     enabled INTEGER NOT NULL DEFAULT 1,
     fail_count INTEGER NOT NULL DEFAULT 0,
+    max_concurrency INTEGER NOT NULL DEFAULT 0,
     remark TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
     UNIQUE (channel_id, model_name)

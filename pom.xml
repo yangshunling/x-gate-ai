@@ -22,6 +22,7 @@
         <hutool.version>5.8.47</hutool.version>
         <fastjson.version>2.0.64</fastjson.version>
         <lombok.version>1.18.46</lombok.version>
+        <caffeine.version>3.1.8</caffeine.version>
     </properties>
     <dependencies>
         <!--===================【Springboot 生态】====================-->
@@ -81,6 +82,12 @@
             <groupId>com.alibaba</groupId>
             <artifactId>fastjson</artifactId>
             <version>${fastjson.version}</version>
+        </dependency>
+        <!-- Caffeine 本地缓存 -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+            <version>${caffeine.version}</version>
         </dependency>
         <!-- Lombok -->
         <dependency>

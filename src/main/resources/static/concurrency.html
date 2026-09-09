@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>流控管理 · 大模型统一网关</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="app" class="main-shell" v-cloak>
+
+  <!-- 侧栏（公共组件） -->
+  <x-nav active="concurrency"></x-nav>
+
+  <div class="content">
+    <!-- 顶栏（公共组件） -->
+    <x-head title="流控管理"></x-head>
+
+    <div class="body">
+      <div class="page">
+
+        <!-- 路由规则说明卡 -->
+        <div class="conc-rules">
+          <div class="conc-rules-head">
+            <span class="conc-rules-title"><span class="dot-mark"></span>路由规则说明</span>
+            <span class="sub">优先级 + 两种触发条件，决定一个请求最终落到哪个上游模型</span>
+          </div>
+
+          <div class="conc-rules-body">
+            <div class="conc-rule">
+              <div class="conc-rule-no">优先级</div>
+              <div class="conc-rule-text">
+                <b>按失败次数由少到多排列</b>，失败越少优先级越高，排在最前的候选最先被尝试。
+                排在最前的候选会优先承接流量；只有当它「失败」或「并发已满」时，才会下放到下一优先级。
+              </div>
+            </div>
+
+            <div class="conc-rule">
+              <div class="conc-rule-no"><span class="tag tag-danger">FAIL</span></div>
+              <div class="conc-rule-text">
+                <b>失败转移</b>：上游返回错误（如 429 限流、5xx、超时）时，<span class="mono">fail_count +1</span>，
+                自动跳到下一优先级候选重试。链路日志记为 <span class="mono">:FAIL(429)</span>。
+              </div>
+            </div>
+
+            <div class="conc-rule">
+              <div class="conc-rule-no"><span class="tag" style="background:#fef3c7;color:#b45309">FULL</span></div>
+              <div class="conc-rule-text">
+                <b>并发转移</b>：候选在途请求数已达「并发上限」时，<b>不调用</b>该候选，直接跳到下一优先级。
+                链路日志记为 <span class="mono">:FULL(已满5/5)</span>，与失败转移明确区分。
+              </div>
+            </div>
+
+            <div class="conc-rule">
+              <div class="conc-rule-no"><span class="tag tag-on">兜底</span></div>
+              <div class="conc-rule-text">
+                <b>全部已满时</b>：若所有候选并发都达上限，退化为「在途最少」的候选强制转发一单，<b>避免请求被并发上限直接丢弃</b>。
+              </div>
+            </div>
+          </div>
+
+          <div class="conc-rules-foot">
+            <span><b>并发上限</b>：每行可设，<b>0 = 不限制</b>（保持原有行为，永不触发 FULL）。</span>
+            <span><b>当前在途</b>：实时值，点「刷新」后更新；表示此刻正在调用该模型且未返回的请求数。</span>
+            <span><b>失败次数</b>：累计历史失败计数，落库，决定优先级排序，重启不清零。</span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <span class="panel-title"><span class="dot-mark"></span>流控管理
+              <span class="sub">共 {{ rows.length }} 个候选模型 · 优先级由失败次数决定（越少越高）</span>
+            </span>
+            <div class="panel-toolbar">
+              <button class="btn btn-ghost btn-sm" @click="load">刷新</button>
+            </div>
+          </div>
+
+          <div class="tbl-wrap">
+            <table class="tbl tbl-fixed">
+              <thead>
+                <tr>
+                  <th style="width:64px">优先级</th>
+                  <th style="width:22%">渠道</th>
+                  <th style="width:26%">模型</th>
+                  <th style="width:96px">失败次数</th>
+                  <th style="width:110px">当前在途</th>
+                  <th style="width:150px">并发上限</th>
+                  <th style="width:90px">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="loading"><td colspan="7" class="empty-row"><div class="spinner"></div>&nbsp;加载中…</td></tr>
+                <tr v-else-if="rows.length === 0">
+                  <td colspan="7" class="empty-row">
+                    <div class="empty-state">
+                      <span class="es-text">暂无候选模型，请在渠道管理中启用渠道与模型</span>
+                    </div>
+                  </td>
+                </tr>
+                <tr v-for="r in rows" :key="r.modelId">
+                  <td><span class="cust-rank" :class="{ 'rank-top': r.priority <= 3 }">{{ r.priority }}</span></td>
+                  <td class="cust-name">{{ r.channelName || '—' }}</td>
+                  <td><span class="mono" style="word-break:break-all;white-space:normal;display:inline-block;vertical-align:middle">{{ r.modelName }}</span></td>
+                  <td class="num" :style="{ color: r.failCount > 0 ? 'var(--destructive)' : 'var(--success)' }"><b>{{ r.failCount }}</b></td>
+                  <td class="num">
+                    <span :style="{ color: r.maxConcurrency > 0 && r.inFlight >= r.maxConcurrency ? 'var(--destructive)' : 'inherit', fontWeight: r.maxConcurrency > 0 && r.inFlight >= r.maxConcurrency ? 700 : 400 }">{{ r.inFlight }}</span>
+                    <span v-if="r.maxConcurrency > 0" class="sub">/{{ r.maxConcurrency }}</span>
+                    <span v-else class="sub">/∞</span>
+                  </td>
+                  <td>
+                    <input type="number" min="0" step="1" class="input num-input"
+                           style="width:96px;height:34px"
+                           v-model.number="r.draft"
+                           @keydown.enter="save(r)"
+                           :disabled="r.saving">
+                  </td>
+                  <td>
+                    <button class="btn btn-ghost btn-sm" :disabled="r.saving || !isDirty(r)" @click="save(r)">
+                      <span v-if="r.saving" class="spinner"></span>保存
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast（公共组件） -->
+  <x-toast :list="toasts"></x-toast>
+
+</div>
+
+<script src="lib/vue.global.prod.js"></script>
+<script src="js/http.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/api.js"></script>
+<script src="js/pages/concurrency.js"></script>
+<script>XUi.mount(ConcurrencyApp);</script>
+</body>
+</html>

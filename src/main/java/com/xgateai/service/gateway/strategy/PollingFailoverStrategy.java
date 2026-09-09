@@ -2,6 +2,7 @@ package com.xgateai.service.gateway.strategy;
 
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.github.benmanes.caffeine.cache.Cache;
 import com.xgateai.constant.CommonConstant;
 import com.xgateai.entity.ModelChannel;
 import com.xgateai.entity.UpstreamModel;
@@ -43,11 +44,14 @@ public class PollingFailoverStrategy implements UpstreamStrategy {
 
     private final IUpstreamModelDao upstreamModelDao;
     private final IUpstreamProviderDao upstreamProviderDao;
+    private final Cache<String, List> routeCache;
 
     public PollingFailoverStrategy(IUpstreamModelDao upstreamModelDao,
-                                   IUpstreamProviderDao upstreamProviderDao) {
+                                   IUpstreamProviderDao upstreamProviderDao,
+                                   Cache<String, List> routeCache) {
         this.upstreamModelDao = upstreamModelDao;
         this.upstreamProviderDao = upstreamProviderDao;
+        this.routeCache = routeCache;
     }
 
     @Override
@@ -62,6 +66,12 @@ public class PollingFailoverStrategy implements UpstreamStrategy {
 
         // 规则2: 全池路由
         boolean poolRouting = StrUtil.isBlank(pinnedModel) && GatewayConstant.MODEL_POOL.equals(requestedModel);
+
+        String cacheKey = channel.getId() + ":" + requestedModel;
+        List<UpstreamRoute> cached = routeCache.getIfPresent(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
 
         // 查询启用且模型匹配的模型行（单值精确匹配），按失败次数升序、ID 升序
         LambdaQueryWrapper<UpstreamModel> wrapper = new LambdaQueryWrapper<UpstreamModel>()
@@ -96,6 +106,7 @@ public class PollingFailoverStrategy implements UpstreamStrategy {
                     : String.format("提供模型 %s 的渠道均已停用", requestedModel);
             throw new BadRequestException(errorMsg);
         }
+        routeCache.put(cacheKey, routes);
         return routes;
     }
 

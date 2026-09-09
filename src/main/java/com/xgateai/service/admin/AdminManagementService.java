@@ -10,7 +10,7 @@ import java.util.Map;
 /**
  * AdminManagementService 管理端业务服务接口
  * <p>
- * 定义管理员操作的契约，包括渠道（含其下模型）与客户/对外 API Key 的增删改查。
+ * 定义管理员操作的契约，包括渠道（含其下模型）与客户/API KEY 的增删改查。
  * 渠道数据分散在 x_gate_channel（账号）与 x_gate_model（模型行）两张表。
  * </p>
  *
@@ -66,10 +66,10 @@ public interface AdminManagementService {
      */
     Map<String, Object> fetchProviderModels(com.xgateai.dto.FetchModelsDTO dto);
 
-    // ==================== 客户/对外 API Key 管理 ====================
+    // ==================== 客户/API KEY 管理 ====================
 
     /**
-     * 获取所有客户列表（对外 API Key）
+     * 获取所有客户列表（API KEY）
      */
     List<ModelChannel> listChannels();
 
@@ -89,4 +89,22 @@ public interface AdminManagementService {
      * 获取服务器基础信息（IP、端口等）
      */
     Map<String, Object> getServerInfo(int port);
+
+    // ==================== 并发控制 ====================
+
+    /**
+     * 列出所有候选模型（启用渠道下启用模型），按优先级由高到低排列，
+     * 含失败次数、并发上限、当前在途并发数。
+     *
+     * @return 每个元素含 channelName / modelName / failCount / maxConcurrency / inFlight / priority 等字段
+     */
+    List<Map<String, Object>> listConcurrencyModels();
+
+    /**
+     * 更新指定模型行的并发上限
+     *
+     * @param modelId        模型行 ID
+     * @param maxConcurrency 并发上限；{@code 0} 表示不限制
+     */
+    void updateConcurrencyLimit(Long modelId, int maxConcurrency);
 }

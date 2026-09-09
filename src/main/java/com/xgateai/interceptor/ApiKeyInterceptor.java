@@ -4,6 +4,7 @@ import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.github.benmanes.caffeine.cache.Cache;
 import com.xgateai.constant.CommonConstant;
 import com.xgateai.entity.ModelChannel;
 import com.xgateai.exception.AuthenticationException;
@@ -34,9 +35,12 @@ import java.io.IOException;
 public class ApiKeyInterceptor implements HandlerInterceptor {
 
     private final IModelChannelDao modelChannelDao;
+    private final Cache<String, Object> channelCache;
 
-    public ApiKeyInterceptor(IModelChannelDao modelChannelDao) {
+    public ApiKeyInterceptor(IModelChannelDao modelChannelDao,
+                             Cache<String, Object> channelCache) {
         this.modelChannelDao = modelChannelDao;
+        this.channelCache = channelCache;
     }
 
     @Override
@@ -54,12 +58,18 @@ public class ApiKeyInterceptor implements HandlerInterceptor {
             return false;
         }
 
-        // 查询匹配的启用通道
-        ModelChannel channel = modelChannelDao.selectOne(
-                new LambdaQueryWrapper<ModelChannel>()
-                        .eq(ModelChannel::getApiKey, apiKey)
-                        .eq(ModelChannel::getEnabled, CommonConstant.ENABLED)
-                        .last("LIMIT 1"));
+        // 先查缓存，命中则跳过 DB
+        ModelChannel channel = (ModelChannel) channelCache.getIfPresent(apiKey);
+        if (channel == null) {
+            channel = modelChannelDao.selectOne(
+                    new LambdaQueryWrapper<ModelChannel>()
+                            .eq(ModelChannel::getApiKey, apiKey)
+                            .eq(ModelChannel::getEnabled, CommonConstant.ENABLED)
+                            .last("LIMIT 1"));
+            if (channel != null) {
+                channelCache.put(apiKey, channel);
+            }
+        }
 
         if (channel == null) {
             log.warn("API Key 校验失败(未匹配启用通道), ip: {}, key: {}",

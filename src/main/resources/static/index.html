@@ -138,9 +138,9 @@
                       <td><span class="cust-rank">{{ i + 1 }}</span></td>
                       <td class="cust-name">{{ c.customerName || '—' }}</td>
                       <td class="num">{{ c.calls }}</td>
-                      <td class="num">{{ shortToken(c.inputTokens) }}</td>
-                      <td class="num">{{ shortToken(c.outputTokens) }}</td>
-                      <td class="num"><b>{{ shortToken(c.inputTokens + c.outputTokens) }}</b></td>
+                      <td class="num">{{ fmtNum(c.inputTokens, 'en') }}</td>
+                      <td class="num">{{ fmtNum(c.outputTokens, 'en') }}</td>
+                      <td class="num"><b>{{ fmtNum(c.inputTokens + c.outputTokens, 'en') }}</b></td>
                     </tr>
                   </tbody>
                 </table>

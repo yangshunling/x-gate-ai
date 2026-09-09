@@ -3,6 +3,8 @@ package com.xgateai.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.xgateai.entity.UpstreamModel;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Update;
 
 /**
  * IUpstreamModelDao 渠道模型数据访问接口
@@ -16,4 +18,13 @@ import org.apache.ibatis.annotations.Mapper;
  */
 @Mapper
 public interface IUpstreamModelDao extends BaseMapper<UpstreamModel> {
+
+    /**
+     * 原子自增指定模型行的 fail_count（数据库侧 fail_count = fail_count + 1，避免读改写覆盖）。
+     *
+     * @param id 模型行主键
+     * @return 影响行数
+     */
+    @Update("UPDATE x_gate_model SET fail_count = COALESCE(fail_count, 0) + 1 WHERE id = #{id}")
+    int incrementFailCount(@Param("id") Long id);
 }

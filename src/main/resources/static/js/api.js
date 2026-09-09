@@ -27,7 +27,7 @@ const XApi = {
   /** 获取今日客户调用 Top5 统计 */
   customerStats() { return XHttp.get('/admin/dashboard/customers'); },
 
-  /** 获取所有对外 API Key 列表（模型通道） */
+  /** 获取所有 API KEY 列表（模型通道） */
   listKeys() { return XHttp.get('/admin/channels'); },
 
   /**
@@ -97,5 +97,22 @@ const XApi = {
       if (v !== undefined && v !== null && v !== '') qs.set(k, v);
     });
     return XHttp.get('/admin/logs?' + qs.toString());
+  },
+
+  /* ==================== 流控管理 ==================== */
+
+  /**
+   * 列出候选模型（按优先级由高到低），含失败次数、并发上限、当前在途
+   * @returns {Promise<Array>} 元素含 channelName/modelName/failCount/maxConcurrency/inFlight/priority
+   */
+  listConcurrencyModels() { return XHttp.get('/admin/concurrency/models'); },
+
+  /**
+   * 更新指定模型行的并发上限
+   * @param {number} id - 模型行 ID
+   * @param {number} maxConcurrency - 并发上限；0 表示不限制
+   */
+  updateConcurrencyLimit(id, maxConcurrency) {
+    return XHttp.request('/admin/concurrency/model/' + id, { method: 'PUT', body: { maxConcurrency } });
   },
 };

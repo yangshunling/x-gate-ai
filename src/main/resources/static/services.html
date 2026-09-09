@@ -39,7 +39,7 @@
                   <th style="width:15%">渠道名称</th>
                   <th style="width:8%">挂载模型</th>
                   <th>Base URL</th>
-                  <th style="width:13%">创建时间</th>
+                  <th style="white-space:nowrap">创建时间</th>
                   <th style="width:64px">状态</th>
                   <th style="width:22%">操作</th>
                 </tr>
@@ -86,7 +86,10 @@
                     </td>
                     <td>
                       <div class="ops" style="justify-content:flex-start">
-                        <button class="btn btn-ghost btn-sm" @click.stop="testChannel(p)" title="测试该渠道下全部模型的连通性">全局测试</button>
+                        <button class="btn btn-ghost btn-sm" :disabled="testingChannels[p.id]" @click.stop="testChannel(p)" title="测试该渠道下全部模型的连通性">
+                          <span v-if="testingChannels[p.id]" class="spinner" style="width:13px;height:13px;border-width:1.5px"></span>
+                          {{ testingChannels[p.id] ? '测试中…' : '全局测试' }}
+                        </button>
                         <a class="row-link" @click.stop="openModal(p)">编辑</a>
                         <span class="sep"></span>
                         <a class="row-link danger" @click.stop="remove(p)">删除</a>
@@ -105,13 +108,18 @@
                               <span class="pm-name mono" :title="m.modelName">{{ m.modelName }}</span>
                             </div>
                             <div class="pm-remark">{{ m.remark || '暂无备注' }}</div>
+                            <div v-if="connMap[m.id]" class="pm-conn" :class="{ testing: connMap[m.id].testing, ok: connMap[m.id].ok, fail: connMap[m.id].ok === false }">
+                              <span v-if="connMap[m.id].testing" class="spinner" style="width:12px;height:12px;border-width:1.5px"></span>
+                              <span v-else-if="connMap[m.id].ok">✓ {{ connMap[m.id].latencyMs != null ? connMap[m.id].latencyMs + 'ms' : '' }}</span>
+                              <span v-else>✗ {{ connMap[m.id].message || '未连通' }}</span>
+                            </div>
                             <div class="pm-foot">
                               <label class="switch" :title="m.enabled ? '点击停用该模型' : '点击启用该模型'">
                                 <input type="checkbox" :checked="m.enabled" @change="toggleModel(m)">
                                 <span class="slider"></span>
                               </label>
                               <div class="pm-actions">
-                                <a class="row-link" @click="testModel(m)">连通测试</a>
+                                <a class="row-link" :class="{ disabled: connMap[m.id] && connMap[m.id].testing }" @click="testModel(m)">{{ connMap[m.id] && connMap[m.id].testing ? '测试中…' : '连通测试' }}</a>
                                 <span class="sep"></span>
                                 <a class="row-link danger" @click="removeModel(m)">移除</a>
                               </div>

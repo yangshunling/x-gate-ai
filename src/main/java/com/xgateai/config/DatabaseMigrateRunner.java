@@ -21,7 +21,7 @@ import java.util.Set;
  * 存在则把存量数据搬入新表并删除旧表，仅执行一次。
  * <ul>
  *   <li>upstream_providers  → x_gate_channel（渠道），其逗号分隔的 model_name 拆分为 x_gate_model 多行</li>
- *   <li>model_channels      → x_gate_customer（客户/对外 API Key）</li>
+ *   <li>model_channels      → x_gate_customer（客户/API KEY）</li>
  *   <li>call_logs           → x_gate_call_log（调用日志）</li>
  * </ul>
  * </p>
@@ -53,9 +53,33 @@ public class DatabaseMigrateRunner implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         try {
+            enableWalMode();
             migrate();
+            ensureNewColumns();
         } catch (Exception e) {
             log.error("数据库结构迁移失败，请检查旧表数据", e);
+        }
+    }
+
+    private void enableWalMode() {
+        try {
+            jdbcTemplate.execute("PRAGMA journal_mode=WAL");
+            jdbcTemplate.execute("PRAGMA synchronous=NORMAL");
+            jdbcTemplate.execute("PRAGMA wal_autocheckpoint=1000");
+            log.info("SQLite WAL 模式已启用");
+        } catch (Exception e) {
+            log.warn("启用 SQLite WAL 模式失败", e);
+        }
+    }
+
+    /**
+     * 为存量新表补充后续迭代新增的列（幂等：已存在则跳过）
+     */
+    private void ensureNewColumns() {
+        if (tableExists(T_MODEL) && !hasColumn(T_MODEL, "max_concurrency")) {
+            jdbcTemplate.update("ALTER TABLE " + T_MODEL
+                    + " ADD COLUMN max_concurrency INTEGER NOT NULL DEFAULT 0");
+            log.info("数据库迁移：x_gate_model 新增列 max_concurrency");
         }
     }
 

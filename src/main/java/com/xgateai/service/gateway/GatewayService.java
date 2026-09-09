@@ -10,16 +10,27 @@ import com.xgateai.entity.UpstreamRoute;
 import com.xgateai.constant.GatewayConstant;
 import com.xgateai.exception.BadRequestException;
 import com.xgateai.adapter.ProxyAdapter;
+import com.xgateai.component.InflightRegistry;
+import com.xgateai.logging.GatewayLog;
 import com.xgateai.logging.GatewayLogger;
 import com.xgateai.mapper.ICallLogDao;
 import com.xgateai.mapper.IUpstreamModelDao;
 import com.xgateai.service.gateway.strategy.UpstreamStrategy;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
 /**
@@ -41,17 +52,52 @@ public class GatewayService {
     private final GatewayLogger gatewayLogger;
     private final ICallLogDao callLogDao;
     private final IUpstreamModelDao upstreamModelDao;
+    private final InflightRegistry inflightRegistry;
+    private ExecutorService logExecutor;
 
     public GatewayService(ProxyAdapter proxyAdapter,
                           UpstreamStrategy upstreamStrategy,
                           GatewayLogger gatewayLogger,
                           ICallLogDao callLogDao,
-                          IUpstreamModelDao upstreamModelDao) {
+                          IUpstreamModelDao upstreamModelDao,
+                          InflightRegistry inflightRegistry) {
         this.proxyAdapter = proxyAdapter;
         this.upstreamStrategy = upstreamStrategy;
         this.gatewayLogger = gatewayLogger;
         this.callLogDao = callLogDao;
         this.upstreamModelDao = upstreamModelDao;
+        this.inflightRegistry = inflightRegistry;
+    }
+
+    /**
+     * 初始化日志落库与日志打印专用线程池，避免同步 IO 阻塞请求主流程。
+     * 队列满或线程池关闭时按拒绝策略静默丢弃，日志丢失不影响业务。
+     */
+    @PostConstruct
+    void initLogExecutor() {
+        int cores = Runtime.getRuntime().availableProcessors();
+        AtomicInteger seq = new AtomicInteger(0);
+        logExecutor = new ThreadPoolExecutor(
+                Math.max(2, cores),
+                Math.max(4, cores * 2),
+                60L, TimeUnit.SECONDS,
+                new LinkedBlockingQueue<>(2048),
+                r -> {
+                    Thread t = new Thread(r, "xgate-log-" + seq.incrementAndGet());
+                    t.setDaemon(true);
+                    return t;
+                },
+                new ThreadPoolExecutor.DiscardPolicy());
+    }
+
+    /**
+     * 应用关闭时优雅关闭日志线程池，已提交任务执行完毕后终止
+     */
+    @PreDestroy
+    void shutdownLogExecutor() {
+        if (logExecutor != null) {
+            logExecutor.shutdown();
+        }
     }
 
     // ==================== 对话接口 ====================
@@ -69,7 +115,7 @@ public class GatewayService {
         List<UpstreamRoute> candidates = upstreamStrategy.selectCandidates(channel, requestedModel);
         return executeWithFailover(channel, requestedModel, rawBody, false, candidates,
                 (route, body) -> proxyAdapter.chat(route.getProvider(), body),
-                (route, body, latencyMs) -> recordCallLog(channel, route, body, latencyMs, 200));
+                (route, body, latencyMs, usage) -> recordCallLog(channel, route, body, usage, latencyMs, 200));
     }
 
     /**
@@ -103,7 +149,7 @@ public class GatewayService {
         List<UpstreamRoute> candidates = upstreamStrategy.selectCandidates(channel, requestedModel);
         return executeWithFailover(channel, requestedModel, rawBody, false, candidates,
                 (route, body) -> proxyAdapter.embeddings(route.getProvider(), body),
-                (route, body, latencyMs) -> recordCallLog(channel, route, body, latencyMs, 200));
+                (route, body, latencyMs, usage) -> recordCallLog(channel, route, body, usage, latencyMs, 200));
     }
 
     // ==================== 私有辅助方法 ====================
@@ -161,9 +207,20 @@ public class GatewayService {
         List<String> chain = new ArrayList<>();
         long totalStart = System.currentTimeMillis();
         String lastError = "";
+        boolean anyAttempted = false;
 
         for (int i = 0; i < candidates.size(); i++) {
             UpstreamRoute route = candidates.get(i);
+            UpstreamModel model = route.getModel();
+            int limit = maxConcurrencyOf(model);
+
+            // 并发上限检查：在途已达上限则跳过该候选，故障转移到下一优先级
+            if (!inflightRegistry.tryAcquire(model.getId(), limit)) {
+                chain.add(gatewayLogger.buildChainEntry(route, "FULL",
+                        "已满" + inflightRegistry.inFlight(model.getId()) + "/" + limit));
+                continue;
+            }
+            anyAttempted = true;
             long start = System.currentTimeMillis();
 
             try {
@@ -171,8 +228,8 @@ public class GatewayService {
                 String upstreamBody = rebindUpstreamModel(rawBody, route.getModelName());
                 String result = callFn.call(route, upstreamBody);
                 long latencyMs = System.currentTimeMillis() - start;
-                onSuccessFn.onSuccess(route, upstreamBody, latencyMs);
                 JSONObject usage = parseUsageFromResponse(result);
+                onSuccessFn.onSuccess(route, upstreamBody, latencyMs, usage);
 
                 chain.add(gatewayLogger.buildChainEntry(route, "OK", null));
                 logCall("chat", channel, requestedModel, rawBody, stream,
@@ -182,10 +239,41 @@ public class GatewayService {
                 lastError = resolveMessage(e);
                 chain.add(gatewayLogger.buildChainEntry(route, "FAIL", lastError));
                 bumpFailCount(route);
+            } finally {
+                inflightRegistry.release(model.getId());
             }
         }
 
-        candidates.forEach(this::bumpFailCount);
+        // 全部候选并发已满：退化为「在途最少」候选强制转发一单，避免请求被并发上限丢弃
+        if (!anyAttempted) {
+            UpstreamRoute route = candidates.stream()
+                    .min(Comparator.comparingInt(r -> inflightRegistry.inFlight(r.getModel().getId())))
+                    .orElse(null);
+            if (route != null) {
+                UpstreamModel model = route.getModel();
+                inflightRegistry.forceAcquire(model.getId());
+                long start = System.currentTimeMillis();
+                try {
+                    String upstreamBody = rebindUpstreamModel(rawBody, route.getModelName());
+                    String result = callFn.call(route, upstreamBody);
+                    long latencyMs = System.currentTimeMillis() - start;
+                    JSONObject usage = parseUsageFromResponse(result);
+                    onSuccessFn.onSuccess(route, upstreamBody, latencyMs, usage);
+
+                    chain.add(gatewayLogger.buildChainEntry(route, "OK", null));
+                    logCall("chat", channel, requestedModel, rawBody, stream,
+                            "SUCCESS", route, System.currentTimeMillis() - totalStart, usage, chain);
+                    return result;
+                } catch (Exception e) {
+                    lastError = resolveMessage(e);
+                    chain.add(gatewayLogger.buildChainEntry(route, "FAIL", lastError));
+                    bumpFailCount(route);
+                } finally {
+                    inflightRegistry.release(model.getId());
+                }
+            }
+        }
+
         logCall("chat", channel, requestedModel, rawBody, stream,
                 "ALL_FAILED", null, System.currentTimeMillis() - totalStart, null, chain);
         throw new BadRequestException("所有上游调用失败: " + lastError);
@@ -207,9 +295,20 @@ public class GatewayService {
         List<String> chain = new ArrayList<>();
         long totalStart = System.currentTimeMillis();
         String lastError = "";
+        boolean anyAttempted = false;
 
         for (int i = 0; i < candidates.size(); i++) {
             UpstreamRoute route = candidates.get(i);
+            UpstreamModel model = route.getModel();
+            int limit = maxConcurrencyOf(model);
+
+            // 并发上限检查：在途已达上限则跳过该候选，故障转移到下一优先级
+            if (!inflightRegistry.tryAcquire(model.getId(), limit)) {
+                chain.add(gatewayLogger.buildChainEntry(route, "FULL",
+                        "已满" + inflightRegistry.inFlight(model.getId()) + "/" + limit));
+                continue;
+            }
+            anyAttempted = true;
             long start = System.currentTimeMillis();
 
             try {
@@ -225,16 +324,50 @@ public class GatewayService {
                 chain.add(gatewayLogger.buildChainEntry(route, status, null));
                 logCall("chat", channel, requestedModel, rawBody, true,
                         logResult, route, System.currentTimeMillis() - totalStart, usage, chain);
-                recordCallLog(channel, route, upstreamBody, latencyMs, 200);
+                    recordCallLog(channel, route, upstreamBody, usage, latencyMs, 200);
                 return;
             } catch (Exception e) {
                 lastError = resolveMessage(e);
                 chain.add(gatewayLogger.buildChainEntry(route, "FAIL", lastError));
                 bumpFailCount(route);
+            } finally {
+                inflightRegistry.release(model.getId());
             }
         }
 
-        candidates.forEach(this::bumpFailCount);
+        // 全部候选并发已满：退化为「在途最少」候选强制转发一单，避免请求被并发上限丢弃
+        if (!anyAttempted) {
+            UpstreamRoute route = candidates.stream()
+                    .min(Comparator.comparingInt(r -> inflightRegistry.inFlight(r.getModel().getId())))
+                    .orElse(null);
+            if (route != null) {
+                UpstreamModel model = route.getModel();
+                inflightRegistry.forceAcquire(model.getId());
+                long start = System.currentTimeMillis();
+                try {
+                    String upstreamBody = rebindUpstreamModel(rawBody, route.getModelName());
+                    boolean complete = streamCallFn.streamCall(route, upstreamBody, onChunk);
+                    long latencyMs = System.currentTimeMillis() - start;
+                    String usageJson = extractUsageFromStream();
+                    JSONObject usage = parseUsageFromResponse(usageJson);
+
+                    String status = complete ? "OK" : "BROKEN";
+                    String logResult = complete ? "SUCCESS" : "INTERRUPTED";
+                    chain.add(gatewayLogger.buildChainEntry(route, status, null));
+                    logCall("chat", channel, requestedModel, rawBody, true,
+                            logResult, route, System.currentTimeMillis() - totalStart, usage, chain);
+                recordCallLog(channel, route, upstreamBody, usage, latencyMs, 200);
+                    return;
+                } catch (Exception e) {
+                    lastError = resolveMessage(e);
+                    chain.add(gatewayLogger.buildChainEntry(route, "FAIL", lastError));
+                    bumpFailCount(route);
+                } finally {
+                    inflightRegistry.release(model.getId());
+                }
+            }
+        }
+
         logCall("chat", channel, requestedModel, rawBody, true,
                 "ALL_FAILED", null, System.currentTimeMillis() - totalStart, null, chain);
         throw new BadRequestException("所有上游流式调用失败: " + lastError);
@@ -246,40 +379,72 @@ public class GatewayService {
      * @param channel     对客通道信息
      * @param route       最终选中的路由目标（渠道 + 模型行）
      * @param requestBody 原始请求体摘要
+     * @param usage       上游返回的 Token 用量（已解析，可能为 null）
      * @param latencyMs   端到端耗时（毫秒）
      * @param httpStatus  HTTP 状态码
      */
     private void recordCallLog(ModelChannel channel, UpstreamRoute route,
-                               String requestBody, long latencyMs, int httpStatus) {
-        try {
-            CallLog entry = gatewayLogger.buildCallLogEntry(
-                    channel, route, requestBody, "", latencyMs, httpStatus);
-            callLogDao.insert(entry);
-        } catch (Exception e) {
-            log.error("记录调用日志失败, channel: {}, provider: {}",
-                    channel.getPublicModelName(), route.getProvider().getName(), e);
-        }
+                               String requestBody, JSONObject usage, long latencyMs, int httpStatus) {
+        submitLog(() -> {
+            try {
+                CallLog entry = gatewayLogger.buildCallLogEntry(
+                        channel, route, requestBody, usage, latencyMs, httpStatus);
+                callLogDao.insert(entry);
+            } catch (Exception e) {
+                log.error("记录调用日志失败, channel: {}, provider: {}",
+                        channel.getPublicModelName(), route.getProvider().getName(), e);
+            }
+        });
     }
 
     private void logCall(String type, ModelChannel channel, String requestedModel,
                          String rawBody, boolean stream, String result,
                          UpstreamRoute finalRoute, long costMs,
                          JSONObject usage, List<String> chain) {
-        gatewayLogger.logCall(type, channel, requestedModel, rawBody, stream,
-                result, finalRoute, costMs, usage, chain);
+        submitLog(() -> gatewayLogger.logCall(type, channel, requestedModel, rawBody, stream,
+                result, finalRoute, costMs, usage, chain));
     }
 
     /**
-     * 递增指定模型行的 fail_count，失败时静默忽略
+     * 提交日志任务到独立线程池，传递当前线程的 traceId 保证链路标识不丢失；
+     * 线程池关闭或队列满时静默丢弃，不影响主流程。
+     */
+    private void submitLog(Runnable task) {
+        final String traceId = GatewayLog.getMdc(GatewayLog.MDC_TRACE_ID);
+        try {
+            logExecutor.submit(() -> {
+                if (traceId != null) {
+                    MDC.put(GatewayLog.MDC_TRACE_ID, traceId);
+                }
+                try {
+                    task.run();
+                } finally {
+                    MDC.remove(GatewayLog.MDC_TRACE_ID);
+                }
+            });
+        } catch (Exception ignored) {
+            // 日志线程池已关闭或队列满被拒绝，静默丢弃
+        }
+    }
+
+    /**
+     * 取模型行的并发上限；null 或 {@code <= 0} 视为不限制（返回 0）
+     */
+    private int maxConcurrencyOf(UpstreamModel model) {
+        if (model == null || model.getMaxConcurrency() == null) {
+            return 0;
+        }
+        return Math.max(model.getMaxConcurrency(), 0);
+    }
+
+    /**
+     * 原子自增指定模型行的 fail_count，失败时静默忽略
      */
     private void bumpFailCount(UpstreamRoute route) {
         try {
             UpstreamModel model = route.getModel();
             if (model == null || model.getId() == null) return;
-            UpstreamModel update = new UpstreamModel();
-            update.setId(model.getId());
-            update.setFailCount((model.getFailCount() == null ? 0 : model.getFailCount()) + 1);
-            upstreamModelDao.updateById(update);
+            upstreamModelDao.incrementFailCount(model.getId());
         } catch (Exception e) {
             log.warn("更新 fail_count 失败, model: {}, channel: {}",
                     route.getModelName(), route.getProvider().getName(), e);
@@ -330,7 +495,7 @@ public class GatewayService {
     /** 调用成功后的回调函数式接口 */
     @FunctionalInterface
     private interface OnSuccessFn {
-        void onSuccess(UpstreamRoute route, String body, long latencyMs);
+        void onSuccess(UpstreamRoute route, String body, long latencyMs, JSONObject usage);
     }
 
     /** 流式调用函数式接口 */

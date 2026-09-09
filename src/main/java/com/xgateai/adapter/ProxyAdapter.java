@@ -134,11 +134,17 @@ public class ProxyAdapter {
         } catch (Exception e) {
             JSONObject result = new JSONObject();
             result.put("ok", false);
-            String message = resolveMessage(e);
+            String message;
+            if (e instanceof UpstreamException ue) {
+                message = "HTTP " + ue.getUpstreamHttpStatus();
+            } else {
+                message = resolveMessage(e);
+                if (message.length() > 60) message = message.substring(0, 60) + "...";
+            }
             if (StrUtil.containsIgnoreCase(message, "decrypt")
                     || StrUtil.containsIgnoreCase(message, "密钥")
                     || StrUtil.containsIgnoreCase(message, "cipher")) {
-                message = "上游 API Key 解密失败，请检查加密配置";
+                message = "API Key 解密失败";
             }
             result.put("message", message);
             return result;

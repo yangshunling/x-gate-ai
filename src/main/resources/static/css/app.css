@@ -484,6 +484,7 @@ table.tbl.tbl-fit { min-width: 0; }
 .row-link { color: var(--primary); cursor: pointer; font-size: 14px; font-weight: 500; text-decoration: none; transition: opacity .12s; }
 .row-link:hover { opacity: .72; text-decoration: underline; text-underline-offset: 3px; }
 .row-link.danger { color: var(--destructive); }
+.row-link.disabled { opacity: .5; pointer-events: none; }
 .ops { display: flex; gap: 12px; white-space: nowrap; align-items: center; justify-content: flex-end; }
 .ops .sep { width: 1px; height: 14px; background: var(--border-strong); }
 
@@ -677,7 +678,39 @@ textarea.input { height: auto; padding: 12px 14px; resize: vertical; line-height
 .pm-state.on { background: var(--success); box-shadow: 0 0 0 3px var(--success-soft); }
 .pm-name { font-size: 13px; font-weight: 600; color: var(--slate-800); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
 .pm-remark { font-size: 12px; color: var(--slate-400); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pm-conn { display: flex; align-items: center; gap: 6px; font-size: 12px; font-family: var(--mono); line-height: 1.5; }
+.pm-conn.testing { color: var(--slate-400); }
+.pm-conn.ok { color: var(--success); }
+.pm-conn.fail { color: var(--destructive); }
 .pm-foot { display: flex; align-items: center; gap: 10px; border-top: 1px dashed var(--border); padding-top: 12px; }
 .pm-actions { margin-left: auto; display: flex; align-items: center; gap: 12px; }
 .pm-actions .sep { width: 1px; height: 13px; background: var(--border-strong); }
 .pm-empty { background: rgba(255, 255, 255, .6); border: 1px dashed var(--border-strong); border-radius: var(--r-lg); padding: 24px; text-align: center; }
+
+/* ============ 流控管理页 ============ */
+.conc-rules {
+  background: var(--card); border: 1px solid var(--border);
+  box-shadow: var(--shadow-md); border-radius: var(--r-lg);
+  margin-bottom: 28px; overflow: hidden;
+}
+.conc-rules-head {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 16px 24px; border-bottom: 1px solid var(--border);
+}
+.conc-rules-title { font-size: 15px; font-weight: 600; color: var(--slate-900); display: flex; align-items: center; gap: 10px; }
+.conc-rules-title .dot-mark { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); box-shadow: 0 0 0 4px var(--primary-light); }
+.conc-rules-body { padding: 6px 24px 14px; }
+.conc-rule { display: flex; align-items: flex-start; gap: 14px; padding: 12px 0; border-bottom: 1px dashed var(--border); }
+.conc-rule:last-child { border-bottom: none; }
+.conc-rule-no { flex: 0 0 96px; padding-top: 2px; font-size: 13px; font-weight: 600; color: var(--slate-700); display: flex; align-items: center; gap: 6px; }
+.conc-rule-text { flex: 1; font-size: 13.5px; line-height: 1.75; color: var(--slate-600); }
+.conc-rule-text b { color: var(--slate-800); }
+.conc-rules-foot {
+  display: flex; flex-wrap: wrap; gap: 10px 26px;
+  padding: 14px 24px; background: var(--slate-50); border-top: 1px solid var(--border);
+  font-size: 12.5px; color: var(--slate-500); line-height: 1.7;
+}
+.conc-rules-foot b { color: var(--slate-700); }
+.num-input { text-align: center; -moz-appearance: textfield; }
+.num-input::-webkit-outer-spin-button, .num-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.cust-rank.rank-top { background: #fef3c7; color: #b45309; }

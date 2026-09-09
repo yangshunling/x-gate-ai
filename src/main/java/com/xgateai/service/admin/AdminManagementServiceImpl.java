@@ -4,8 +4,10 @@ import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.github.benmanes.caffeine.cache.Cache;
 import com.xgateai.constant.CommonConstant;
 import com.xgateai.dto.ChannelDTO;
+import com.xgateai.dto.ConcurrencyLimitDTO;
 import com.xgateai.dto.FetchModelsDTO;
 import com.xgateai.dto.ProviderDTO;
 import com.xgateai.dto.ProviderModelDTO;
@@ -15,6 +17,7 @@ import com.xgateai.entity.UpstreamProvider;
 import com.xgateai.exception.ResourceNotFoundException;
 import com.xgateai.adapter.ProxyAdapter;
 import com.xgateai.component.EncryptUtil;
+import com.xgateai.component.InflightRegistry;
 import com.xgateai.mapper.IModelChannelDao;
 import com.xgateai.mapper.IUpstreamModelDao;
 import com.xgateai.mapper.IUpstreamProviderDao;
@@ -47,17 +50,26 @@ public class AdminManagementServiceImpl implements AdminManagementService {
     private final IModelChannelDao modelChannelDao;
     private final ProxyAdapter proxyAdapter;
     private final EncryptUtil encryptUtil;
+    private final InflightRegistry inflightRegistry;
+    private final Cache<String, Object> channelCache;
+    private final Cache<String, List> routeCache;
 
     public AdminManagementServiceImpl(IUpstreamProviderDao upstreamProviderDao,
-                                      IUpstreamModelDao upstreamModelDao,
-                                      IModelChannelDao modelChannelDao,
-                                      ProxyAdapter proxyAdapter,
-                                      EncryptUtil encryptUtil) {
+                                       IUpstreamModelDao upstreamModelDao,
+                                       IModelChannelDao modelChannelDao,
+                                       ProxyAdapter proxyAdapter,
+                                       EncryptUtil encryptUtil,
+                                       InflightRegistry inflightRegistry,
+                                       Cache<String, Object> channelCache,
+                                       Cache<String, List> routeCache) {
         this.upstreamProviderDao = upstreamProviderDao;
         this.upstreamModelDao = upstreamModelDao;
         this.modelChannelDao = modelChannelDao;
         this.proxyAdapter = proxyAdapter;
         this.encryptUtil = encryptUtil;
+        this.inflightRegistry = inflightRegistry;
+        this.channelCache = channelCache;
+        this.routeCache = routeCache;
     }
 
     // ==================== 渠道管理（含模型） ====================
@@ -65,7 +77,9 @@ public class AdminManagementServiceImpl implements AdminManagementService {
     @Override
     public List<Map<String, Object>> listProviders() {
         List<UpstreamProvider> providers = upstreamProviderDao.selectList(
-                new LambdaQueryWrapper<UpstreamProvider>().orderByAsc(UpstreamProvider::getId));
+                new LambdaQueryWrapper<UpstreamProvider>()
+                        .orderByDesc(UpstreamProvider::getEnabled)
+                        .orderByAsc(UpstreamProvider::getId));
 
         List<UpstreamModel> models = upstreamModelDao.selectList(
                 new LambdaQueryWrapper<UpstreamModel>().orderByAsc(UpstreamModel::getChannelId)
@@ -163,6 +177,7 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         }
 
         syncModels(provider.getId(), nameMap);
+        routeCache.invalidateAll();
     }
 
     /**
@@ -212,6 +227,7 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         upstreamModelDao.delete(
                 new LambdaQueryWrapper<UpstreamModel>().eq(UpstreamModel::getChannelId, id));
         log.info("删除渠道及其模型: {}", id);
+        routeCache.invalidateAll();
     }
 
     @Override
@@ -330,7 +346,7 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         return result;
     }
 
-    // ==================== 客户/对外 API Key 管理 ====================
+    // ==================== 客户/API KEY 管理 ====================
 
     @Override
     public List<ModelChannel> listChannels() {
@@ -370,6 +386,7 @@ public class AdminManagementServiceImpl implements AdminManagementService {
             log.info("更新客户: {} ({})", channel.getPublicModelName(), channel.getId());
         }
 
+        channelCache.invalidateAll();
         return generatedKey;
     }
 
@@ -377,6 +394,7 @@ public class AdminManagementServiceImpl implements AdminManagementService {
     public void deleteChannel(Long id) {
         modelChannelDao.deleteById(id);
         log.info("删除客户: {}", id);
+        channelCache.invalidateAll();
     }
 
     // ==================== 服务器信息 ====================
@@ -387,6 +405,57 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         info.put("host", resolveLanIp());
         info.put("port", port);
         return info;
+    }
+
+    // ==================== 并发控制 ====================
+
+    @Override
+    public List<Map<String, Object>> listConcurrencyModels() {
+        // 仅启用渠道下的启用模型参与路由，按优先级（fail_count 升序，id 升序）排列
+        List<UpstreamModel> models = upstreamModelDao.selectList(
+                new LambdaQueryWrapper<UpstreamModel>()
+                        .eq(UpstreamModel::getEnabled, CommonConstant.ENABLED)
+                        .orderByAsc(UpstreamModel::getFailCount)
+                        .orderByAsc(UpstreamModel::getId));
+
+        Map<Long, String> channelNames = new HashMap<>();
+        for (UpstreamProvider provider : upstreamProviderDao.selectList(
+                new LambdaQueryWrapper<UpstreamProvider>()
+                        .eq(UpstreamProvider::getEnabled, CommonConstant.ENABLED))) {
+            channelNames.put(provider.getId(), provider.getName());
+        }
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        int priority = 1;
+        for (UpstreamModel model : models) {
+            if (!channelNames.containsKey(model.getChannelId())) {
+                continue;
+            }
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("modelId", model.getId());
+            row.put("channelName", channelNames.get(model.getChannelId()));
+            row.put("modelName", model.getModelName());
+            row.put("failCount", defaultIfNull(model.getFailCount(), 0));
+            row.put("maxConcurrency", defaultIfNull(model.getMaxConcurrency(), 0));
+            row.put("inFlight", inflightRegistry.inFlight(model.getId()));
+            row.put("priority", priority++);
+            result.add(row);
+        }
+        return result;
+    }
+
+    @Override
+    public void updateConcurrencyLimit(Long modelId, int maxConcurrency) {
+        UpstreamModel model = upstreamModelDao.selectById(modelId);
+        if (model == null) {
+            throw new ResourceNotFoundException("Model", modelId);
+        }
+        UpstreamModel update = new UpstreamModel();
+        update.setId(modelId);
+        update.setMaxConcurrency(maxConcurrency);
+        upstreamModelDao.updateById(update);
+        log.info("更新并发上限: model({}) {} -> {}", modelId, model.getModelName(), maxConcurrency);
+        routeCache.invalidateAll();
     }
 
     // ==================== 私有辅助方法 ====================

@@ -1,6 +1,7 @@
 package com.xgateai.controller;
 
 import com.xgateai.dto.ChannelDTO;
+import com.xgateai.dto.ConcurrencyLimitDTO;
 import com.xgateai.dto.FetchModelsDTO;
 import com.xgateai.dto.LogQueryDTO;
 import com.xgateai.dto.ProviderDTO;
@@ -82,7 +83,7 @@ public class AdminController {
         return HttpResponse.object(adminManagementService.testAllProviders());
     }
 
-    // ==================== 客户/对外 API Key 管理 ====================
+    // ==================== 客户/API KEY 管理 ====================
 
     @PostMapping("/channel")
     public HttpResponse saveChannel(@RequestBody @Valid ChannelDTO dto) {
@@ -146,5 +147,19 @@ public class AdminController {
     @GetMapping("/server-info")
     public HttpResponse serverInfo(@RequestParam(defaultValue = "8090") int port) {
         return HttpResponse.object(adminManagementService.getServerInfo(port));
+    }
+
+    // ==================== 并发控制 ====================
+
+    @GetMapping("/concurrency/models")
+    public HttpResponse listConcurrencyModels() {
+        return HttpResponse.object(adminManagementService.listConcurrencyModels());
+    }
+
+    @PutMapping("/concurrency/model/{id}")
+    public HttpResponse updateConcurrencyLimit(@PathVariable Long id,
+                                               @RequestBody @Valid ConcurrencyLimitDTO dto) {
+        adminManagementService.updateConcurrencyLimit(id, dto.getMaxConcurrency());
+        return HttpResponse.successForMessage("并发上限已更新");
     }
 }

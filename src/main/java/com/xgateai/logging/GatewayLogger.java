@@ -128,6 +128,8 @@ public class GatewayLogger {
             } else {
                 sb.append("(ERR)");
             }
+        } else if ("FULL".equals(status) && error != null) {
+            sb.append('(').append(error).append(')');
         }
         return sb.toString();
     }
@@ -138,13 +140,13 @@ public class GatewayLogger {
      * @param channel          对客通道信息
      * @param route            最终选中的上游路由目标（渠道 + 模型行）
      * @param requestBody      原始请求体摘要
-     * @param upstreamResponse 上游响应体（用于解析 usage）
+     * @param usage            上游返回的 Token 用量（已解析，可能为 null）
      * @param latencyMs        端到端耗时（毫秒）
      * @param httpStatus       HTTP 状态码
      * @return 已填充字段的 CallLog 实体
      */
     public CallLog buildCallLogEntry(ModelChannel channel, UpstreamRoute route,
-                                      String requestBody, String upstreamResponse,
+                                      String requestBody, JSONObject usage,
                                       long latencyMs, int httpStatus) {
         CallLog entry = new CallLog();
         entry.setApiKey(channel.getApiKey());
@@ -152,7 +154,6 @@ public class GatewayLogger {
         entry.setUpstreamUrl(route.getProvider().getBaseUrl() + GatewayConstant.PATH_CHAT_COMPLETIONS);
         entry.setUpstreamModel(route.getModelName());
 
-        JSONObject usage = parseUsage(upstreamResponse);
         if (usage != null) {
             entry.setInputTokens(usage.getIntValue("prompt_tokens", 0));
             entry.setOutputTokens(usage.getIntValue("completion_tokens", 0));

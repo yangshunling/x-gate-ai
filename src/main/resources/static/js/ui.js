@@ -19,12 +19,16 @@ const XUi = (() => {
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg>',
     },
     {
+      key: 'models', label: '客户管理', href: 'models.html',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="18" r="2.4"/><circle cx="18" cy="6" r="2.4"/><path d="M8.3 7.3 15.7 16.7M8.3 4.7h7.4"/><path d="M4.7 8.3v7.4h9"/></svg>',
+    },
+    {
       key: 'services', label: '渠道管理', href: 'services.html',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="7" rx="2"/><rect x="5" y="14" width="14" height="7" rx="2"/><path d="M9 6.5h.01M9 17.5h.01"/><path d="M12 10v4"/></svg>',
     },
     {
-      key: 'models', label: '客户管理', href: 'models.html',
-      icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="18" r="2.4"/><circle cx="18" cy="6" r="2.4"/><path d="M8.3 7.3 15.7 16.7M8.3 4.7h7.4"/><path d="M4.7 8.3v7.4h9"/></svg>',
+      key: 'concurrency', label: '流控管理', href: 'concurrency.html',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20a8 8 0 0 0 8-8"/><path d="M12 4a8 8 0 0 0-8 8"/><path d="M12 12l4-4"/></svg>',
     },
     {
       key: 'logs', label: '调用日志', href: 'logs.html',
@@ -117,18 +121,11 @@ const XUi = (() => {
       },
 
       /**
-       * 中文数字格式化（支持万/亿单位）
+       * 中文数字格式化（万/亿单位），fmtNum 的默认快捷方法
        * @param {*} n - 数值
        * @returns {string} 格式化后字符串
        */
-      fmtTokens(n) {
-        if (n == null || n === '') return '0';
-        const num = Number(n);
-        if (isNaN(num)) return String(n);
-        if (num >= 100000000) return (num / 100000000).toFixed(2) + ' 亿';
-        if (num >= 10000) return (num / 10000).toFixed(1) + ' 万';
-        return String(num);
-      },
+      fmtTokens(n) { return this.fmtNum(n, 'cn'); },
 
       /**
        * 异步复制文本到剪贴板，支持安全上下文优先降级
@@ -154,6 +151,74 @@ const XUi = (() => {
           } catch (e) { done = false; }
         }
         this.message(done ? successMsg : '复制失败，请手动复制', done ? 'success' : 'error');
+      },
+
+      /**
+       * 通用数据加载：捕获异常并提示，返回 null 表示失败
+       * @param {Function} loader - 返回 Promise 的加载函数
+       * @returns {Promise<*>} loader 的结果，异常时 null
+       */
+      async asyncLoad(loader) {
+        try { return await loader(); }
+        catch (e) { this.toastError(e); return null; }
+      },
+
+      /**
+       * 通用删除确认：确认后执行、提示、刷新
+       * @param {string} msg - confirm 文案
+       * @param {Function} fn - 删除函数（如 XApi.deleteXxx(id)）
+       * @param {string} okMsg - 成功提示
+       */
+      async confirmThen(msg, fn, okMsg) {
+        if (!confirm(msg)) return false;
+        try {
+          await fn();
+          this.message(okMsg);
+          await this.load();
+          return true;
+        } catch (e) {
+          this.toastError(e);
+          return false;
+        }
+      },
+
+      /**
+       * 通用启停切换：先翻转、再提交、失败回滚
+       * @param {object} obj - 目标对象
+       * @param {string} name - 布尔字段名
+       * @param {Function} apiFn - 提交函数
+       * @param {object} labels - { on, off } 成功提示文案
+       */
+      async toggleState(obj, name, apiFn, labels) {
+        const prev = obj[name];
+        obj[name] = prev ? 0 : 1;
+        try {
+          await apiFn();
+          this.message(obj[name] ? labels.on : labels.off);
+        } catch (e) {
+          obj[name] = prev;
+          this.toastError(e);
+        }
+      },
+
+      /**
+       * 数字格式化：中大数用万/亿，短数用 K/M（style 区分）
+       * @param {*} n - 数值
+       * @param {string} [style='cn'] - 'cn'=万/亿，'en'=K/M
+       * @returns {string} 格式化后字符串
+       */
+      fmtNum(n, style = 'cn') {
+        if (n == null || n === '') return '0';
+        const num = Number(n);
+        if (isNaN(num)) return String(n);
+        if (style === 'en') {
+          if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+          if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+          return String(num);
+        }
+        if (num >= 100000000) return (num / 100000000).toFixed(2) + ' 亿';
+        if (num >= 10000) return (num / 10000).toFixed(1) + ' 万';
+        return String(num);
       },
 
       /**
