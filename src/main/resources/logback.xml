@@ -41,9 +41,8 @@
 		</encoder>
 	</appender>
 
-	<!-- 网关业务专用 Logger：仅输出到控制台与 gateway.log，不重复叠加到 application.log -->
+	<!-- 网关业务专用 Logger：仅写 gateway.log，不在控制台打印单行请求日志（控制台只留框式日志） -->
 	<logger name="GATEWAY" level="INFO" additivity="false">
-		<appender-ref ref="CONSOLE"/>
 		<appender-ref ref="GATEWAY_FILE"/>
 	</logger>
 

@@ -1,16 +1,20 @@
 package com.xgateai.service.log;
 
 import cn.hutool.core.date.DateUtil;
+import cn.hutool.core.util.ObjectUtil;
+import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.xgateai.constant.CommonConstant;
+import com.xgateai.dto.LogQueryDTO;
 import com.xgateai.entity.CallLog;
 import com.xgateai.entity.ModelChannel;
+import com.xgateai.entity.UpstreamModel;
 import com.xgateai.entity.UpstreamProvider;
-import com.xgateai.dto.LogQueryDTO;
 import com.xgateai.mapper.ICallLogDao;
 import com.xgateai.mapper.IModelChannelDao;
+import com.xgateai.mapper.IUpstreamModelDao;
 import com.xgateai.mapper.IUpstreamProviderDao;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,6 +26,7 @@ import java.util.stream.Collectors;
  * CallLogAnalysisServiceImpl 调用日志统计分析服务实现
  * <p>
  * 负责调用日志的分页查询、聚合统计和仪表盘数据计算。
+ * 查询条件均通过 MyBatis-Plus 动态构造，避免字符串拼接 SQL。
  * </p>
  *
  * @author xgateai
@@ -34,26 +39,29 @@ public class CallLogAnalysisServiceImpl implements CallLogAnalysisService {
     private final ICallLogDao callLogDao;
     private final IModelChannelDao modelChannelDao;
     private final IUpstreamProviderDao upstreamProviderDao;
+    private final IUpstreamModelDao upstreamModelDao;
 
     public CallLogAnalysisServiceImpl(ICallLogDao callLogDao,
                                       IModelChannelDao modelChannelDao,
-                                      IUpstreamProviderDao upstreamProviderDao) {
+                                      IUpstreamProviderDao upstreamProviderDao,
+                                      IUpstreamModelDao upstreamModelDao) {
         this.callLogDao = callLogDao;
         this.modelChannelDao = modelChannelDao;
         this.upstreamProviderDao = upstreamProviderDao;
+        this.upstreamModelDao = upstreamModelDao;
     }
 
     @Override
     public Page<CallLog> queryLogs(LogQueryDTO query) {
-        int pageNum = Math.max(query.getPageNum() != null ? query.getPageNum() : 1, 1);
-        int pageSize = Math.max(query.getPageSize() != null ? query.getPageSize() : 20, 1);
+        int pageNum = Math.max(ObjectUtil.defaultIfNull(query.getPageNum(), 1), 1);
+        int pageSize = Math.max(ObjectUtil.defaultIfNull(query.getPageSize(), 20), 1);
 
         LambdaQueryWrapper<CallLog> wrapper = new LambdaQueryWrapper<CallLog>()
-                .eq(isNotBlank(query.getPublicModel()), CallLog::getPublicModel, query.getPublicModel())
-                .eq(isNotBlank(query.getApiKeyName()), CallLog::getApiKey, query.getApiKeyName())
-                .eq(isNotBlank(query.getModel()), CallLog::getUpstreamModel, query.getModel())
-                .ge(isNotBlank(query.getDateFrom()), CallLog::getCreatedAt, query.getDateFrom() + " 00:00:00")
-                .le(isNotBlank(query.getDateTo()), CallLog::getCreatedAt, query.getDateTo() + " 23:59:59")
+                .eq(StrUtil.isNotBlank(query.getPublicModel()), CallLog::getPublicModel, query.getPublicModel())
+                .eq(StrUtil.isNotBlank(query.getApiKeyName()), CallLog::getApiKey, query.getApiKeyName())
+                .eq(StrUtil.isNotBlank(query.getModel()), CallLog::getUpstreamModel, query.getModel())
+                .ge(StrUtil.isNotBlank(query.getDateFrom()), CallLog::getCreatedAt, query.getDateFrom() + " 00:00:00")
+                .le(StrUtil.isNotBlank(query.getDateTo()), CallLog::getCreatedAt, query.getDateTo() + " 23:59:59")
                 .eq(query.getStatus() != null && query.getStatus() > 0, CallLog::getHttpStatus, query.getStatus())
                 .orderByDesc(CallLog::getId);
 
@@ -72,33 +80,36 @@ public class CallLogAnalysisServiceImpl implements CallLogAnalysisService {
                 .groupBy("upstream_model")
                 .orderByDesc("calls");
 
-        List<Map<String, Object>> rows = callLogDao.selectMaps(wrapper);
-        return rows.stream().map(row -> {
-            Map<String, Object> result = new LinkedHashMap<>();
-            result.put("model", toString(row.get("model")));
-            result.put("calls", toLong(row.get("calls")));
-            result.put("successCalls", toLong(row.get("success_calls")));
-            result.put("inputTokens", toLong(row.get("input_tokens")));
-            result.put("outputTokens", toLong(row.get("output_tokens")));
-            result.put("avgLatencyMs", Math.round(toDouble(row.get("avg_latency_ms"))));
-            return result;
-        }).collect(Collectors.toList());
+        return callLogDao.selectMaps(wrapper).stream()
+                .map(row -> {
+                    Map<String, Object> result = new LinkedHashMap<>();
+                    result.put("model", toString(row.get("model")));
+                    result.put("calls", toLong(row.get("calls")));
+                    result.put("successCalls", toLong(row.get("success_calls")));
+                    result.put("inputTokens", toLong(row.get("input_tokens")));
+                    result.put("outputTokens", toLong(row.get("output_tokens")));
+                    result.put("avgLatencyMs", Math.round(toDouble(row.get("avg_latency_ms"))));
+                    return result;
+                })
+                .collect(Collectors.toList());
     }
 
     @Override
     public List<Map<String, Object>> analyzeFailuresByModel() {
-        QueryWrapper<UpstreamProvider> wrapper = new QueryWrapper<UpstreamProvider>()
-                .select("model_name AS model", "fail_count AS failCount")
-                .isNotNull("model_name")
+        // 统计口径来自模型行：同一模型跨渠道的 fail_count 求和
+        QueryWrapper<UpstreamModel> wrapper = new QueryWrapper<UpstreamModel>()
+                .select("model_name AS model", "COALESCE(SUM(fail_count), 0) AS failCount")
                 .ne("model_name", "")
-                .orderByDesc("fail_count")
+                .isNotNull("model_name")
+                .groupBy("model_name")
+                .orderByDesc("failCount")
                 .orderByAsc("model_name");
 
-        return upstreamProviderDao.selectList(wrapper).stream()
-                .map(p -> {
+        return upstreamModelDao.selectMaps(wrapper).stream()
+                .map(row -> {
                     Map<String, Object> result = new LinkedHashMap<>();
-                    result.put("model", p.getModelName());
-                    result.put("failCount", p.getFailCount() == null ? 0 : p.getFailCount());
+                    result.put("model", toString(row.get("model")));
+                    result.put("failCount", toLong(row.get("failCount")));
                     return result;
                 })
                 .collect(Collectors.toList());
@@ -106,19 +117,25 @@ public class CallLogAnalysisServiceImpl implements CallLogAnalysisService {
 
     @Override
     public List<Map<String, Object>> analyzeWeightByProvider() {
-        QueryWrapper<UpstreamProvider> wrapper = new QueryWrapper<UpstreamProvider>()
-                .select("name", "model_name", "fail_count")
-                .ne("model_name", "")
-                .isNotNull("model_name")
-                .orderByAsc("fail_count")
-                .orderByAsc("name");
+        // 模型行粒度展示：渠道名 + 模型名 + 失败次数（决定路由优先级）
+        List<UpstreamModel> models = upstreamModelDao.selectList(
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<UpstreamModel>()
+                        .ne(UpstreamModel::getModelName, "")
+                        .isNotNull(UpstreamModel::getModelName)
+                        .orderByAsc(UpstreamModel::getFailCount)
+                        .orderByAsc(UpstreamModel::getId));
 
-        return upstreamProviderDao.selectList(wrapper).stream()
-                .map(p -> {
+        Map<Long, String> channelNames = new HashMap<>();
+        for (UpstreamProvider provider : upstreamProviderDao.selectList(null)) {
+            channelNames.put(provider.getId(), provider.getName());
+        }
+
+        return models.stream()
+                .map(m -> {
                     Map<String, Object> result = new LinkedHashMap<>();
-                    result.put("name", p.getName());
-                    result.put("model", p.getModelName());
-                    result.put("failCount", p.getFailCount() == null ? 0 : p.getFailCount());
+                    result.put("name", channelNames.getOrDefault(m.getChannelId(), "-"));
+                    result.put("model", m.getModelName());
+                    result.put("failCount", defaultIfNull(m.getFailCount(), 0));
                     return result;
                 })
                 .collect(Collectors.toList());
@@ -128,7 +145,7 @@ public class CallLogAnalysisServiceImpl implements CallLogAnalysisService {
     public Map<String, Object> dashboardStats() {
         Map<String, Object> stats = new LinkedHashMap<>();
 
-        // 历史累计统计
+        // 历史累计调用统计
         long totalCalls = callLogDao.selectCount(new QueryWrapper<CallLog>());
         long totalSuccess = callLogDao.selectCount(
                 new QueryWrapper<CallLog>()
@@ -138,9 +155,18 @@ public class CallLogAnalysisServiceImpl implements CallLogAnalysisService {
         stats.put("totalSuccess", totalSuccess);
         stats.put("totalFail", totalCalls - totalSuccess);
 
+        // 历史累计 Token 汇总
+        List<CallLog> allLogs = callLogDao.selectList(
+                new QueryWrapper<CallLog>().select("input_tokens", "output_tokens"));
+        int totalInputTokens = allLogs.stream()
+                .mapToInt(log -> defaultIfNull(log.getInputTokens(), 0)).sum();
+        int totalOutputTokens = allLogs.stream()
+                .mapToInt(log -> defaultIfNull(log.getOutputTokens(), 0)).sum();
+        stats.put("totalInputTokens", totalInputTokens);
+        stats.put("totalOutputTokens", totalOutputTokens);
+
         // 今日统计
         String todayStart = DateUtil.format(DateUtil.beginOfDay(new Date()), CommonConstant.DATETIME_FORMAT);
-
         QueryWrapper<CallLog> todayWrapper = new QueryWrapper<CallLog>().ge("created_at", todayStart);
         long todayCalls = callLogDao.selectCount(todayWrapper);
         long todaySuccess = callLogDao.selectCount(
@@ -148,27 +174,25 @@ public class CallLogAnalysisServiceImpl implements CallLogAnalysisService {
                         .ge("created_at", todayStart)
                         .ge("http_status", CommonConstant.HTTP_OK)
                         .lt("http_status", CommonConstant.HTTP_BAD_REQUEST));
-
         stats.put("todayCalls", todayCalls);
         stats.put("todaySuccess", todaySuccess);
         stats.put("todayFail", todayCalls - todaySuccess);
 
-        // 今日 Token 汇总
         List<CallLog> todayLogs = callLogDao.selectList(todayWrapper);
         int todayInputTokens = todayLogs.stream()
-                .mapToInt(log -> log.getInputTokens() == null ? 0 : log.getInputTokens())
-                .sum();
+                .mapToInt(log -> defaultIfNull(log.getInputTokens(), 0)).sum();
         int todayOutputTokens = todayLogs.stream()
-                .mapToInt(log -> log.getOutputTokens() == null ? 0 : log.getOutputTokens())
-                .sum();
+                .mapToInt(log -> defaultIfNull(log.getOutputTokens(), 0)).sum();
         stats.put("todayInputTokens", todayInputTokens);
         stats.put("todayOutputTokens", todayOutputTokens);
 
-        // 资源启用数量
+        // 客户总数（已接入的对外客户数，取自 model_channels）与启用资源数
+        long totalCustomers = modelChannelDao.selectCount(null);
         long enabledChannels = modelChannelDao.selectCount(
                 new QueryWrapper<ModelChannel>().eq("enabled", CommonConstant.ENABLED));
         long enabledProviders = upstreamProviderDao.selectCount(
                 new QueryWrapper<UpstreamProvider>().eq("enabled", CommonConstant.ENABLED));
+        stats.put("totalCustomers", totalCustomers);
         stats.put("enabledChannels", enabledChannels);
         stats.put("enabledProviders", enabledProviders);
 
@@ -191,15 +215,16 @@ public class CallLogAnalysisServiceImpl implements CallLogAnalysisService {
                 .orderByDesc("calls")
                 .last("LIMIT 5");
 
-        List<Map<String, Object>> rows = callLogDao.selectMaps(wrapper);
-        return rows.stream().map(row -> {
-            Map<String, Object> result = new LinkedHashMap<>();
-            result.put("customerName", toString(row.get("customerName")));
-            result.put("calls", toLong(row.get("calls")));
-            result.put("inputTokens", toLong(row.get("inputTokens")));
-            result.put("outputTokens", toLong(row.get("outputTokens")));
-            return result;
-        }).collect(Collectors.toList());
+        return callLogDao.selectMaps(wrapper).stream()
+                .map(row -> {
+                    Map<String, Object> result = new LinkedHashMap<>();
+                    result.put("customerName", toString(row.get("customerName")));
+                    result.put("calls", toLong(row.get("calls")));
+                    result.put("inputTokens", toLong(row.get("inputTokens")));
+                    result.put("outputTokens", toLong(row.get("outputTokens")));
+                    return result;
+                })
+                .collect(Collectors.toList());
     }
 
     // ==================== 私有辅助方法 ====================
@@ -220,7 +245,10 @@ public class CallLogAnalysisServiceImpl implements CallLogAnalysisService {
         return Double.parseDouble(String.valueOf(value));
     }
 
-    private boolean isNotBlank(String str) {
-        return str != null && !str.isBlank();
+    /**
+     * 若 value 为 null 则返回 defaultValue
+     */
+    private int defaultIfNull(Integer value, int defaultValue) {
+        return value != null ? value : defaultValue;
     }
 }

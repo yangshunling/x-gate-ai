@@ -37,6 +37,17 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 处理业务参数/状态校验异常（400）
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<HttpResponse> handleIllegalArgumentException(IllegalArgumentException ex) {
+        log.warn("参数校验失败: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(HttpResponse.error(ex.getMessage()));
+    }
+
+    /**
      * 处理认证异常（401）
      */
     @ExceptionHandler(AuthenticationException.class)

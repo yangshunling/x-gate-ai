@@ -56,13 +56,13 @@
               <thead>
                 <tr>
                   <th style="width:150px">客户名</th><th style="width:200px">限定模型</th><th>专属 Key</th>
-                  <th style="width:80px">状态</th><th style="width:140px">备注</th><th style="width:140px">操作</th>
+                  <th style="width:140px">创建时间</th><th style="width:80px">状态</th><th style="width:140px">备注</th><th style="width:140px">操作</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-if="loading"><td colspan="6" class="empty-row"><div class="spinner"></div>&nbsp;加载中…</td></tr>
+                <tr v-if="loading"><td colspan="7" class="empty-row"><div class="spinner"></div>&nbsp;加载中…</td></tr>
                 <tr v-else-if="channels.length === 0">
-                  <td colspan="6" class="empty-row">
+                  <td colspan="7" class="empty-row">
                     <div class="empty-state">
                       <span class="es-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v5h5"/><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M9 13h6M9 17h4"/></svg>
@@ -85,6 +85,7 @@
                       <a class="row-link" style="white-space:nowrap" @click="copyListKey(c)">复制</a>
                     </div>
                   </td>
+                  <td class="sub mono" style="font-size:12px">{{ c.createdAt || '—' }}</td>
                   <td>
                     <label class="switch">
                       <input type="checkbox" :checked="c.enabled" @change="toggleEnabled(c, $event)">
@@ -129,7 +130,7 @@
             <option v-for="m in modelOptions" :key="m" :value="m">{{ m }}</option>
           </select>
           <div v-if="modelOptions.length === 0" style="margin-top:6px;font-size:12px;color:var(--slate-400)">
-            当前尚无启用的渠道，请先到「渠道管理」接入模型。
+            当前尚无启用的模型，请先到「渠道管理」为渠道添加并启用模型。
           </div>
         </div>
         <div class="form-item">

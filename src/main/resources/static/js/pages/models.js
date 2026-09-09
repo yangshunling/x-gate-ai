@@ -2,6 +2,9 @@
  * API Key 页面（对外客户接入）
  * ============================================================ */
 
+/**
+ * ModelsApp 客户管理页面实例
+ */
 const ModelsApp = {
   mixins: [XUi.mixin],
   data() {
@@ -27,6 +30,7 @@ const ModelsApp = {
 
   methods: {
     /* ---------------- 列表 ---------------- */
+
     async load() {
       this.loading = true;
       try {
@@ -40,21 +44,34 @@ const ModelsApp = {
       }
     },
 
-    /* 汇总池内渠道提供的去重模型名（仅启用渠道），default 之外的选项 */
+    /**
+     * 从渠道列表中收集启用的去重模型名（一个模型一行，跨渠道去重）
+     * @param {Array} providers - 渠道列表（含其下 models 子列表）
+     * @returns {string[]} 去重模型名数组
+     */
     collectModels(providers) {
       const set = [];
       const seen = {};
       (providers || []).forEach(p => {
-        if (p.enabled !== 1 || !p.modelName) return;
-        if (!seen[p.modelName]) {
-          seen[p.modelName] = true;
-          set.push(p.modelName);
-        }
+        if (p.enabled !== 1) return;
+        (p.models || []).forEach(m => {
+          if (m.enabled !== 1 || !m.modelName) return;
+          const name = m.modelName.trim();
+          if (name && !seen[name]) {
+            seen[name] = true;
+            set.push(name);
+          }
+        });
       });
       return set;
     },
 
     /* ---------------- 弹窗 ---------------- */
+
+    /**
+     * 打开新增/编辑弹窗
+     * @param {object} [c] - 编辑时的 channel 对象，为空则新建
+     */
     openModal(c) {
       this.modal.saving = false;
       if (c) {
@@ -71,6 +88,8 @@ const ModelsApp = {
       }
       this.modal.open = true;
     },
+
+    /** 关闭弹窗（保存中时禁止关闭） */
     closeModal() {
       if (this.modal.saving) return;
       this.modal.open = false;
@@ -114,6 +133,11 @@ const ModelsApp = {
       }
     },
 
+    /**
+     * 切换通道启用状态
+     * @param {object} c - channel 对象
+     * @param {Event} evt - checkbox change 事件
+     */
     async toggleEnabled(c, evt) {
       const enabled = evt.target.checked ? 1 : 0;
       evt.target.disabled = true;
@@ -130,6 +154,7 @@ const ModelsApp = {
     },
 
     /* ---------------- 专属 Key 展示与复制 ---------------- */
+
     closeKeyResult() {
       this.keyResult.open = false;
       this.keyResult.key = '';

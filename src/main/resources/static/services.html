@@ -21,33 +21,33 @@
 
         <div class="panel">
           <div class="panel-head">
-            <span class="panel-title"><span class="dot-mark"></span>渠道管理<span class="sub">共 {{ providers.length }} 个</span></span>
-             <div class="panel-toolbar">
-               <button class="btn btn-ghost btn-sm" @click="load">刷新</button>
-                <button class="btn btn-ghost btn-sm" :disabled="testingAll" @click="testAll">
-                  <span v-if="testingAll" class="spinner"></span>
-                  <svg v-if="!testingAll" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                  {{ testingAll ? '测试中…' : '全局测试' }}
-                </button>
-               <button class="btn btn-primary btn-sm" @click="openModal()">
-                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-                 新增渠道
-               </button>
-             </div>
+            <span class="panel-title"><span class="dot-mark"></span>渠道管理<span class="sub">共 {{ providers.length }} 个渠道</span></span>
+            <div class="panel-toolbar">
+              <button class="btn btn-ghost btn-sm" @click="load">刷新</button>
+              <button class="btn btn-primary btn-sm" @click="openModal()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                新增渠道
+              </button>
+            </div>
           </div>
 
           <div class="tbl-wrap">
-            <table class="tbl tbl-fixed">
+            <table class="tbl tbl-fixed tbl-fit">
               <thead>
                 <tr>
-                  <th style="width:150px">名称</th><th style="width:200px">模型名</th><th>Base URL</th>
-                  <th style="width:80px">状态</th><th style="width:230px">操作</th>
+                  <th style="width:34px"></th>
+                  <th style="width:15%">渠道名称</th>
+                  <th style="width:8%">挂载模型</th>
+                  <th>Base URL</th>
+                  <th style="width:13%">创建时间</th>
+                  <th style="width:64px">状态</th>
+                  <th style="width:22%">操作</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-if="loading"><td colspan="5" class="empty-row"><div class="spinner"></div>&nbsp;加载中…</td></tr>
+                <tr v-if="loading"><td colspan="7" class="empty-row"><div class="spinner"></div>&nbsp;加载中…</td></tr>
                 <tr v-else-if="providers.length === 0">
-                  <td colspan="5" class="empty-row">
+                  <td colspan="7" class="empty-row">
                     <div class="empty-state">
                       <span class="es-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="8" rx="2"/><rect x="4" y="13" width="16" height="8" rx="2"/><path d="M9 7h.01M9 17h.01"/></svg>
@@ -56,32 +56,75 @@
                     </div>
                   </td>
                 </tr>
-                <tr v-for="p in providers" :key="p.id">
-                    <td style="font-weight:600">{{ p.name }}</td>
-                    <td><span class="mono" style="color:var(--slate-700)">{{ p.modelName }}</span></td>
-                    <td><span class="mono" style="word-break:break-all;white-space:normal;display:inline-block;vertical-align:middle" :title="p.baseUrl">{{ p.baseUrl }}</span></td>
+                <template v-for="p in providers" :key="p.id">
+                  <!-- 渠道主行 -->
+                  <tr class="provider-row" :class="{ 'expanded': expandedIds.has(p.id) }" @click="toggleExpand(p)">
                     <td>
-                      <label class="switch" :title="p.enabled ? '点击停用' : '点击启用'">
-                        <input type="checkbox" :checked="p.enabled" @change="toggle(p)">
+                      <span class="row-toggle expand-icon" @click.stop="toggleExpand(p)" title="展开/折叠">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"
+                             style="width:14px;height:14px;transition:transform .18s"
+                             :style="{ transform: expandedIds.has(p.id) ? 'rotate(90deg)' : 'rotate(0deg)' }">
+                          <polyline points="9 18 15 12 9 6"/>
+                        </svg>
+                      </span>
+                    </td>
+                    <td style="font-weight:600">{{ p.name }}</td>
+                    <td>
+                      <span v-if="(p.models || []).length > 0" class="mcount" style="cursor:pointer"
+                            :title="modelNames(p).join('，')">
+                        <b>{{ (p.models || []).length }}</b><i>个模型</i>
+                      </span>
+                      <span v-else class="sub">—</span>
+                    </td>
+                    <td><span class="mono" style="word-break:break-all;white-space:normal;display:inline-block;vertical-align:middle" :title="p.baseUrl">{{ p.baseUrl }}</span></td>
+                    <td class="sub mono" style="font-size:12px">{{ p.createdAt || '—' }}</td>
+                    <td>
+                      <label class="switch" :title="p.enabled ? '点击停用渠道' : '点击启用渠道'" @click.stop>
+                        <input type="checkbox" :checked="p.enabled" @change="toggleChannel(p)">
                         <span class="slider"></span>
                       </label>
                     </td>
                     <td>
                       <div class="ops" style="justify-content:flex-start">
-                        <span
-                          class="conn-dot"
-                          :class="{ 'conn-ok': connMap[p.id]?.ok, 'conn-fail': connMap[p.id] && !connMap[p.id].ok }"
-                          :title="connMap[p.id] ? (connMap[p.id].ok ? '已连通 · ' + (connMap[p.id].latencyMs || '-') + 'ms' : connMap[p.id].message) : '未测试'"
-                          @click="testOne(p)"
-                          style="cursor:pointer"
-                        ></span>
-                        <button class="btn btn-ghost btn-sm" @click="testOne(p)">测试</button>
-                        <a class="row-link" @click="openModal(p)">编辑</a>
+                        <button class="btn btn-ghost btn-sm" @click.stop="testChannel(p)" title="测试该渠道下全部模型的连通性">全局测试</button>
+                        <a class="row-link" @click.stop="openModal(p)">编辑</a>
                         <span class="sep"></span>
-                        <a class="row-link danger" @click="remove(p)">删除</a>
+                        <a class="row-link danger" @click.stop="remove(p)">删除</a>
                       </div>
                     </td>
-                </tr>
+                  </tr>
+                  <!-- 展开：渠道详情 + 模型子表 -->
+                  <tr v-if="expandedIds.has(p.id)" class="provider-detail-row">
+                    <td colspan="7">
+                      <div class="provider-detail">
+                        <!-- 模型卡片网格 -->
+                        <div v-if="p.models && p.models.length > 0" class="pm-grid">
+                          <div class="pm-card" v-for="m in p.models" :key="m.id" :class="{ off: !m.enabled }">
+                            <div class="pm-top">
+                              <span class="pm-state" :class="{ on: m.enabled }"></span>
+                              <span class="pm-name mono" :title="m.modelName">{{ m.modelName }}</span>
+                            </div>
+                            <div class="pm-remark">{{ m.remark || '暂无备注' }}</div>
+                            <div class="pm-foot">
+                              <label class="switch" :title="m.enabled ? '点击停用该模型' : '点击启用该模型'">
+                                <input type="checkbox" :checked="m.enabled" @change="toggleModel(m)">
+                                <span class="slider"></span>
+                              </label>
+                              <div class="pm-actions">
+                                <a class="row-link" @click="testModel(m)">连通测试</a>
+                                <span class="sep"></span>
+                                <a class="row-link danger" @click="removeModel(m)">移除</a>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div v-else class="pm-empty">
+                          <span class="sub">该渠道暂无挂载模型，点击主行「编辑」添加</span>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
               </tbody>
             </table>
           </div>
@@ -91,9 +134,9 @@
     </div>
   </div>
 
-  <!-- ==================== 新增 / 编辑弹窗 ==================== -->
+  <!-- ==================== 新增 / 编辑渠道弹窗 ==================== -->
   <div v-if="modal.open" class="modal-mask">
-    <div class="modal">
+    <div class="modal" style="max-width:680px">
       <div class="modal-head">
         <span class="modal-title">{{ modal.editId ? '编辑渠道' : '新增渠道' }}</span>
         <button class="modal-close" @click="closeModal">✕</button>
@@ -101,26 +144,9 @@
       <div class="modal-body">
         <div class="form-grid">
           <div class="form-item">
-            <label>名称 <span class="req">*</span></label>
-            <input class="input" v-model.trim="modal.form.name" placeholder="如：DeepSeek 官方">
+            <label>渠道名称 <span class="req">*</span></label>
+            <input class="input" v-model.trim="modal.form.name" placeholder="如：DeepSeek 官方 / 商汤-主账号">
           </div>
-          <div class="form-item">
-            <label>模型名 <span class="req">*</span> <span class="form-hint">该渠道提供的模型</span></label>
-            <input class="input mono-input" v-model.trim="modal.form.modelName" placeholder="如：deepseek-chat">
-          </div>
-        </div>
-        <div class="form-item">
-          <label>Base URL <span class="req">*</span> <span class="form-hint">服务地址（含 /v1）</span></label>
-          <input class="input mono-input" v-model.trim="modal.form.baseUrl" placeholder="如：https://api.deepseek.com/v1">
-        </div>
-        <div class="form-item">
-          <label>API Key <span class="req" v-if="!modal.editId">*</span>
-            <span class="form-hint">{{ modal.editId ? '留空表示不修改，不回显原值' : '该渠道的调用密钥' }}</span>
-          </label>
-          <input class="input mono-input" type="password" v-model.trim="modal.form.apiKey"
-                 :placeholder="modal.editId ? '留空保持不变' : '请输入 API Key'">
-        </div>
-        <div class="form-grid">
           <div class="form-item">
             <label>状态</label>
             <div class="check-cell">
@@ -129,15 +155,60 @@
               </label>
             </div>
           </div>
-          <div class="form-item">
-            <label>调用权重 <span class="form-hint">越高越优先被调用（默认 100）</span></label>
-            <input class="input" type="number" v-model.number="modal.form.weight" placeholder="100">
-          </div>
         </div>
-        <div class="form-grid">
-          <div class="form-item">
-            <label>备注</label>
-            <input class="input" v-model.trim="modal.form.remark" placeholder="选填">
+        <div class="form-item">
+          <label>Base URL <span class="req">*</span> <span class="form-hint">服务地址（须含 /v1），该渠道下所有模型共用</span></label>
+          <input class="input mono-input" v-model.trim="modal.form.baseUrl" placeholder="如：https://api.deepseek.com/v1">
+        </div>
+        <div class="form-item">
+          <label>API Key <span class="req" v-if="!modal.editId">*</span>
+            <span class="form-hint">{{ modal.editId ? '已明文回显，如需更换请直接修改' : '该渠道的调用密钥' }}</span>
+          </label>
+          <input class="input mono-input" type="text" v-model.trim="modal.form.apiKey"
+                 :placeholder="modal.editId ? '已回显当前密钥，如需更换请修改' : '请输入 API Key'">
+        </div>
+        <div class="form-item">
+          <label>备注</label>
+          <input class="input" v-model.trim="modal.form.remark" placeholder="选填">
+        </div>
+
+        <!-- 模型动态列表 -->
+        <div class="form-item" style="margin-top:6px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap">
+            <label style="margin:0 0 6px">挂载模型 <span class="req">*</span>
+              <span class="form-hint">一个模型一行；也可先填好上方 Base URL / API Key 后点「导入模型」自动拉取</span>
+            </label>
+            <button class="btn btn-ghost btn-sm" type="button" :disabled="importing" @click="fetchModels">
+              <span v-if="importing" class="spinner"></span>
+              <svg v-if="!importing" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px;margin-right:4px;vertical-align:-2px"><path d="M20 11A8 8 0 1 0 18.5 15.5"/><polyline points="20 6 20 11 15 11"/></svg>
+              {{ importing ? '获取中…' : '导入模型' }}
+            </button>
+          </div>
+          <div style="border:1px solid var(--border,#e6e8ef);border-radius:10px;padding:10px 12px;background:var(--bg-soft,#f8f9fc)">
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;color:#8a93a6;font-size:12px">
+              <span style="flex:1.6;min-width:180px">模型名</span>
+              <span style="flex:0 0 64px">启用</span>
+              <span style="flex:1.4;min-width:140px">备注</span>
+              <span style="flex:0 0 44px"></span>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px" v-for="(row, idx) in modal.form.models" :key="idx">
+              <input class="input mono-input" style="flex:1.6;min-width:180px" v-model.trim="row.modelName"
+                     placeholder="如：deepseek-chat">
+              <div style="flex:0 0 64px;display:flex;align-items:center">
+                <label class="switch">
+                  <input type="checkbox" v-model="row.enabled">
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <input class="input" style="flex:1.4;min-width:140px" v-model.trim="row.remark" placeholder="选填">
+              <a class="row-link danger" style="flex:0 0 44px;text-align:right"
+                 :class="{ disabled: modal.form.models.length <= 1 }"
+                 @click="modal.form.models.length > 1 && removeModelRow(idx)">移除</a>
+            </div>
+            <button class="btn btn-ghost btn-sm" type="button" @click="addModelRow">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" style="width:12px;height:12px;margin-right:4px;vertical-align:-2px"><path d="M12 5v14M5 12h14"/></svg>
+              添加模型
+            </button>
           </div>
         </div>
       </div>

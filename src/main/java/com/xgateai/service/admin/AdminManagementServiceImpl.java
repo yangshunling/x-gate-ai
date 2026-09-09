@@ -1,18 +1,26 @@
 package com.xgateai.service.admin;
 
+import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.core.util.StrUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.xgateai.constant.CommonConstant;
 import com.xgateai.dto.ChannelDTO;
+import com.xgateai.dto.FetchModelsDTO;
 import com.xgateai.dto.ProviderDTO;
+import com.xgateai.dto.ProviderModelDTO;
 import com.xgateai.entity.ModelChannel;
+import com.xgateai.entity.UpstreamModel;
 import com.xgateai.entity.UpstreamProvider;
 import com.xgateai.exception.ResourceNotFoundException;
 import com.xgateai.adapter.ProxyAdapter;
+import com.xgateai.component.EncryptUtil;
 import com.xgateai.mapper.IModelChannelDao;
+import com.xgateai.mapper.IUpstreamModelDao;
 import com.xgateai.mapper.IUpstreamProviderDao;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.net.Inet4Address;
 import java.net.InetAddress;
@@ -22,7 +30,9 @@ import java.util.*;
 /**
  * AdminManagementServiceImpl 管理端业务服务实现
  * <p>
- * 实现上游 Provider 和模型通道的 CRUD 操作。
+ * 实现渠道（含其下模型行）与客户（对外 API Key）的增删改查、连通性测试及服务器信息获取。
+ * 渠道账号存 x_gate_channel，渠道下的模型按「一个模型一行」存 x_gate_model。
+ * API Key 存储前经 {@link EncryptUtil} 加密，查询结果中自动脱敏。
  * </p>
  *
  * @author xgateai
@@ -33,30 +43,73 @@ import java.util.*;
 public class AdminManagementServiceImpl implements AdminManagementService {
 
     private final IUpstreamProviderDao upstreamProviderDao;
+    private final IUpstreamModelDao upstreamModelDao;
     private final IModelChannelDao modelChannelDao;
     private final ProxyAdapter proxyAdapter;
+    private final EncryptUtil encryptUtil;
 
     public AdminManagementServiceImpl(IUpstreamProviderDao upstreamProviderDao,
+                                      IUpstreamModelDao upstreamModelDao,
                                       IModelChannelDao modelChannelDao,
-                                      ProxyAdapter proxyAdapter) {
+                                      ProxyAdapter proxyAdapter,
+                                      EncryptUtil encryptUtil) {
         this.upstreamProviderDao = upstreamProviderDao;
+        this.upstreamModelDao = upstreamModelDao;
         this.modelChannelDao = modelChannelDao;
         this.proxyAdapter = proxyAdapter;
+        this.encryptUtil = encryptUtil;
     }
 
-    // ==================== 上游 Provider 管理 ====================
+    // ==================== 渠道管理（含模型） ====================
 
     @Override
-    public List<UpstreamProvider> listProviders() {
+    public List<Map<String, Object>> listProviders() {
         List<UpstreamProvider> providers = upstreamProviderDao.selectList(
-                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<UpstreamProvider>()
-                        .orderByAsc(UpstreamProvider::getId));
-        // 脱敏：不返回真实 API Key
-        providers.forEach(provider -> provider.setApiKey(null));
-        return providers;
+                new LambdaQueryWrapper<UpstreamProvider>().orderByAsc(UpstreamProvider::getId));
+
+        List<UpstreamModel> models = upstreamModelDao.selectList(
+                new LambdaQueryWrapper<UpstreamModel>().orderByAsc(UpstreamModel::getChannelId)
+                        .orderByAsc(UpstreamModel::getId));
+        Map<Long, List<Map<String, Object>>> modelGroup = new LinkedHashMap<>();
+        for (UpstreamModel model : models) {
+            modelGroup.computeIfAbsent(model.getChannelId(), k -> new ArrayList<>())
+                    .add(toModelMap(model));
+        }
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (UpstreamProvider provider : providers) {
+            Map<String, Object> channelMap = new LinkedHashMap<>();
+            channelMap.put("id", provider.getId());
+            channelMap.put("name", provider.getName());
+            channelMap.put("baseUrl", provider.getBaseUrl());
+            // 明文回显：供编辑弹窗直接展示，不参与对外鉴权
+            channelMap.put("apiKey", decryptQuietly(provider.getApiKey()));
+            channelMap.put("enabled", provider.getEnabled());
+            channelMap.put("remark", provider.getRemark());
+            channelMap.put("createdAt", provider.getCreatedAt() == null ? "-" : provider.getCreatedAt());
+            channelMap.put("models", modelGroup.getOrDefault(provider.getId(), Collections.emptyList()));
+            result.add(channelMap);
+        }
+        return result;
+    }
+
+    /**
+     * 静默解密密钥，解密失败返回 null
+     */
+    private String decryptQuietly(String encrypted) {
+        if (StrUtil.isBlank(encrypted)) {
+            return null;
+        }
+        try {
+            return encryptUtil.decrypt(encrypted);
+        } catch (Exception e) {
+            log.warn("API Key 解密失败, 返回空值");
+            return null;
+        }
     }
 
     @Override
+    @Transactional
     public void saveProvider(ProviderDTO dto) {
         boolean isNew = dto.getId() == null;
         UpstreamProvider provider = isNew
@@ -70,73 +123,219 @@ public class AdminManagementServiceImpl implements AdminManagementService {
             throw new IllegalArgumentException("apiKey 不能为空");
         }
 
-        // 映射 DTO 到实体
+        List<ProviderModelDTO> modelItems = dto.getModels() == null
+                ? Collections.emptyList() : dto.getModels();
+
+        // 校验模型项：名称去空、去重、禁止逗号
+        Map<String, ProviderModelDTO> nameMap = new LinkedHashMap<>();
+        for (ProviderModelDTO item : modelItems) {
+            String modelName = StrUtil.trim(item.getModelName());
+            if (StrUtil.isBlank(modelName)) {
+                continue;
+            }
+            if (modelName.contains(",")) {
+                throw new IllegalArgumentException("模型名不能包含英文逗号，一个模型请单独录入一行: " + modelName);
+            }
+            if (nameMap.containsKey(modelName)) {
+                throw new IllegalArgumentException("同一渠道下模型重复: " + modelName);
+            }
+            item.setModelName(modelName);
+            nameMap.put(modelName, item);
+        }
+
         provider.setName(StrUtil.trim(dto.getName()));
         provider.setBaseUrl(trimTrailingSlash(StrUtil.trim(dto.getBaseUrl())));
-        provider.setModelName(StrUtil.trim(dto.getModelName()));
-        provider.setEnabled(dto.getEnabled() != null ? dto.getEnabled() : CommonConstant.ENABLED);
+        provider.setEnabled(defaultIfNull(dto.getEnabled(), CommonConstant.ENABLED));
         provider.setRemark(dto.getRemark());
+        if (isNew && provider.getCreatedAt() == null) {
+            provider.setCreatedAt(DateUtil.format(DateUtil.date(), CommonConstant.DATETIME_FORMAT));
+        }
         if (StrUtil.isNotBlank(dto.getApiKey())) {
-            provider.setApiKey(encryptApiKey(dto.getApiKey()));
+            provider.setApiKey(encryptUtil.encrypt(dto.getApiKey()));
         }
 
-        // 持久化
         if (isNew) {
             upstreamProviderDao.insert(provider);
-            log.info("新增上游 Provider: {} ({})", provider.getName(), provider.getId());
+            log.info("新增渠道: {} ({})", provider.getName(), provider.getId());
         } else {
             upstreamProviderDao.updateById(provider);
-            log.info("更新上游 Provider: {} ({})", provider.getName(), provider.getId());
+            log.info("更新渠道: {} ({})", provider.getName(), provider.getId());
+        }
+
+        syncModels(provider.getId(), nameMap);
+    }
+
+    /**
+     * 对渠道下的模型做差量同步：新增缺失行、删除多余行、更新保留行
+     */
+    private void syncModels(Long channelId, Map<String, ProviderModelDTO> targetMap) {
+        List<UpstreamModel> existing = upstreamModelDao.selectList(
+                new LambdaQueryWrapper<UpstreamModel>().eq(UpstreamModel::getChannelId, channelId));
+        Map<String, UpstreamModel> existingByName = new HashMap<>();
+        for (UpstreamModel model : existing) {
+            existingByName.put(model.getModelName(), model);
+        }
+
+        // 1. 处理目标中的模型
+        for (Map.Entry<String, ProviderModelDTO> entry : targetMap.entrySet()) {
+            String modelName = entry.getKey();
+            ProviderModelDTO item = entry.getValue();
+            UpstreamModel existed = existingByName.remove(modelName);
+            if (existed == null) {
+                UpstreamModel model = new UpstreamModel();
+                model.setChannelId(channelId);
+                model.setModelName(modelName);
+                model.setEnabled(defaultIfNull(item.getEnabled(), CommonConstant.ENABLED));
+                model.setRemark(item.getRemark());
+                model.setFailCount(0);
+                model.setCreatedAt(DateUtil.format(DateUtil.date(), CommonConstant.DATETIME_FORMAT));
+                upstreamModelDao.insert(model);
+                log.info("新增模型: 渠道({}) - {}", channelId, modelName);
+            } else {
+                existed.setEnabled(defaultIfNull(item.getEnabled(), CommonConstant.ENABLED));
+                existed.setRemark(item.getRemark());
+                upstreamModelDao.updateById(existed);
+            }
+        }
+
+        // 2. 删除目标中已移除的模型
+        for (UpstreamModel removed : existingByName.values()) {
+            upstreamModelDao.deleteById(removed.getId());
+            log.info("删除模型: 渠道({}) - {}", channelId, removed.getModelName());
         }
     }
 
     @Override
+    @Transactional
     public void deleteProvider(Long id) {
         upstreamProviderDao.deleteById(id);
-        log.info("删除上游 Provider: {}", id);
+        upstreamModelDao.delete(
+                new LambdaQueryWrapper<UpstreamModel>().eq(UpstreamModel::getChannelId, id));
+        log.info("删除渠道及其模型: {}", id);
     }
 
     @Override
-    public Map<String, Object> testProvider(Long id) {
+    public List<Map<String, Object>> testProvider(Long id) {
         UpstreamProvider provider = upstreamProviderDao.selectById(id);
         if (provider == null) {
             throw new ResourceNotFoundException("Provider", id);
         }
-        return proxyAdapter.testProvider(provider);
+        List<UpstreamModel> models = upstreamModelDao.selectList(
+                new LambdaQueryWrapper<UpstreamModel>()
+                        .eq(UpstreamModel::getChannelId, id)
+                        .orderByAsc(UpstreamModel::getId));
+        if (models.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Map<String, Object>> results = new ArrayList<>();
+        for (UpstreamModel model : models) {
+            results.add(testOne(provider, model));
+        }
+        return results;
+    }
+
+    @Override
+    public Map<String, Object> testModel(Long modelId) {
+        UpstreamModel model = upstreamModelDao.selectById(modelId);
+        if (model == null) {
+            throw new ResourceNotFoundException("Model", modelId);
+        }
+        UpstreamProvider provider = upstreamProviderDao.selectById(model.getChannelId());
+        if (provider == null) {
+            throw new ResourceNotFoundException("Provider", model.getChannelId());
+        }
+        return testOne(provider, model);
     }
 
     @Override
     public List<Map<String, Object>> testAllProviders() {
-        List<UpstreamProvider> allProviders = upstreamProviderDao.selectList(
-                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<UpstreamProvider>()
-                        .orderByAsc(UpstreamProvider::getId));
-
+        List<UpstreamProvider> providers = upstreamProviderDao.selectList(
+                new LambdaQueryWrapper<UpstreamProvider>().orderByAsc(UpstreamProvider::getId));
         List<Map<String, Object>> results = new ArrayList<>();
-        for (UpstreamProvider provider : allProviders) {
-            try {
-                Map<String, Object> result = proxyAdapter.testProvider(provider);
-                result.put("id", provider.getId());
-                result.put("name", provider.getName());
-                results.add(result);
-            } catch (Exception e) {
-                Map<String, Object> result = new LinkedHashMap<>();
-                result.put("id", provider.getId());
-                result.put("name", provider.getName());
-                result.put("ok", false);
-                result.put("message", e.getMessage());
-                results.add(result);
+        for (UpstreamProvider provider : providers) {
+            List<UpstreamModel> models = upstreamModelDao.selectList(
+                    new LambdaQueryWrapper<UpstreamModel>()
+                            .eq(UpstreamModel::getChannelId, provider.getId())
+                            .orderByAsc(UpstreamModel::getId));
+            for (UpstreamModel model : models) {
+                Map<String, Object> item = testOne(provider, model);
+                item.put("channelId", provider.getId());
+                item.put("channelName", provider.getName());
+                results.add(item);
             }
         }
         return results;
     }
 
-    // ==================== 模型通道管理 ====================
+    @Override
+    public Map<String, Object> fetchProviderModels(FetchModelsDTO dto) {
+        if (dto == null || StrUtil.isBlank(dto.getBaseUrl())) {
+            throw new IllegalArgumentException("Base URL 不能为空");
+        }
+        boolean usedStoredKey = false;
+        String apiKey = StrUtil.trim(dto.getApiKey());
+        if (StrUtil.isBlank(apiKey)) {
+            if (dto.getId() == null) {
+                throw new IllegalArgumentException("API Key 不能为空（编辑时可留空复用已保存 Key）");
+            }
+            UpstreamProvider provider = upstreamProviderDao.selectById(dto.getId());
+            if (provider == null) {
+                throw new ResourceNotFoundException("Provider", dto.getId());
+            }
+            apiKey = encryptUtil.decrypt(provider.getApiKey());
+            usedStoredKey = true;
+        }
+        if (StrUtil.isBlank(apiKey)) {
+            throw new IllegalArgumentException("API Key 不能为空");
+        }
+
+        String baseUrl = trimTrailingSlash(StrUtil.trim(dto.getBaseUrl()));
+        List<String> models;
+        try {
+            models = proxyAdapter.fetchModelNames(baseUrl, apiKey);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("拉取模型列表失败: " + resolveMessage(e));
+        }
+        if (models == null) {
+            models = new ArrayList<>();
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("usedStoredKey", usedStoredKey);
+        result.put("models", models);
+        return result;
+    }
+
+    private String resolveMessage(Throwable throwable) {
+        Throwable cause = throwable;
+        while (cause.getCause() != null && cause.getCause() != cause) {
+            cause = cause.getCause();
+        }
+        String message = cause.getMessage();
+        return StrUtil.isBlank(message) ? cause.getClass().getSimpleName() : message;
+    }
+
+    private Map<String, Object> testOne(UpstreamProvider provider, UpstreamModel model) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("modelId", model.getId());
+        result.put("modelName", model.getModelName());
+        try {
+            var json = proxyAdapter.testProvider(provider, model.getModelName());
+            result.put("ok", json.getBooleanValue("ok"));
+            result.put("latencyMs", json.get("latencyMs"));
+            result.put("message", json.getString("message"));
+        } catch (Exception e) {
+            result.put("ok", false);
+            result.put("message", e.getMessage());
+        }
+        return result;
+    }
+
+    // ==================== 客户/对外 API Key 管理 ====================
 
     @Override
     public List<ModelChannel> listChannels() {
         return modelChannelDao.selectList(
-                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<ModelChannel>()
-                        .orderByAsc(ModelChannel::getId));
+                new LambdaQueryWrapper<ModelChannel>().orderByAsc(ModelChannel::getId));
     }
 
     @Override
@@ -156,20 +355,19 @@ public class AdminManagementServiceImpl implements AdminManagementService {
             channel.setApiKey(generatedKey);
         }
 
-        // 映射 DTO 到实体
         channel.setPublicModelName(StrUtil.trim(dto.getPublicModelName()));
         channel.setModelName(StrUtil.blankToDefault(StrUtil.trim(dto.getModelName()), ""));
-        channel.setEnabled(dto.getEnabled() != null ? dto.getEnabled() : CommonConstant.ENABLED);
+        channel.setEnabled(defaultIfNull(dto.getEnabled(), CommonConstant.ENABLED));
         channel.setRemark(dto.getRemark());
 
-        // 持久化
         if (isNew) {
+            channel.setCreatedAt(DateUtil.format(DateUtil.date(), CommonConstant.DATETIME_FORMAT));
             modelChannelDao.insert(channel);
-            log.info("新增模型通道: {} ({}) [default 全池]",
+            log.info("新增客户: {} ({}) [default 全池]",
                     channel.getPublicModelName(), channel.getId());
         } else {
             modelChannelDao.updateById(channel);
-            log.info("更新模型通道: {} ({})", channel.getPublicModelName(), channel.getId());
+            log.info("更新客户: {} ({})", channel.getPublicModelName(), channel.getId());
         }
 
         return generatedKey;
@@ -178,7 +376,7 @@ public class AdminManagementServiceImpl implements AdminManagementService {
     @Override
     public void deleteChannel(Long id) {
         modelChannelDao.deleteById(id);
-        log.info("删除模型通道: {}", id);
+        log.info("删除客户: {}", id);
     }
 
     // ==================== 服务器信息 ====================
@@ -193,6 +391,18 @@ public class AdminManagementServiceImpl implements AdminManagementService {
 
     // ==================== 私有辅助方法 ====================
 
+    private Map<String, Object> toModelMap(UpstreamModel model) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("id", model.getId());
+        map.put("channelId", model.getChannelId());
+        map.put("modelName", model.getModelName());
+        map.put("enabled", model.getEnabled());
+        map.put("failCount", model.getFailCount() == null ? 0 : model.getFailCount());
+        map.put("remark", model.getRemark());
+        map.put("createdAt", model.getCreatedAt() == null ? "-" : model.getCreatedAt());
+        return map;
+    }
+
     private String trimTrailingSlash(String url) {
         while (url.length() > 1 && url.endsWith("/")) {
             url = url.substring(0, url.length() - 1);
@@ -200,21 +410,25 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         return url;
     }
 
-    private String encryptApiKey(String apiKey) {
-        // 使用 EncryptUtil 加密，此处简化处理，实际应注入 EncryptUtil
-        return apiKey; // TODO: 实际项目中应调用 EncryptUtil.encrypt()
+    private int defaultIfNull(Integer value, int defaultValue) {
+        return value != null ? value : defaultValue;
     }
 
     private String generateApiKey() {
         return "xgate-" + RandomUtil.randomString(32);
     }
 
+    /**
+     * 解析本机局域网 IPv4 地址，用于生成服务接入地址提示。
+     * 跳过 docker/veth 等虚拟网卡，优先返回真实网卡 IP。
+     */
     private String resolveLanIp() {
         try {
             Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
             while (interfaces.hasMoreElements()) {
                 NetworkInterface ni = interfaces.nextElement();
-                if (ni == null || !ni.isUp() || ni.isLoopback() || ni.isVirtual()) {
+                if (ni == null || !ni.isUp() || ni.isLoopback() || ni.isVirtual()
+                        || ni.getName().startsWith("veth") || ni.getName().startsWith("docker")) {
                     continue;
                 }
                 Enumeration<InetAddress> addresses = ni.getInetAddresses();

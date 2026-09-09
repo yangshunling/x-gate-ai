@@ -4,12 +4,17 @@
  * 上层（api.js / 页面）一律通过 XHttp 访问后端。
  * ============================================================ */
 
+/**
+ * XHttp 请求封装层
+ * @namespace
+ */
 const XHttp = {
   /**
-   * 通用请求
-   * @param {string} url      接口地址
-   * @param {object} [options] { method, body }
-   * @returns {Promise<any>}  后端 HttpResponse.result 值
+   * 通用 HTTP 请求
+   * @param {string} url - 接口地址
+   * @param {object} [options] - { method, body }
+   * @returns {Promise<any>} 后端 HttpResponse.result 值
+   * @throws {Error} 网络异常或业务码非 200 时抛出
    */
   async request(url, options = {}) {
     const opts = { method: options.method || 'GET', headers: {} };

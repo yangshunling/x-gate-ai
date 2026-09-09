@@ -26,7 +26,8 @@
         </div>
 
         <template v-else>
-          <!-- 指标卡（每行 5 个） -->
+          <!-- 第1行：历史累计（5列） -->
+          <div class="stat-row-label">历史累计</div>
           <div class="stat-grid">
             <div class="stat">
               <div class="k"><span class="stat-ico" style="background:#eef2ff;color:#6366f1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M12 8v6M8 11h8"/></svg></span>调用总数</div>
@@ -44,7 +45,22 @@
               <div class="u">历史累计失败</div>
             </div>
             <div class="stat">
-              <div class="k"><span class="stat-ico" style="background:#eff6ff;color:#2563eb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 3v6h6"/></svg></span>今日调用</div>
+              <div class="k"><span class="stat-ico" style="background:#f5f3ff;color:#8b5cf6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></span>总输入 Token</div>
+              <div class="v">{{ fmtTokens(dash.totalInputTokens) }}</div>
+              <div class="u">历史累计输入消耗</div>
+            </div>
+            <div class="stat">
+              <div class="k"><span class="stat-ico" style="background:#ecfeff;color:#06b6d4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg></span>总输出 Token</div>
+              <div class="v">{{ fmtTokens(dash.totalOutputTokens) }}</div>
+              <div class="u">历史累计输出消耗</div>
+            </div>
+          </div>
+
+          <!-- 第2行：今日数据（5列） -->
+          <div class="stat-row-label">今日</div>
+          <div class="stat-grid">
+            <div class="stat">
+              <div class="k"><span class="stat-ico" style="background:#eef2ff;color:#6366f1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 3v6h6"/></svg></span>今日调用</div>
               <div class="v">{{ dash.todayCalls != null ? fmtTokens(dash.todayCalls) : '—' }}</div>
               <div class="u">今日请求总次数</div>
             </div>
@@ -59,28 +75,45 @@
               <div class="u">异常请求</div>
             </div>
             <div class="stat">
-              <div class="k"><span class="stat-ico" style="background:#f5f3ff;color:#8b5cf6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></span>输入 Token</div>
+              <div class="k"><span class="stat-ico" style="background:#f5f3ff;color:#8b5cf6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></span>今日输入 Token</div>
               <div class="v">{{ fmtTokens(dash.todayInputTokens) }}</div>
               <div class="u">今日提示词消耗</div>
             </div>
             <div class="stat">
-              <div class="k"><span class="stat-ico" style="background:#ecfeff;color:#06b6d4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg></span>输出 Token</div>
+              <div class="k"><span class="stat-ico" style="background:#ecfeff;color:#06b6d4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg></span>今日输出 Token</div>
               <div class="v">{{ fmtTokens(dash.todayOutputTokens) }}</div>
               <div class="u">今日生成内容消耗</div>
             </div>
-            <div class="stat">
-              <div class="k"><span class="stat-ico" style="background:#eff6ff;color:#2563eb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M10.8 12.2 20 3M15 8l2.5 2.5M17 6l2 2"/></svg></span>启用 API Key</div>
-              <div class="v">{{ dash.enabledChannels != null ? dash.enabledChannels : '—' }}</div>
-              <div class="u">对外开放的客户 Key</div>
-            </div>
-            <div class="stat">
-              <div class="k"><span class="stat-ico" style="background:#eef2ff;color:#6366f1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="7" rx="2"/><rect x="5" y="14" width="14" height="7" rx="2"/><path d="M9 6.5h.01M9 17.5h.01"/></svg></span>启用渠道</div>
-              <div class="v">{{ dash.enabledProviders != null ? dash.enabledProviders : '—' }}</div>
-              <div class="u">已接入的上游</div>
-            </div>
           </div>
 
+          <!-- 第3行：资源统计（4列，跨5格居中显示） -->
+          <div class="stat-row-label">资源</div>
+          <div class="stat-grid stat-grid--4">
+            <div class="stat">
+              <div class="k"><span class="stat-ico" style="background:#eff6ff;color:#2563eb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="18" r="2.4"/><circle cx="18" cy="6" r="2.4"/><path d="M8.3 7.3 15.7 16.7M8.3 4.7h7.4"/><path d="M4.7 8.3v7.4h9"/></svg></span>客户总数</div>
+              <div class="v">{{ dash.totalCustomers != null ? dash.totalCustomers : '—' }}</div>
+              <div class="u">累计调用客户数</div>
+            </div>
+            <div class="stat">
+              <div class="k"><span class="stat-ico" style="background:#f5f3ff;color:#8b5cf6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="7" rx="2"/><rect x="5" y="14" width="14" height="7" rx="2"/><path d="M9 6.5h.01M9 17.5h.01"/></svg></span>渠道总数</div>
+              <div class="v">{{ providersTotal != null ? providersTotal : '—' }}</div>
+              <div class="u">已接入上游渠道</div>
+            </div>
+            <div class="stat ok">
+              <div class="k"><span class="stat-ico" style="background:#ecfdf5;color:#10b981"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span>启用客户数</div>
+              <div class="v">{{ dash.enabledChannels != null ? dash.enabledChannels : '—' }}</div>
+              <div class="u">当前启用的 API Key</div>
+            </div>
+            <div class="stat ok">
+              <div class="k"><span class="stat-ico" style="background:#ecfdf5;color:#10b981"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="7" rx="2"/><rect x="5" y="14" width="14" height="7" rx="2"/><path d="M9 6.5h.01M9 17.5h.01"/></svg></span>启用渠道数</div>
+              <div class="v">{{ dash.enabledProviders != null ? dash.enabledProviders : '—' }}</div>
+              <div class="u">当前启用的上游渠道</div>
+            </div>
+          </div>
+        </template>
+
           <!-- 客户用量 Top5 -->
+          <div class="stat-row-label">客户分析</div>
           <div class="panel">
             <div class="panel-head">
               <span class="panel-title"><span class="dot-mark"></span>客户用量 Top5<span class="sub">今日累计</span></span>
@@ -116,6 +149,7 @@
            </div>
 
             <!-- 模型调用权重 -->
+            <div class="stat-row-label">渠道分析</div>
             <div class="panel">
               <div class="panel-head">
                 <span class="panel-title"><span class="dot-mark"></span>模型调用权重<span class="sub">失败越少优先级越高</span></span>

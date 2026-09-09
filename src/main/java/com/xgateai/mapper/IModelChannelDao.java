@@ -7,7 +7,8 @@ import org.apache.ibatis.annotations.Mapper;
 /**
  * IModelChannelDao 模型通道数据访问接口
  * <p>
- * 定义对外模型通道的 CRUD 操作，基于 MyBatis-Plus BaseMapper 扩展。
+ * 基于 MyBatis-Plus BaseMapper 扩展，提供 model_channels 表的通用 CRUD 操作。
+ * API Key 鉴权查询（精确匹配单条启用通道）在此层完成。
  * </p>
  *
  * @author xgateai

@@ -3,12 +3,16 @@
  * 职责：
  *   1. 注册全站通用组件（x-nav 侧栏 / x-head 顶栏 / x-toast 提示）
  *   2. 提供 Toast 状态与管理方法的公共 mixin
- *   3. 提供通用工具方法（数字格式化等）
+ *   3. 提供通用工具方法（数字格式化、剪贴板复制等）
  * 页面模板只写自身内容，布局由组件渲染，避免重复。
  * ============================================================ */
 
+/**
+ * XUi 界面基础框架
+ * @namespace
+ */
 const XUi = (() => {
-  /* ---------------- 导航配置 ---------------- */
+  /** 导航菜单配置 */
   const NAV_ITEMS = [
     {
       key: 'dashboard', label: '仪表盘', href: 'index.html',
@@ -30,7 +34,7 @@ const XUi = (() => {
 
   /* ---------------- 通用组件 ---------------- */
 
-  /* 侧栏 */
+  /** 侧栏导航组件 */
   const Nav = {
     name: 'XNav',
     props: { active: { type: String, required: true } },
@@ -55,12 +59,10 @@ const XUi = (() => {
     data() { return { items: NAV_ITEMS }; },
   };
 
-  /* 顶栏：左侧标题，右侧常驻服务状态 */
+  /** 顶栏组件 */
   const Head = {
     name: 'XHead',
-    props: {
-      title: { type: String, required: true },
-    },
+    props: { title: { type: String, required: true } },
     template: `
       <div class="head">
         <h1><span class="bar"></span>{{ title }}</h1>
@@ -68,7 +70,7 @@ const XUi = (() => {
     `,
   };
 
-  /* Toast 容器 */
+  /** Toast 通知组件 */
   const Toast = {
     name: 'XToast',
     props: { list: { type: Array, required: true } },
@@ -81,13 +83,22 @@ const XUi = (() => {
     `,
   };
 
-  /* ---------------- 公共 mixin：每个页面实例都具备 ---------------- */
+  /* ---------------- 公共 mixin ---------------- */
+
+  /**
+   * 全站通用 mixin
+   * 每个页面 Vue 实例通过 mixins: [XUi.mixin] 继承以下方法
+   */
   const mixin = {
     data() {
       return { toasts: [], toastSeq: 0 };
     },
     methods: {
-      /* 提示消息 */
+      /**
+       * 显示通知消息
+       * @param {string} msg - 消息内容
+       * @param {string} [type='success'] - 消息类型：success / error / warn / info
+       */
       message(msg, type = 'success') {
         const id = ++this.toastSeq;
         this.toasts.push({ id, message: msg, type });
@@ -95,12 +106,21 @@ const XUi = (() => {
           this.toasts = this.toasts.filter(t => t.id !== id);
         }, 2600);
       },
-      /* 错误提示 */
+
+      /**
+       * 显示错误通知
+       * @param {Error|*} err - 错误对象或字符串
+       */
       toastError(err) {
         const m = (err && err.message) ? err.message : String(err || '未知错误');
         this.message(m, 'error');
       },
-      /* token 数字格式化 */
+
+      /**
+       * 中文数字格式化（支持万/亿单位）
+       * @param {*} n - 数值
+       * @returns {string} 格式化后字符串
+       */
       fmtTokens(n) {
         if (n == null || n === '') return '0';
         const num = Number(n);
@@ -109,7 +129,12 @@ const XUi = (() => {
         if (num >= 10000) return (num / 10000).toFixed(1) + ' 万';
         return String(num);
       },
-      /* 复制文本到剪贴板（浏览器安全上下文优先，失败降级到 execCommand） */
+
+      /**
+       * 异步复制文本到剪贴板，支持安全上下文优先降级
+       * @param {string} text - 待复制文本
+       * @param {string} [successMsg='已复制'] - 成功提示文案
+       */
       async copyText(text, successMsg = '已复制') {
         let done = false;
         if (navigator.clipboard && window.isSecureContext) {
@@ -130,7 +155,10 @@ const XUi = (() => {
         }
         this.message(done ? successMsg : '复制失败，请手动复制', done ? 'success' : 'error');
       },
-      /* 初始化示例 BaseURL：优先使用服务端提供的局域网 IP，失败回退 origin */
+
+      /**
+       * 初始化 BaseURL：优先使用服务端提供的局域网 IP，失败回退 origin
+       */
       async initBaseURL() {
         if (!this.baseURL) this.baseURL = window.location.origin + '/v1';
         try {
@@ -149,9 +177,9 @@ const XUi = (() => {
     mixin,
 
     /**
-     * 创建并挂载页面实例，自动注册公共组件
-     * @param {object} appOptions Vue 组件配置（含 mixins/data/methods）
-     * @returns {Vue} 已挂载的实例
+     * 创建并挂载页面 Vue 实例，自动注册公共组件
+     * @param {object} appOptions - Vue 组件配置（含 mixins/data/methods）
+     * @returns {Vue} 已挂载的 Vue 实例
      */
     mount(appOptions) {
       const app = Vue.createApp(appOptions);

@@ -249,12 +249,19 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* ============ 指标卡（仪表盘） ============ */
-.stat-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 18px; }
+.stat-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 6px; }
+.stat-grid--4 { grid-template-columns: repeat(4, 1fr); gap: 16px; }
 @media (max-width: 1400px) { .stat-grid { grid-template-columns: repeat(4, 1fr); } }
-@media (max-width: 1280px) { .stat-grid { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 1280px) { .stat-grid { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 960px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 600px) { .stat-grid { grid-template-columns: 1fr; } }
+@media (max-width: 1280px) { .stat-grid { grid-template-columns: repeat(3, 1fr); } .stat-grid--4 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 960px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } .stat-grid--4 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .stat-grid, .stat-grid--4 { grid-template-columns: 1fr; } }
+
+/* 指标卡分组行标签 */
+.stat-row-label {
+  font-size: 11px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase;
+  color: var(--slate-400); margin: 18px 0 8px;
+}
+.stat-row-label:first-child { margin-top: 0; }
 .stat {
   border: 1px solid var(--border);
   background: rgba(255,255,255,.92);
@@ -365,6 +372,8 @@ input:focus, select:focus, textarea:focus {
 .tbl-wrap { overflow-x: auto; }
 table.tbl { width: 100%; border-collapse: collapse; min-width: 860px; }
 table.tbl.tbl-fixed { table-layout: fixed; }
+/* 自适应表格：不设最小宽度，列宽按百分比/剩余空间分配，避免横向溢出屏幕 */
+table.tbl.tbl-fit { min-width: 0; }
 .tbl th {
   text-align: left; font-size: 11px; font-weight: 500; letter-spacing: .4px; text-transform: uppercase;
   color: var(--slate-400); padding: 11px 20px; white-space: nowrap;
@@ -403,6 +412,58 @@ table.tbl.tbl-fixed { table-layout: fixed; }
   font-family: var(--mono); font-size: 11px; letter-spacing: .4px; color: var(--primary);
   border: 1px dashed rgba(47,111,237,.4); padding: 3px 9px; border-radius: var(--r-sm);
 }
+
+/* ============ 渠道模型标签 =========================== */
+.model-tag {
+  display: inline-flex; align-items: center;
+  font-family: var(--mono); font-size: 11.5px; color: var(--slate-600);
+  background: var(--muted); border: 1px solid var(--border);
+  border-radius: var(--r-full); padding: 2px 10px; line-height: 1.5;
+  white-space: nowrap;
+}
+
+/* ============ 渠道挂载模型数量徽标 ============ */
+.mcount { display: inline-flex; align-items: center; gap: 6px; }
+.mcount b {
+  min-width: 24px; height: 22px; padding: 0 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-full); font-family: var(--mono); font-size: 12.5px; font-weight: 600;
+  background: var(--primary-light); color: var(--primary);
+}
+.mcount i { font-style: normal; font-size: 11.5px; color: var(--slate-400); }
+
+/* ============ 渠道折叠行 =========================== */
+.provider-row { cursor: pointer; }
+.provider-row.expanded td {
+  background: var(--slate-50);
+}
+.provider-row:hover td {
+  background: var(--slate-50);
+}
+.provider-row.expanded:hover td {
+  background: var(--slate-100);
+}
+.provider-detail-row td {
+  padding: 0 !important;
+  border-bottom: 1px solid var(--border);
+  background: var(--slate-50);
+}
+.provider-detail {
+  padding: 14px 20px 16px;
+}
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+.detail-item { display: flex; flex-direction: column; gap: 5px; }
+.detail-item.full { grid-column: 1 / -1; }
+.detail-k { font-size: 11px; font-weight: 500; color: var(--slate-400); letter-spacing: .3px; text-transform: uppercase; }
+.detail-v { font-size: 13px; color: var(--slate-700); line-height: 1.6; }
+.detail-v.mono { font-family: var(--mono); font-size: 12px; word-break: break-all; }
+
+/* ============ 创建时间列 =========================== */
+.created-at { font-family: var(--mono); font-size: 12px; color: var(--slate-400); }
 
 .link-pill {
   display: inline-flex; align-items: center; gap: 7px;
@@ -590,3 +651,27 @@ textarea.input { height: auto; padding: 12px 14px; resize: vertical; line-height
 @keyframes popIn { from { opacity: 0; transform: scale(.96) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 @keyframes toastIn { from { opacity: 0; transform: translateY(-14px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes pulse { 0% { transform: scale(.5); opacity: 1; } 80%,100% { transform: scale(2); opacity: 0; } }
+
+/* ============ 渠道管理 · 展开详情（仅模型卡片） ============ */
+.provider-detail { padding: 16px 20px 18px; }
+
+.pm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.pm-card {
+  display: flex; flex-direction: column; gap: 8px;
+  border: 1px solid var(--border); border-radius: var(--r-lg);
+  background: #fff; box-shadow: var(--shadow-sm);
+  padding: 12px 14px; min-width: 0;
+  transition: transform .15s, box-shadow .15s, border-color .15s, opacity .15s;
+}
+.pm-card:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgba(31, 41, 55, .1); border-color: rgba(47, 111, 237, .2); }
+.pm-card.off { opacity: .62; }
+.pm-card.off:hover { opacity: .92; }
+.pm-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.pm-state { width: 8px; height: 8px; border-radius: 50%; background: var(--slate-300); flex-shrink: 0; transition: background .15s, box-shadow .15s; }
+.pm-state.on { background: var(--success); box-shadow: 0 0 0 3px var(--success-soft); }
+.pm-name { font-size: 12.5px; font-weight: 600; color: var(--slate-800); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+.pm-remark { font-size: 11.5px; color: var(--slate-400); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pm-foot { display: flex; align-items: center; gap: 10px; border-top: 1px dashed var(--border); padding-top: 10px; }
+.pm-actions { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.pm-actions .sep { width: 1px; height: 13px; background: var(--border-strong); }
+.pm-empty { background: rgba(255, 255, 255, .6); border: 1px dashed var(--border-strong); border-radius: var(--r-lg); padding: 22px; text-align: center; }

@@ -1,5 +1,6 @@
 package com.xgateai.logging;
 
+import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONArray;
@@ -7,6 +8,7 @@ import com.alibaba.fastjson2.JSONObject;
 import com.xgateai.entity.CallLog;
 import com.xgateai.entity.ModelChannel;
 import com.xgateai.entity.UpstreamProvider;
+import com.xgateai.entity.UpstreamRoute;
 import com.xgateai.constant.GatewayConstant;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
@@ -20,8 +22,10 @@ import java.util.List;
  * GatewayLogger 网关日志组件
  * <p>
  * 负责输出两种格式的网关日志：
- * 1. 单行日志：写入 gateway.log 文件，便于 grep/tail 排查
- * 2. 框式日志：仅输出到控制台（带 ANSI 颜色），便于实时观察
+ * <ol>
+ *   <li>单行日志：写入 gateway.log 文件，便于 grep/tail 排查</li>
+ *   <li>框式日志：仅输出到控制台（带 ANSI 颜色），便于实时观察</li>
+ * </ol>
  * </p>
  *
  * @author xgateai
@@ -37,39 +41,52 @@ public class GatewayLogger {
     /** 网关框式日志专用 Logger（仅控制台，带 ANSI 彩色） */
     private static final Logger GATEWAY_CONSOLE = LoggerFactory.getLogger("GATEWAY_CONSOLE");
 
+    /** 日志摘要预览最大字符数 */
     private static final int SUMMARY_PREVIEW_MAX = 200;
+    /** 上游 URL 显示最大字符数 */
     private static final int URL_DISPLAY_MAX = 42;
+    /** 框式日志整体宽度 */
     private static final int BOX_WIDTH = 92;
+    /** 左侧标签列宽 */
     private static final int BOX_LABEL = 14;
+    /** 右侧值列宽 */
     private static final int BOX_VALUE = BOX_WIDTH - 7 - BOX_LABEL;
 
-    /** ANSI 颜色码 */
+    /** ANSI 重置 */
     private static final String A_RST = "\u001B[0m";
+    /** ANSI 加粗 */
     private static final String A_BOLD = "\u001B[1m";
+    /** ANSI 青色 */
     private static final String A_CYAN = "\u001B[36m";
+    /** ANSI 绿色 */
     private static final String A_GREEN = "\u001B[32m";
+    /** ANSI 红色 */
     private static final String A_RED = "\u001B[31m";
 
+    /** 输入 Token 单价（每百万 token 美元） */
     private static final double PRICE_IN_PER_M = 0.30;
+    /** 输出 Token 单价（每百万 token 美元） */
     private static final double PRICE_OUT_PER_M = 1.20;
 
+    // ==================== 公开接口 ====================
+
     /**
-     * 输出网关调用日志（单行格式）
+     * 输出网关调用日志（单行格式 + 框式格式）
      *
-     * @param type        调用类型：chat / embedding
-     * @param channel     对客通道信息
+     * @param type           调用类型：chat / embedding
+     * @param channel        对客通道信息
      * @param requestedModel 客户端请求的模型名
-     * @param rawBody     原始请求体 JSON 字符串
-     * @param stream      是否流式调用
-     * @param result      调用结果：SUCCESS / ALL_FAILED / INTERRUPTED
-     * @param finalProvider 最终成功的上游 Provider（可能为 null）
-     * @param costMs      总耗时（毫秒）
-     * @param usage       Token 用量统计（可能为 null）
-     * @param chain       故障转移链路记录
+     * @param rawBody        原始请求体 JSON 字符串
+     * @param stream         是否流式调用
+     * @param result         调用结果：SUCCESS / ALL_FAILED / INTERRUPTED
+     * @param finalRoute     最终成功的上游路由目标（ALL_FAILED 时为 null）
+     * @param costMs         总耗时（毫秒）
+     * @param usage          Token 用量统计（可能为 null）
+     * @param chain          故障转移链路记录
      */
     public void logCall(String type, ModelChannel channel, String requestedModel,
                         String rawBody, boolean stream, String result,
-                        UpstreamProvider finalProvider, long costMs,
+                        UpstreamRoute finalRoute, long costMs,
                         JSONObject usage, List<String> chain) {
         String path = "chat".equals(type)
                 ? GatewayConstant.PATH_CHAT_COMPLETIONS
@@ -78,7 +95,86 @@ public class GatewayLogger {
         Integer inputTokens = usage == null ? null : usage.getInteger("prompt_tokens");
         Integer outputTokens = usage == null ? null : usage.getInteger("completion_tokens");
 
-        // 构建单行日志
+        StringBuilder sb = buildSingleLineLog(type, path, stream, channel, requestedModel,
+                result, finalRoute, costMs, inputTokens, outputTokens, rawBody, chain);
+
+        switch (result) {
+            case "SUCCESS" -> GATEWAY_LOGGER.info(sb.toString());
+            case "INTERRUPTED" -> GATEWAY_LOGGER.warn(sb.toString());
+            default -> GATEWAY_LOGGER.error(sb.toString());
+        }
+
+        printBoxedLog(type, channel, requestedModel, rawBody, stream, result,
+                finalRoute, costMs, inputTokens, outputTokens, chain);
+    }
+
+    /**
+     * 构建故障转移链路条目
+     *
+     * @param route  上游路由目标（渠道 + 模型行）
+     * @param status 状态："OK" / "FAIL" / "BROKEN"
+     * @param error  失败原因（status=FAIL 时有效）
+     * @return 格式化后的链路条目字符串
+     */
+    public String buildChainEntry(UpstreamRoute route, String status, String error) {
+        StringBuilder sb = new StringBuilder();
+        UpstreamProvider provider = route.getProvider();
+        sb.append(provider.getName()).append("(#").append(provider.getId())
+                .append('/').append(route.getModelName()).append("):").append(status);
+        if ("FAIL".equals(status) && error != null) {
+            java.util.regex.Matcher m = java.util.regex.Pattern.compile("上游返回\\s*(\\d+)").matcher(error);
+            if (m.find()) {
+                sb.append('(').append(m.group(1)).append(')');
+            } else {
+                sb.append("(ERR)");
+            }
+        }
+        return sb.toString();
+    }
+
+    /**
+     * 构建调用日志实体（用于落库）
+     *
+     * @param channel          对客通道信息
+     * @param route            最终选中的上游路由目标（渠道 + 模型行）
+     * @param requestBody      原始请求体摘要
+     * @param upstreamResponse 上游响应体（用于解析 usage）
+     * @param latencyMs        端到端耗时（毫秒）
+     * @param httpStatus       HTTP 状态码
+     * @return 已填充字段的 CallLog 实体
+     */
+    public CallLog buildCallLogEntry(ModelChannel channel, UpstreamRoute route,
+                                      String requestBody, String upstreamResponse,
+                                      long latencyMs, int httpStatus) {
+        CallLog entry = new CallLog();
+        entry.setApiKey(channel.getApiKey());
+        entry.setPublicModel(channel.getPublicModelName());
+        entry.setUpstreamUrl(route.getProvider().getBaseUrl() + GatewayConstant.PATH_CHAT_COMPLETIONS);
+        entry.setUpstreamModel(route.getModelName());
+
+        JSONObject usage = parseUsage(upstreamResponse);
+        if (usage != null) {
+            entry.setInputTokens(usage.getIntValue("prompt_tokens", 0));
+            entry.setOutputTokens(usage.getIntValue("completion_tokens", 0));
+        }
+
+        entry.setLatencyMs(latencyMs);
+        entry.setHttpStatus(httpStatus);
+        entry.setRequestBody(buildChatSummary(requestBody));
+        entry.setCustomerName(channel.getPublicModelName());
+        entry.setToolCallsCount(countRequestToolCalls(requestBody));
+        entry.setCreatedAt(DateUtil.now());
+        return entry;
+    }
+
+    // ==================== 私有辅助方法 ====================
+
+    private StringBuilder buildSingleLineLog(String type, String path, boolean stream,
+                                              ModelChannel channel, String requestedModel,
+                                              String result, UpstreamRoute finalRoute,
+                                              long costMs, Integer inputTokens,
+                                              Integer outputTokens, String rawBody,
+                                              List<String> chain) {
         StringBuilder sb = new StringBuilder(256);
         sb.append(type).append(' ').append(path)
                 .append(" stream=").append(stream)
@@ -88,12 +184,13 @@ public class GatewayLogger {
                 .append(" key=").append(channel.getApiKey())
                 .append(" result=").append(result);
 
-        if (finalProvider != null) {
-            sb.append(" upstream=").append(finalProvider.getName()).append("(#")
-                    .append(finalProvider.getId()).append(')')
-                    .append(" upstreamModel=").append(finalProvider.getModelName())
+        if (finalRoute != null) {
+            UpstreamProvider provider = finalRoute.getProvider();
+            sb.append(" upstream=").append(provider.getName()).append("(#")
+                    .append(provider.getId()).append(')')
+                    .append(" upstreamModel=").append(finalRoute.getModelName())
                     .append(" url=").append(truncateDisplay(
-                            finalProvider.getBaseUrl() + path, URL_DISPLAY_MAX));
+                            provider.getBaseUrl() + path, URL_DISPLAY_MAX));
         }
 
         sb.append(" cost=").append(costMs).append("ms");
@@ -110,64 +207,8 @@ public class GatewayLogger {
         if (chain != null && !chain.isEmpty()) {
             sb.append(" chain=").append(String.join(" -> ", chain));
         }
-
-        switch (result) {
-            case "SUCCESS" -> GATEWAY_LOGGER.info(sb.toString());
-            case "INTERRUPTED" -> GATEWAY_LOGGER.warn(sb.toString());
-            default -> GATEWAY_LOGGER.error(sb.toString());
-        }
-
-        // 输出框式日志到控制台
-        printBoxedLog(type, channel, requestedModel, rawBody, stream, result,
-                finalProvider, costMs, inputTokens, outputTokens, payloadDesc, chain);
+        return sb;
     }
-
-    /**
-     * 构建故障转移链路条目
-     */
-    public String buildChainEntry(UpstreamProvider provider, String status, String error) {
-        StringBuilder sb = new StringBuilder();
-        sb.append(provider.getName()).append("(#").append(provider.getId())
-                .append('/').append(provider.getModelName()).append("):").append(status);
-        if ("FAIL".equals(status) && error != null) {
-            java.util.regex.Matcher m = java.util.regex.Pattern.compile("上游返回\\s*(\\d+)").matcher(error);
-            if (m.find()) {
-                sb.append('(').append(m.group(1)).append(')');
-            } else {
-                sb.append("(ERR)");
-            }
-        }
-        return sb.toString();
-    }
-
-    /**
-     * 构建调用日志实体（用于落库）
-     */
-    public CallLog buildCallLogEntry(ModelChannel channel, UpstreamProvider provider,
-                                      String requestBody, String upstreamResponse,
-                                      long latencyMs, int httpStatus) {
-        CallLog entry = new CallLog();
-        entry.setApiKey(channel.getApiKey());
-        entry.setPublicModel(channel.getPublicModelName());
-        entry.setUpstreamUrl(provider.getBaseUrl() + GatewayConstant.PATH_CHAT_COMPLETIONS);
-        entry.setUpstreamModel(provider.getModelName());
-
-        JSONObject usage = parseUsage(upstreamResponse);
-        if (usage != null) {
-            entry.setInputTokens(usage.getIntValue("prompt_tokens", 0));
-            entry.setOutputTokens(usage.getIntValue("completion_tokens", 0));
-        }
-
-        entry.setLatencyMs(latencyMs);
-        entry.setHttpStatus(httpStatus);
-        entry.setRequestBody(buildChatSummary(requestBody));
-        entry.setCustomerName(channel.getPublicModelName());
-        entry.setToolCallsCount(countRequestToolCalls(requestBody));
-        entry.setCreatedAt(cn.hutool.core.date.DateUtil.now());
-        return entry;
-    }
-
-    // ==================== 私有辅助方法 ====================
 
     private String buildPayloadDescription(String type, String rawBody) {
         String summaryJson = "chat".equals(type)
@@ -299,18 +340,16 @@ public class GatewayLogger {
 
     private void printBoxedLog(String type, ModelChannel channel, String requestedModel,
                                String rawBody, boolean stream, String result,
-                               UpstreamProvider provider, long costMs,
+                               UpstreamRoute finalRoute, long costMs,
                                Integer inTokens, Integer outTokens,
-                               String payload, List<String> chain) {
+                               List<String> chain) {
         boolean ok = "SUCCESS".equals(result);
         String statusWord = ok ? "成功" : ("INTERRUPTED".equals(result) ? "中断" : "失败");
         String statusColor = ok ? A_GREEN : A_RED;
-        String time = java.time.LocalDateTime.now()
-                .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS"));
-        String tid = com.xgateai.logging.GatewayLog.getMdc(
-                com.xgateai.logging.GatewayLog.MDC_TRACE_ID);
+        String time = DateUtil.format(DateUtil.date(), "yyyy-MM-dd HH:mm:ss");
+        String tid = GatewayLog.getMdc(GatewayLog.MDC_TRACE_ID);
         String customer = StrUtil.blankToDefault(channel.getPublicModelName(), "-");
-        String keyMask = com.xgateai.logging.GatewayLog.maskKey(channel.getApiKey());
+        String fullKey = StrUtil.blankToDefault(channel.getApiKey(), "-");
         String path = "chat".equals(type)
                 ? GatewayConstant.PATH_CHAT_COMPLETIONS
                 : GatewayConstant.PATH_EMBEDDINGS;
@@ -326,36 +365,35 @@ public class GatewayLogger {
         String hr = "═".repeat(BOX_WIDTH - 2);
         box.append(A_CYAN).append("╔").append(hr).append("╗").append(A_RST).append('\n');
         box.append(A_CYAN).append("║").append(A_BOLD)
-                .append(center("🚀 GATEWAY 请求日志 · " + ("chat".equals(type) ? "对话" : "向量"), BOX_WIDTH - 2))
+                .append(center("GATEWAY 请求日志 · " + ("chat".equals(type) ? "对话" : "向量"), BOX_WIDTH - 2))
                 .append(A_RST).append(A_CYAN).append("║").append(A_RST).append('\n');
         box.append(A_CYAN).append("╠").append(hr).append("╣").append(A_RST).append('\n');
 
-        appendRow(box, "⏰ 请求时间", time);
-        appendRow(box, "🔗 链路标识", StrUtil.blankToDefault(tid, "-"));
-        appendRow(box, "👤 用户名称", customer + " (" + keyMask + ")");
-        appendRow(box, "📡 请求接口", "POST " + path + "  ✦  " + mode);
+        appendRow(box, "请求时间", time);
+        appendRow(box, "链路标识", StrUtil.blankToDefault(tid, "-"));
+        appendRow(box, "用户名称", customer + " (" + fullKey + ")");
+        appendRow(box, "请求接口", "POST " + path + "  ✦  " + mode);
         if (inTokens != null || outTokens != null) {
             int in = inTokens == null ? 0 : inTokens;
             int out = outTokens == null ? 0 : outTokens;
-            appendRow(box, "📊 令牌用量", "输入 " + formatThousands(in) + " tokens"
+            appendRow(box, "令牌用量", "输入 " + formatThousands(in) + " tokens"
                     + (out > 0 ? "  │  输出 " + formatThousands(out) + " tokens" : ""));
         }
-        appendRow(box, "⚡ 请求性能", statusWord + "  耗时 " + costStr, statusColor);
+        appendRow(box, "请求性能", statusWord + "  耗时 " + costStr, statusColor);
 
         String rolesText = buildRolesDescription(type, rawBody);
         if (StrUtil.isNotBlank(rolesText)) {
-            appendRow(box, "📋 角色分布", rolesText);
+            appendRow(box, "角色分布", rolesText);
         }
 
         if (chain != null && !chain.isEmpty()) {
-            appendRow(box, "🔁 故障转移", String.join("  →  ", chain));
+            appendRow(box, "故障转移", String.join("  →  ", chain));
         }
 
         box.append(A_CYAN).append("╚").append(hr).append("╝").append(A_RST);
         GATEWAY_CONSOLE.info(box.toString());
     }
 
-    /** 构建角色分布描述（用于框式日志） */
     private String buildRolesDescription(String type, String rawBody) {
         if (!"chat".equals(type)) return "";
         try {
@@ -441,9 +479,4 @@ public class GatewayLogger {
         if (n == null) return "?";
         return java.text.NumberFormat.getIntegerInstance().format(n);
     }
-
-    private double estimateCost(int in, int out) {
-        return in * PRICE_IN_PER_M / 1_000_000 + out * PRICE_OUT_PER_M / 1_000_000;
-    }
-
 }

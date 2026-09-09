@@ -1,26 +1,37 @@
 package com.xgateai.service.gateway.strategy;
 
+import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.xgateai.constant.CommonConstant;
 import com.xgateai.entity.ModelChannel;
+import com.xgateai.entity.UpstreamModel;
 import com.xgateai.entity.UpstreamProvider;
+import com.xgateai.entity.UpstreamRoute;
 import com.xgateai.exception.BadRequestException;
 import com.xgateai.constant.GatewayConstant;
+import com.xgateai.mapper.IUpstreamModelDao;
 import com.xgateai.mapper.IUpstreamProviderDao;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * PollingFailoverStrategy 轮询故障转移策略
  * <p>
- * 优先选择失败次数少的上游，失败时自动切换到下一个候选。
- * 路由规则：
- * 1. Key 限定模型时只允许调用该模型
- * 2. 请求 model=default 且未限定模型时，按全池路由
- * 3. 否则精确匹配 model_name
- * 4. 候选按 fail_count 升序排列，失败越少越优先
+ * 候选粒度为「渠道下的模型行」（x_gate_model），同一渠道下的不同模型彼此独立；
+ * 失败次数少的上游优先，失败时自动切换到下一个候选。路由规则：
+ * <ol>
+ *   <li>Key 限定模型时只允许调用该模型</li>
+ *   <li>请求 model=default 且未限定模型时，按全池路由</li>
+ *   <li>否则精确匹配模型行 model_name</li>
+ *   <li>候选按 fail_count 升序排列，失败越少越优先（模型行粒度）</li>
+ *   <li>渠道被禁用时其下所有模型不参与候选</li>
+ * </ol>
  * </p>
  *
  * @author xgateai
@@ -30,57 +41,72 @@ import java.util.List;
 @Component
 public class PollingFailoverStrategy implements UpstreamStrategy {
 
+    private final IUpstreamModelDao upstreamModelDao;
     private final IUpstreamProviderDao upstreamProviderDao;
 
-    public PollingFailoverStrategy(IUpstreamProviderDao upstreamProviderDao) {
+    public PollingFailoverStrategy(IUpstreamModelDao upstreamModelDao,
+                                   IUpstreamProviderDao upstreamProviderDao) {
+        this.upstreamModelDao = upstreamModelDao;
         this.upstreamProviderDao = upstreamProviderDao;
     }
 
     @Override
-    public List<UpstreamProvider> selectCandidates(ModelChannel channel, String requestedModel) {
-        String pinnedModel = normalizeBlank(channel.getModelName());
+    public List<UpstreamRoute> selectCandidates(ModelChannel channel, String requestedModel) {
+        String pinnedModel = StrUtil.blankToDefault(channel.getModelName(), "").trim();
 
         // 规则1: Key 限定模型时校验请求模型是否匹配
-        if (isNotBlank(pinnedModel) && !pinnedModel.equals(requestedModel)) {
+        if (StrUtil.isNotBlank(pinnedModel) && !pinnedModel.equals(requestedModel)) {
             throw new BadRequestException(
-                String.format("该 Key 已限定仅可调用模型: %s，当前请求: %s", pinnedModel, requestedModel));
+                    String.format("该 Key 已限定仅可调用模型: %s，当前请求: %s", pinnedModel, requestedModel));
         }
 
         // 规则2: 全池路由
-        boolean poolRouting = isBlank(pinnedModel) && GatewayConstant.MODEL_POOL.equals(requestedModel);
+        boolean poolRouting = StrUtil.isBlank(pinnedModel) && GatewayConstant.MODEL_POOL.equals(requestedModel);
 
-        // 构建查询：启用 + 模型匹配 + 按失败次数升序
-        LambdaQueryWrapper<UpstreamProvider> wrapper = new LambdaQueryWrapper<UpstreamProvider>()
-                .eq(UpstreamProvider::getEnabled, CommonConstant.ENABLED)
-                .orderByAsc(UpstreamProvider::getFailCount)
-                .orderByAsc(UpstreamProvider::getId);
+        // 查询启用且模型匹配的模型行（单值精确匹配），按失败次数升序、ID 升序
+        LambdaQueryWrapper<UpstreamModel> wrapper = new LambdaQueryWrapper<UpstreamModel>()
+                .eq(UpstreamModel::getEnabled, CommonConstant.ENABLED)
+                .orderByAsc(UpstreamModel::getFailCount)
+                .orderByAsc(UpstreamModel::getId);
 
         if (!poolRouting) {
-            wrapper.eq(UpstreamProvider::getModelName, requestedModel);
+            wrapper.eq(UpstreamModel::getModelName, requestedModel);
         }
 
-        List<UpstreamProvider> candidates = upstreamProviderDao.selectList(wrapper);
-
-        // 检查是否有可用候选
-        if (candidates.isEmpty()) {
+        List<UpstreamModel> models = upstreamModelDao.selectList(wrapper);
+        if (models.isEmpty()) {
             String errorMsg = poolRouting
-                ? "池内暂无任何启用的渠道，请先在控制台配置并启用上游服务"
-                : String.format("池内暂无启用的渠道提供模型: %s", requestedModel);
+                    ? "池内暂无任何启用的模型，请先在控制台为渠道配置并启用模型"
+                    : String.format("池内暂无启用的渠道提供模型: %s", requestedModel);
             throw new BadRequestException(errorMsg);
         }
 
-        return candidates;
+        // 装载所有启用渠道，过滤禁用/不存在的渠道，组装路由候选
+        Map<Long, UpstreamProvider> channelMap = loadEnabledChannels();
+        List<UpstreamRoute> routes = new ArrayList<>();
+        for (UpstreamModel model : models) {
+            UpstreamProvider provider = channelMap.get(model.getChannelId());
+            if (provider != null) {
+                routes.add(new UpstreamRoute(provider, model));
+            }
+        }
+        if (routes.isEmpty()) {
+            String errorMsg = poolRouting
+                    ? "池内渠道均已停用，无可用模型"
+                    : String.format("提供模型 %s 的渠道均已停用", requestedModel);
+            throw new BadRequestException(errorMsg);
+        }
+        return routes;
     }
 
-    private String normalizeBlank(String value) {
-        return value == null ? "" : value.trim();
-    }
-
-    private boolean isNotBlank(String str) {
-        return str != null && !str.isEmpty();
-    }
-
-    private boolean isBlank(String str) {
-        return str == null || str.isEmpty();
+    /**
+     * 装载所有启用的渠道，以 id 为键
+     */
+    private Map<Long, UpstreamProvider> loadEnabledChannels() {
+        List<UpstreamProvider> providers = upstreamProviderDao.selectList(
+                new LambdaQueryWrapper<UpstreamProvider>()
+                        .eq(UpstreamProvider::getEnabled, CommonConstant.ENABLED));
+        return providers.stream()
+                .collect(Collectors.toMap(UpstreamProvider::getId, p -> p, (a, b) -> a, HashMap::new));
     }
 }

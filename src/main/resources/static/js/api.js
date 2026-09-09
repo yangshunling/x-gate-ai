@@ -4,39 +4,93 @@
  * 依赖：XHttp（js/http.js）
  * ============================================================ */
 
+/**
+ * XApi 接口封装层
+ * @namespace
+ */
 const XApi = {
-  /* ---------------- 服务信息 ---------------- */
+  /** 获取服务器基础信息（IP、端口） */
   serverInfo() { return XHttp.get('/admin/server-info'); },
 
-  /* ---------------- 仪表盘 ---------------- */
+  /** 获取仪表盘汇总数据 */
   dashboard() { return XHttp.get('/admin/dashboard'); },
+
+  /** 获取模型调用统计（按上游模型聚合） */
   modelStats() { return XHttp.get('/admin/dashboard/models'); },
+
+  /** 获取模型失败次数统计 */
   modelFailStats() { return XHttp.get('/admin/dashboard/model-fail-stats'); },
+
+  /** 获取模型调用权重统计（按上游 Provider 聚合） */
   modelWeightStats() { return XHttp.get('/admin/dashboard/model-weight-stats'); },
+
+  /** 获取今日客户调用 Top5 统计 */
   customerStats() { return XHttp.get('/admin/dashboard/customers'); },
 
-  /* ---------------- API Key（对外客户） ---------------- */
+  /** 获取所有对外 API Key 列表（模型通道） */
   listKeys() { return XHttp.get('/admin/channels'); },
+
+  /**
+   * 保存或更新模型通道（新增/编辑统一接口）
+   * @param {object} dto - ChannelDTO 数据对象
+   * @param {boolean} editing - 是否为编辑模式（true=PUT，false=POST）
+   */
   saveKey(dto, editing) {
     const url = editing ? '/admin/channel/' + dto.id : '/admin/channel';
     return XHttp.request(url, { method: editing ? 'PUT' : 'POST', body: dto });
   },
+
+  /**
+   * 更新模型通道（快捷方法，等价于 saveKey(dto, true)）
+   * @param {object} dto - ChannelDTO 数据对象（须含 id）
+   */
   updateKey(dto) {
     return XHttp.put('/admin/channel/' + dto.id, dto);
   },
+
+  /** 删除模型通道 */
   deleteKey(id) { return XHttp.delete('/admin/channel/' + id); },
 
-  /* ---------------- 渠道管理 ---------------- */
+  /**
+   * 获取所有渠道列表（含其下模型）
+   * 返回元素：{ id, name, baseUrl, enabled, remark, createdAt, models: [{ id, modelName, enabled, failCount, remark }] }
+   */
   listProviders() { return XHttp.get('/admin/providers'); },
+
+  /**
+   * 保存或更新渠道（含其下模型列表，新增/编辑统一接口）
+   * @param {object} dto - ProviderDTO，形如 { name, baseUrl, apiKey, enabled, remark, models: [{ modelName, enabled, remark }] }
+   * @param {boolean} editing - 是否为编辑模式（true=PUT，false=POST）
+   */
   saveProvider(dto, editing) {
     const url = editing ? '/admin/provider/' + dto.id : '/admin/provider';
     return XHttp.request(url, { method: editing ? 'PUT' : 'POST', body: dto });
   },
+
+  /** 删除渠道（级联删除其下全部模型） */
   deleteProvider(id) { return XHttp.delete('/admin/provider/' + id); },
+
+  /** 测试渠道下全部模型的连通性 */
   testProvider(id) { return XHttp.post('/admin/provider/' + id + '/test'); },
+
+  /** 测试单个模型行的连通性 */
+  testModel(id) { return XHttp.post('/admin/model/' + id + '/test'); },
+
+  /** 批量测试所有渠道下全部模型 */
   testAllProviders() { return XHttp.post('/admin/providers/test-all'); },
 
-  /* ---------------- 调用日志 ---------------- */
+  /**
+   * 探测上游渠道可用模型列表（新增/编辑渠道表单一键导入）
+   * @param {object} body - { id?, baseUrl, apiKey }，编辑时 apiKey 留空复用已保存 Key
+   * @returns {Promise<{ usedStoredKey: boolean, models: string[] }>}
+   */
+  fetchProviderModels(body) { return XHttp.post('/admin/provider/fetch-models', body); },
+
+  /**
+   * 分页查询调用日志
+   * @param {object} params - LogQueryDTO 参数对象（可选字段将被过滤）
+   * @returns {Promise<object>} 包含 total/page_num/page_size/list 的分页结果
+   */
   queryLogs(params) {
     const qs = new URLSearchParams();
     Object.entries(params || {}).forEach(([k, v]) => {

@@ -1,6 +1,7 @@
 package com.xgateai.controller;
 
 import com.xgateai.dto.ChannelDTO;
+import com.xgateai.dto.FetchModelsDTO;
 import com.xgateai.dto.LogQueryDTO;
 import com.xgateai.dto.ProviderDTO;
 import com.xgateai.response.HttpResponse;
@@ -34,7 +35,7 @@ public class AdminController {
         this.callLogAnalysisService = callLogAnalysisService;
     }
 
-    // ==================== 上游 Provider 管理 ====================
+    // ==================== 上游渠道管理（含其下模型） ====================
 
     @PostMapping("/provider")
     public HttpResponse saveProvider(@RequestBody @Valid ProviderDTO dto) {
@@ -66,12 +67,22 @@ public class AdminController {
         return HttpResponse.object(adminManagementService.testProvider(id));
     }
 
+    @PostMapping("/model/{id}/test")
+    public HttpResponse testModel(@PathVariable Long id) {
+        return HttpResponse.object(adminManagementService.testModel(id));
+    }
+
+    @PostMapping("/provider/fetch-models")
+    public HttpResponse fetchProviderModels(@RequestBody FetchModelsDTO dto) {
+        return HttpResponse.object(adminManagementService.fetchProviderModels(dto));
+    }
+
     @PostMapping("/providers/test-all")
     public HttpResponse testAllProviders() {
         return HttpResponse.object(adminManagementService.testAllProviders());
     }
 
-    // ==================== 模型通道管理 ====================
+    // ==================== 客户/对外 API Key 管理 ====================
 
     @PostMapping("/channel")
     public HttpResponse saveChannel(@RequestBody @Valid ChannelDTO dto) {
