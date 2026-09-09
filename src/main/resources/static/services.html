@@ -77,7 +77,7 @@
                       <span v-else class="sub">—</span>
                     </td>
                     <td><span class="mono" style="word-break:break-all;white-space:normal;display:inline-block;vertical-align:middle" :title="p.baseUrl">{{ p.baseUrl }}</span></td>
-                    <td class="sub mono" style="font-size:12px">{{ p.createdAt || '—' }}</td>
+                    <td class="sub mono" style="font-size:13px">{{ p.createdAt || '—' }}</td>
                     <td>
                       <label class="switch" :title="p.enabled ? '点击停用渠道' : '点击启用渠道'" @click.stop>
                         <input type="checkbox" :checked="p.enabled" @change="toggleChannel(p)">
@@ -184,8 +184,8 @@
               {{ importing ? '获取中…' : '导入模型' }}
             </button>
           </div>
-          <div style="border:1px solid var(--border,#e6e8ef);border-radius:10px;padding:10px 12px;background:var(--bg-soft,#f8f9fc)">
-            <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;color:#8a93a6;font-size:12px">
+          <div style="border:1px solid var(--border);border-radius:var(--r-md);padding:12px 14px;background:var(--slate-50)">
+            <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;color:var(--slate-400);font-size:13px">
               <span style="flex:1.6;min-width:180px">模型名</span>
               <span style="flex:0 0 64px">启用</span>
               <span style="flex:1.4;min-width:140px">备注</span>

@@ -162,16 +162,16 @@
                     <thead>
                       <tr>
                         <th style="width:44px">#</th>
-                        <th>渠道名</th>
                         <th>模型名</th>
+                        <th>渠道名</th>
                         <th>失败次数</th>
                       </tr>
                     </thead>
                     <tbody>
                       <tr v-for="(p, i) in weightStats" :key="p.name">
                         <td><span class="cust-rank">{{ i + 1 }}</span></td>
-                        <td class="cust-name">{{ p.name }}</td>
                         <td class="num">{{ p.model }}</td>
+                        <td class="cust-name">{{ p.name }}</td>
                         <td class="num" :style="{ color: i < 3 ? 'var(--success)' : 'var(--destructive)' }"><b>{{ p.failCount }}</b></td>
                       </tr>
                     </tbody>

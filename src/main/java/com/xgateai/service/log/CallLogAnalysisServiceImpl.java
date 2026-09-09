@@ -96,9 +96,23 @@ public class CallLogAnalysisServiceImpl implements CallLogAnalysisService {
 
     @Override
     public List<Map<String, Object>> analyzeFailuresByModel() {
-        // 统计口径来自模型行：同一模型跨渠道的 fail_count 求和
+        // 仅统计启用渠道下启用模型的失败次数
+        List<Long> enabledChannelIds = upstreamProviderDao.selectList(
+                new LambdaQueryWrapper<UpstreamProvider>()
+                        .select(UpstreamProvider::getId)
+                        .eq(UpstreamProvider::getEnabled, CommonConstant.ENABLED))
+                .stream()
+                .map(UpstreamProvider::getId)
+                .collect(Collectors.toList());
+
+        if (enabledChannelIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+
         QueryWrapper<UpstreamModel> wrapper = new QueryWrapper<UpstreamModel>()
                 .select("model_name AS model", "COALESCE(SUM(fail_count), 0) AS failCount")
+                .eq("enabled", CommonConstant.ENABLED)
+                .in("channel_id", enabledChannelIds)
                 .ne("model_name", "")
                 .isNotNull("model_name")
                 .groupBy("model_name")
@@ -117,23 +131,27 @@ public class CallLogAnalysisServiceImpl implements CallLogAnalysisService {
 
     @Override
     public List<Map<String, Object>> analyzeWeightByProvider() {
-        // 模型行粒度展示：渠道名 + 模型名 + 失败次数（决定路由优先级）
+        // 仅展示启用渠道下启用模型的权重信息
         List<UpstreamModel> models = upstreamModelDao.selectList(
-                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<UpstreamModel>()
+                new LambdaQueryWrapper<UpstreamModel>()
+                        .eq(UpstreamModel::getEnabled, CommonConstant.ENABLED)
                         .ne(UpstreamModel::getModelName, "")
                         .isNotNull(UpstreamModel::getModelName)
                         .orderByAsc(UpstreamModel::getFailCount)
                         .orderByAsc(UpstreamModel::getId));
 
         Map<Long, String> channelNames = new HashMap<>();
-        for (UpstreamProvider provider : upstreamProviderDao.selectList(null)) {
+        for (UpstreamProvider provider : upstreamProviderDao.selectList(
+                new LambdaQueryWrapper<UpstreamProvider>()
+                        .eq(UpstreamProvider::getEnabled, CommonConstant.ENABLED))) {
             channelNames.put(provider.getId(), provider.getName());
         }
 
         return models.stream()
+                .filter(m -> channelNames.containsKey(m.getChannelId()))
                 .map(m -> {
                     Map<String, Object> result = new LinkedHashMap<>();
-                    result.put("name", channelNames.getOrDefault(m.getChannelId(), "-"));
+                    result.put("name", channelNames.get(m.getChannelId()));
                     result.put("model", m.getModelName());
                     result.put("failCount", defaultIfNull(m.getFailCount(), 0));
                     return result;

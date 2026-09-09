@@ -361,33 +361,45 @@ public class GatewayLogger {
                 ? costMs + "ms"
                 : String.format("%.3fs", costMs / 1000.0);
 
-        StringBuilder box = new StringBuilder();
-        String hr = "═".repeat(BOX_WIDTH - 2);
-        box.append(A_CYAN).append("╔").append(hr).append("╗").append(A_RST).append('\n');
-        box.append(A_CYAN).append("║").append(A_BOLD)
-                .append(center("GATEWAY 请求日志 · " + ("chat".equals(type) ? "对话" : "向量"), BOX_WIDTH - 2))
-                .append(A_RST).append(A_CYAN).append("║").append(A_RST).append('\n');
-        box.append(A_CYAN).append("╠").append(hr).append("╣").append(A_RST).append('\n');
-
-        appendRow(box, "请求时间", time);
-        appendRow(box, "链路标识", StrUtil.blankToDefault(tid, "-"));
-        appendRow(box, "用户名称", customer + " (" + fullKey + ")");
-        appendRow(box, "请求接口", "POST " + path + "  ✦  " + mode);
+        List<Object[]> rows = new ArrayList<>();
+        rows.add(new Object[]{"请求时间", time, null});
+        rows.add(new Object[]{"链路标识", StrUtil.blankToDefault(tid, "-"), null});
+        rows.add(new Object[]{"用户名称", customer + " (" + fullKey + ")", null});
+        rows.add(new Object[]{"请求接口", "POST " + path + "  ✦  " + mode, null});
         if (inTokens != null || outTokens != null) {
             int in = inTokens == null ? 0 : inTokens;
             int out = outTokens == null ? 0 : outTokens;
-            appendRow(box, "令牌用量", "输入 " + formatThousands(in) + " tokens"
-                    + (out > 0 ? "  │  输出 " + formatThousands(out) + " tokens" : ""));
+            rows.add(new Object[]{"令牌用量", "输入 " + formatThousands(in) + " tokens"
+                    + (out > 0 ? "  │  输出 " + formatThousands(out) + " tokens" : ""), null});
         }
-        appendRow(box, "请求性能", statusWord + "  耗时 " + costStr, statusColor);
+        rows.add(new Object[]{"请求性能", statusWord + "  耗时 " + costStr, statusColor});
 
         String rolesText = buildRolesDescription(type, rawBody);
         if (StrUtil.isNotBlank(rolesText)) {
-            appendRow(box, "角色分布", rolesText);
+            rows.add(new Object[]{"角色分布", rolesText, null});
         }
 
         if (chain != null && !chain.isEmpty()) {
-            appendRow(box, "故障转移", String.join("  →  ", chain));
+            rows.add(new Object[]{"故障转移", String.join("  →  ", chain), null});
+        }
+
+        int maxValWidth = 0;
+        for (Object[] row : rows) {
+            maxValWidth = Math.max(maxValWidth, displayWidth((String) row[1]));
+        }
+        int boxValue = Math.max(BOX_VALUE, maxValWidth);
+        int boxWidth = boxValue + 7 + BOX_LABEL;
+
+        StringBuilder box = new StringBuilder();
+        String hr = "═".repeat(boxWidth - 2);
+        box.append(A_CYAN).append("╔").append(hr).append("╗").append(A_RST).append('\n');
+        box.append(A_CYAN).append("║").append(A_BOLD)
+                .append(center("GATEWAY 请求日志 · " + ("chat".equals(type) ? "对话" : "向量"), boxWidth - 2))
+                .append(A_RST).append(A_CYAN).append("║").append(A_RST).append('\n');
+        box.append(A_CYAN).append("╠").append(hr).append("╣").append(A_RST).append('\n');
+
+        for (Object[] row : rows) {
+            appendRow(box, (String) row[0], (String) row[1], (String) row[2], boxValue);
         }
 
         box.append(A_CYAN).append("╚").append(hr).append("╝").append(A_RST);
@@ -420,14 +432,14 @@ public class GatewayLogger {
         }
     }
 
-    private void appendRow(StringBuilder sb, String label, String value) {
-        appendRow(sb, label, value, null);
+    private void appendRow(StringBuilder sb, String label, String value, String color) {
+        appendRow(sb, label, value, color, BOX_VALUE);
     }
 
-    private void appendRow(StringBuilder sb, String label, String value, String color) {
+    private void appendRow(StringBuilder sb, String label, String value, String color, int boxValue) {
         String lab = truncateDisplay(label, BOX_LABEL);
-        String val = truncateDisplay(value, BOX_VALUE);
-        int pad = BOX_VALUE - displayWidth(val);
+        String val = truncateDisplay(value, boxValue);
+        int pad = boxValue - displayWidth(val);
         String coloredVal = color == null ? val : color + val + A_RST;
 
         sb.append(A_CYAN).append("║  ").append(A_RST)

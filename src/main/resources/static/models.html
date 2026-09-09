@@ -76,7 +76,7 @@
                    <td>
                      <div class="flex" style="gap:8px;align-items:center">
                        <span class="mono">{{ c.model_name || 'default' }}</span>
-                       <a class="row-link" style="white-space:nowrap;font-size:12px" @click="copyListKey(c, c.model_name || 'default')">复制</a>
+                        <a class="row-link" style="white-space:nowrap;font-size:13px" @click="copyListKey(c, c.model_name || 'default')">复制</a>
                      </div>
                    </td>
                   <td>
@@ -85,7 +85,7 @@
                       <a class="row-link" style="white-space:nowrap" @click="copyListKey(c)">复制</a>
                     </div>
                   </td>
-                  <td class="sub mono" style="font-size:12px">{{ c.createdAt || '—' }}</td>
+                   <td class="sub mono" style="font-size:13px">{{ c.createdAt || '—' }}</td>
                   <td>
                     <label class="switch">
                       <input type="checkbox" :checked="c.enabled" @change="toggleEnabled(c, $event)">
@@ -129,7 +129,7 @@
             <option value="">default（不限制，路由池内所有模型）</option>
             <option v-for="m in modelOptions" :key="m" :value="m">{{ m }}</option>
           </select>
-          <div v-if="modelOptions.length === 0" style="margin-top:6px;font-size:12px;color:var(--slate-400)">
+          <div v-if="modelOptions.length === 0" style="margin-top:6px;font-size:13px;color:var(--slate-400)">
             当前尚无启用的模型，请先到「渠道管理」为渠道添加并启用模型。
           </div>
         </div>
@@ -146,7 +146,7 @@
           <textarea class="input" rows="2" v-model.trim="modal.form.remark" placeholder="选填"></textarea>
         </div>
         <div class="form-item" style="margin-bottom:0">
-          <div style="padding:10px 14px;background:#f8f9fb;border-radius:8px;font-size:13px;color:var(--ink-3);line-height:1.6">
+          <div style="padding:12px 16px;background:var(--slate-50);border:1px solid var(--border);border-radius:var(--r-md);font-size:14px;color:var(--slate-500);line-height:1.7">
             请求体 <b>model</b> 必传：default 可选任意模型；限定客户仅限所限模型。
           </div>
         </div>
@@ -168,13 +168,13 @@
         <button class="modal-close" @click="closeKeyResult">✕</button>
       </div>
       <div class="modal-body">
-        <div style="padding:12px 14px;border:1px solid #f3d98b;background:#fff9ea;border-radius:10px;font-size:13px;color:#9a6b00;line-height:1.6">
+        <div style="padding:14px 16px;border:1px solid var(--warning-soft);background:var(--warning-soft);border-radius:var(--r-md);font-size:14px;color:var(--warning);line-height:1.7">
           客户 <b>{{ keyResult.serviceName }}</b> 的专属 Key 已自动生成，仅本次展示，请复制后妥善保存（列表页也可随时复制）。
         </div>
-        <div style="margin:14px 0;padding:14px 16px;background:#0d1830;color:#7dd3fc;border-radius:10px;font-family:var(--mono);font-size:13px;word-break:break-all">
+        <div style="margin:16px 0;padding:16px 18px;background:#0f172a;color:#7dd3fc;border-radius:var(--r-md);font-family:var(--mono);font-size:14px;word-break:break-all">
           {{ keyResult.key }}
         </div>
-        <div style="font-size:13px;color:var(--ink-3);line-height:1.8">
+        <div style="font-size:14px;color:var(--slate-500);line-height:1.8">
           客户端调用方式：<br>
           <span class="mono">POST {{ baseURL }}/chat/completions</span><br>
           <span class="mono">Authorization: Bearer {{ keyResult.key }}</span><br>

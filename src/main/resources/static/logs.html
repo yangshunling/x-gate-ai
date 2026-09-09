@@ -27,9 +27,9 @@
             <div class="log-toolbar">
               <input class="input" v-model.trim="filter.customerName" placeholder="按客户名筛选">
               <input class="input mono-input date" type="date" v-model="filter.dateFrom">
-              <span class="muted" style="font-size:12px">至</span>
+              <span class="muted" style="font-size:13px">至</span>
               <input class="input mono-input date" type="date" v-model="filter.dateTo">
-              <select class="input" style="width:120px;height:36px" v-model="filter.status">
+              <select class="input" style="width:130px;height:38px" v-model="filter.status">
                 <option value="">全部状态</option>
                 <option value="200">成功 200</option>
                 <option value="400">失败 4xx</option>
@@ -84,7 +84,7 @@
                       <div class="log-detail-grid">
                         <div class="log-detail-card">
                           <div class="ldc-k">上游地址</div>
-                          <div class="ldc-v" style="font-size:12px;word-break:break-all">{{ l.upstream_url }}</div>
+                          <div class="ldc-v" style="font-size:13px;word-break:break-all">{{ l.upstream_url }}</div>
                         </div>
                         <div class="log-detail-card">
                           <div class="ldc-k">调用方 Key</div>
@@ -96,7 +96,7 @@
                         </div>
                         <div class="log-detail-card">
                           <div class="ldc-k">耗时</div>
-                          <div class="ldc-v">{{ l.latency_ms != null ? l.latency_ms : '—' }} <span style="font-size:11px;color:var(--slate-400)">ms</span></div>
+                          <div class="ldc-v">{{ l.latency_ms != null ? l.latency_ms : '—' }} <span style="font-size:12px;color:var(--slate-400)">ms</span></div>
                         </div>
                       </div>
 
