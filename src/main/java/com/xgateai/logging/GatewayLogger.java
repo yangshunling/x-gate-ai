@@ -40,7 +40,7 @@ public class GatewayLogger {
     private static final int SUMMARY_PREVIEW_MAX = 200;
     private static final int URL_DISPLAY_MAX = 42;
     private static final int BOX_WIDTH = 92;
-    private static final int BOX_LABEL = 12;
+    private static final int BOX_LABEL = 14;
     private static final int BOX_VALUE = BOX_WIDTH - 7 - BOX_LABEL;
 
     /** ANSI 颜色码 */
@@ -49,6 +49,9 @@ public class GatewayLogger {
     private static final String A_CYAN = "\u001B[36m";
     private static final String A_GREEN = "\u001B[32m";
     private static final String A_RED = "\u001B[31m";
+
+    private static final double PRICE_IN_PER_M = 0.30;
+    private static final double PRICE_OUT_PER_M = 1.20;
 
     /**
      * 输出网关调用日志（单行格式）
@@ -108,7 +111,11 @@ public class GatewayLogger {
             sb.append(" chain=").append(String.join(" -> ", chain));
         }
 
-        GATEWAY_LOGGER.info(sb.toString());
+        switch (result) {
+            case "SUCCESS" -> GATEWAY_LOGGER.info(sb.toString());
+            case "INTERRUPTED" -> GATEWAY_LOGGER.warn(sb.toString());
+            default -> GATEWAY_LOGGER.error(sb.toString());
+        }
 
         // 输出框式日志到控制台
         printBoxedLog(type, channel, requestedModel, rawBody, stream, result,
@@ -137,8 +144,8 @@ public class GatewayLogger {
      * 构建调用日志实体（用于落库）
      */
     public CallLog buildCallLogEntry(ModelChannel channel, UpstreamProvider provider,
-                                     String requestBody, String upstreamResponse,
-                                     long latencyMs, int httpStatus) {
+                                      String requestBody, String upstreamResponse,
+                                      long latencyMs, int httpStatus) {
         CallLog entry = new CallLog();
         entry.setApiKey(channel.getApiKey());
         entry.setPublicModel(channel.getPublicModelName());
@@ -299,10 +306,11 @@ public class GatewayLogger {
         String statusWord = ok ? "成功" : ("INTERRUPTED".equals(result) ? "中断" : "失败");
         String statusColor = ok ? A_GREEN : A_RED;
         String time = java.time.LocalDateTime.now()
-                .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+                .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS"));
         String tid = com.xgateai.logging.GatewayLog.getMdc(
                 com.xgateai.logging.GatewayLog.MDC_TRACE_ID);
         String customer = StrUtil.blankToDefault(channel.getPublicModelName(), "-");
+        String keyMask = com.xgateai.logging.GatewayLog.maskKey(channel.getApiKey());
         String path = "chat".equals(type)
                 ? GatewayConstant.PATH_CHAT_COMPLETIONS
                 : GatewayConstant.PATH_EMBEDDINGS;
@@ -314,16 +322,6 @@ public class GatewayLogger {
                 ? costMs + "ms"
                 : String.format("%.3fs", costMs / 1000.0);
 
-        String tokensText;
-        if (inTokens == null && outTokens == null) {
-            tokensText = "—";
-        } else {
-            int in = inTokens == null ? 0 : inTokens;
-            int out = outTokens == null ? 0 : outTokens;
-            tokensText = String.format("📥 输入 %s tokens  │  📤 输出 %s tokens",
-                    formatThousands(in), formatThousands(out));
-        }
-
         StringBuilder box = new StringBuilder();
         String hr = "═".repeat(BOX_WIDTH - 2);
         box.append(A_CYAN).append("╔").append(hr).append("╗").append(A_RST).append('\n');
@@ -334,13 +332,54 @@ public class GatewayLogger {
 
         appendRow(box, "⏰ 请求时间", time);
         appendRow(box, "🔗 链路标识", StrUtil.blankToDefault(tid, "-"));
-        appendRow(box, "👤 用户名称", customer);
+        appendRow(box, "👤 用户名称", customer + " (" + keyMask + ")");
         appendRow(box, "📡 请求接口", "POST " + path + "  ✦  " + mode);
-        appendRow(box, "📊 令牌用量", tokensText);
-        appendRow(box, "⚡ 请求性能", statusWord + "  ✦  耗时 " + costStr, statusColor);
+        if (inTokens != null || outTokens != null) {
+            int in = inTokens == null ? 0 : inTokens;
+            int out = outTokens == null ? 0 : outTokens;
+            appendRow(box, "📊 令牌用量", "输入 " + formatThousands(in) + " tokens"
+                    + (out > 0 ? "  │  输出 " + formatThousands(out) + " tokens" : ""));
+        }
+        appendRow(box, "⚡ 请求性能", statusWord + "  耗时 " + costStr, statusColor);
+
+        String rolesText = buildRolesDescription(type, rawBody);
+        if (StrUtil.isNotBlank(rolesText)) {
+            appendRow(box, "📋 角色分布", rolesText);
+        }
+
+        if (chain != null && !chain.isEmpty()) {
+            appendRow(box, "🔁 故障转移", String.join("  →  ", chain));
+        }
 
         box.append(A_CYAN).append("╚").append(hr).append("╝").append(A_RST);
         GATEWAY_CONSOLE.info(box.toString());
+    }
+
+    /** 构建角色分布描述（用于框式日志） */
+    private String buildRolesDescription(String type, String rawBody) {
+        if (!"chat".equals(type)) return "";
+        try {
+            JSONObject body = JSON.parseObject(rawBody);
+            JSONArray messages = body == null ? null : body.getJSONArray("messages");
+            if (messages == null || messages.isEmpty()) return "";
+
+            JSONObject roles = new JSONObject();
+            for (int i = 0; i < messages.size(); i++) {
+                JSONObject msg = messages.getJSONObject(i);
+                if (msg == null) continue;
+                String role = StrUtil.nullToEmpty(msg.getString("role"));
+                if (StrUtil.isBlank(role)) continue;
+                roles.merge(role, 1, (oldVal, addVal) -> ((Number) oldVal).intValue() + ((Number) addVal).intValue());
+            }
+            if (roles.isEmpty()) return "";
+            List<String> parts = new ArrayList<>();
+            for (String role : roles.keySet()) {
+                parts.add(role + ":" + roles.getIntValue(role));
+            }
+            return String.join(" ", parts);
+        } catch (Exception e) {
+            return "";
+        }
     }
 
     private void appendRow(StringBuilder sb, String label, String value) {
@@ -349,50 +388,16 @@ public class GatewayLogger {
 
     private void appendRow(StringBuilder sb, String label, String value, String color) {
         String lab = truncateDisplay(label, BOX_LABEL);
-        List<String> lines = wrapDisplay(value, BOX_VALUE);
-        int pad = BOX_VALUE - displayWidth(lines.get(0));
-        String firstVal = color == null ? lines.get(0) : color + lines.get(0) + A_RST;
+        String val = truncateDisplay(value, BOX_VALUE);
+        int pad = BOX_VALUE - displayWidth(val);
+        String coloredVal = color == null ? val : color + val + A_RST;
 
         sb.append(A_CYAN).append("║  ").append(A_RST)
                 .append(lab).append(padRight(BOX_LABEL - displayWidth(lab)))
                 .append(A_CYAN).append("│ ").append(A_RST)
-                .append(firstVal)
+                .append(coloredVal)
                 .append(" ".repeat(Math.max(0, pad)))
                 .append(A_CYAN).append(" ║").append(A_RST).append('\n');
-
-        for (int i = 1; i < lines.size(); i++) {
-            String v = lines.get(i);
-            int p = BOX_VALUE - displayWidth(v);
-            String cv = color == null ? v : color + v + A_RST;
-            sb.append(A_CYAN).append("║  ").append(A_RST)
-                    .append(padRight(BOX_LABEL))
-                    .append(A_CYAN).append("│ ").append(A_RST)
-                    .append(cv)
-                    .append(" ".repeat(Math.max(0, p)))
-                    .append(A_CYAN).append(" ║").append(A_RST).append('\n');
-        }
-    }
-
-    private List<String> wrapDisplay(String s, int max) {
-        if (s == null || s.isEmpty()) return java.util.Collections.singletonList("");
-        if (displayWidth(s) <= max) return java.util.Collections.singletonList(s);
-        List<String> lines = new ArrayList<>();
-        StringBuilder cur = new StringBuilder();
-        int w = 0;
-        for (int i = 0; i < s.length(); ) {
-            int cp = s.codePointAt(i);
-            int cw = displayWidthChar(cp);
-            if (w + cw > max && cur.length() > 0) {
-                lines.add(cur.toString());
-                cur = new StringBuilder();
-                w = 0;
-            }
-            cur.appendCodePoint(cp);
-            w += cw;
-            i += Character.charCount(cp);
-        }
-        lines.add(cur.toString());
-        return lines;
     }
 
     private String center(String text, int width) {
@@ -405,31 +410,25 @@ public class GatewayLogger {
         return " ".repeat(Math.max(0, width));
     }
 
+    /** 估算显示宽度：ASCII 占 1 列，CJK/emoji 等按 2 列 */
     private int displayWidth(String s) {
         int w = 0;
         for (int i = 0; i < s.length(); ) {
             int cp = s.codePointAt(i);
-            w += displayWidthChar(cp);
+            w += (cp > 0x2E7F) ? 2 : 1;
             i += Character.charCount(cp);
         }
         return w;
     }
 
-    private int displayWidthChar(int cp) {
-        if (cp > 0x2E7F) return 2;
-        if (cp >= 0x1F000 && cp <= 0x1FAFF) return 2;
-        if (cp >= 0x2300 && cp <= 0x26FF) return 2;
-        if (cp >= 0x2B00 && cp <= 0x2BFF) return 2;
-        return 1;
-    }
-
+    /** 截断到指定显示宽度（超长补 …） */
     private String truncateDisplay(String s, int max) {
         if (displayWidth(s) <= max) return s;
         StringBuilder sb = new StringBuilder();
         int w = 0;
         for (int i = 0; i < s.length(); ) {
             int cp = s.codePointAt(i);
-            int cw = displayWidthChar(cp);
+            int cw = (cp > 0x2E7F) ? 2 : 1;
             if (w + cw > max - 1) break;
             sb.appendCodePoint(cp);
             w += cw;
@@ -442,4 +441,9 @@ public class GatewayLogger {
         if (n == null) return "?";
         return java.text.NumberFormat.getIntegerInstance().format(n);
     }
+
+    private double estimateCost(int in, int out) {
+        return in * PRICE_IN_PER_M / 1_000_000 + out * PRICE_OUT_PER_M / 1_000_000;
+    }
+
 }

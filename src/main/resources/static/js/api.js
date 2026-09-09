@@ -18,17 +18,19 @@ const XApi = {
   /* ---------------- API Key（对外客户） ---------------- */
   listKeys() { return XHttp.get('/admin/channels'); },
   saveKey(dto, editing) {
-    return XHttp.request('/admin/channel', { method: editing ? 'PUT' : 'POST', body: dto });
+    const url = editing ? '/admin/channel/' + dto.id : '/admin/channel';
+    return XHttp.request(url, { method: editing ? 'PUT' : 'POST', body: dto });
   },
   updateKey(dto) {
-    return XHttp.put('/admin/channel', dto);
+    return XHttp.put('/admin/channel/' + dto.id, dto);
   },
   deleteKey(id) { return XHttp.delete('/admin/channel/' + id); },
 
   /* ---------------- 渠道管理 ---------------- */
   listProviders() { return XHttp.get('/admin/providers'); },
   saveProvider(dto, editing) {
-    return XHttp.request('/admin/provider', { method: editing ? 'PUT' : 'POST', body: dto });
+    const url = editing ? '/admin/provider/' + dto.id : '/admin/provider';
+    return XHttp.request(url, { method: editing ? 'PUT' : 'POST', body: dto });
   },
   deleteProvider(id) { return XHttp.delete('/admin/provider/' + id); },
   testProvider(id) { return XHttp.post('/admin/provider/' + id + '/test'); },

@@ -63,6 +63,21 @@ public final class GatewayLog {
         return MDC.get(key);
     }
 
+    // ==================== 脱敏 ====================
+
+    /**
+     * API Key 脱敏：仅保留首 3 位与尾 4 位
+     */
+    public static String maskKey(String key) {
+        if (StrUtil.isBlank(key)) {
+            return "-";
+        }
+        if (key.length() <= 8) {
+            return "****";
+        }
+        return key.substring(0, 3) + "****" + key.substring(key.length() - 4);
+    }
+
     /**
      * 清理 MDC，防止线程复用时上下文串扰
      */

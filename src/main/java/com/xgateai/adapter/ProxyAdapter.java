@@ -3,6 +3,7 @@ package com.xgateai.adapter;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
+import com.xgateai.component.EncryptUtil;
 import com.xgateai.entity.UpstreamProvider;
 import com.xgateai.exception.UpstreamException;
 import com.xgateai.logging.GatewayLogger;
@@ -30,13 +31,16 @@ public class ProxyAdapter {
     private final OkHttpClient mainClient;
     private final OkHttpClient testClient;
     private final GatewayLogger gatewayLogger;
+    private final EncryptUtil encryptUtil;
 
     public ProxyAdapter(@Qualifier("mainOkHttpClient") OkHttpClient mainClient,
                         @Qualifier("testOkHttpClient") OkHttpClient testClient,
-                        GatewayLogger gatewayLogger) {
+                        GatewayLogger gatewayLogger,
+                        EncryptUtil encryptUtil) {
         this.mainClient = mainClient;
         this.testClient = testClient;
         this.gatewayLogger = gatewayLogger;
+        this.encryptUtil = encryptUtil;
     }
 
     public String chat(UpstreamProvider provider, String requestBody) throws IOException {
@@ -46,6 +50,18 @@ public class ProxyAdapter {
     public boolean streamChat(UpstreamProvider provider, String requestBody,
                               Consumer<byte[]> onChunk) throws IOException {
         StreamResult result = new StreamResult();
+        boolean complete = streamOnce(provider, requestBody, onChunk, result);
+        setStreamResult(result);
+        return complete;
+    }
+
+    public boolean streamChat(UpstreamProvider provider, String requestBody,
+                              Consumer<byte[]> onChunk, StreamResult result) throws IOException {
+        return streamOnce(provider, requestBody, onChunk, result);
+    }
+
+    private boolean streamOnce(UpstreamProvider provider, String requestBody,
+                                Consumer<byte[]> onChunk, StreamResult result) throws IOException {
         try (Response resp = mainClient.newCall(buildRequest(provider,
                 GatewayConstant.PATH_CHAT_COMPLETIONS, requestBody, true)).execute()) {
             if (!resp.isSuccessful()) {
@@ -123,9 +139,12 @@ public class ProxyAdapter {
                                  String jsonBody, boolean stream) {
         Request.Builder builder = new Request.Builder()
                 .url(provider.getBaseUrl() + path)
-                .header("Authorization", "Bearer [REDACTED]")
                 .header("Content-Type", JSON_MEDIA_TYPE.toString())
                 .post(RequestBody.create(jsonBody, JSON_MEDIA_TYPE));
+        String apiKey = encryptUtil.decrypt(provider.getApiKey());
+        if (StrUtil.isNotBlank(apiKey)) {
+            builder.header("Authorization", "Bearer " + apiKey);
+        }
         if (stream) {
             builder.header("Accept", "text/event-stream");
         }
@@ -161,8 +180,23 @@ public class ProxyAdapter {
         return s.length() <= max ? s : s.substring(0, max) + "...";
     }
 
-    private static class StreamResult {
+    public static class StreamResult {
         boolean complete;
-        String usageChunkJson;
+        public String usageChunkJson;
+    }
+
+    /** ThreadLocal 持有当前流的 usage 结果 */
+    private static final ThreadLocal<StreamResult> STREAM_RESULT_HOLDER = new ThreadLocal<>();
+
+    public static void setStreamResult(StreamResult result) {
+        STREAM_RESULT_HOLDER.set(result);
+    }
+
+    public static StreamResult getStreamResult() {
+        return STREAM_RESULT_HOLDER.get();
+    }
+
+    public static void clearStreamResult() {
+        STREAM_RESULT_HOLDER.remove();
     }
 }

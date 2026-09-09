@@ -270,8 +270,11 @@ public class GatewayService {
     }
 
     private String extractUsageFromStream() {
-        // TODO: 需要从流式结果中提取 usage，这里简化处理
-        return null;
+        ProxyAdapter.StreamResult result = ProxyAdapter.getStreamResult();
+        if (result == null) return null;
+        String usage = result.usageChunkJson;
+        ProxyAdapter.clearStreamResult();
+        return usage;
     }
 
     private String resolveMessage(Throwable throwable) {
