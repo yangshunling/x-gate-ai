@@ -1,16 +1,21 @@
 -- ============================================================
 -- x-gate-ai 建表脚本（幂等，CREATE TABLE IF NOT EXISTS）
 -- 启动时由 spring.sql.init.mode=always 自动执行。
--- 表名统一以 x_gate_ 为前缀，语义：
---   x_gate_channel   渠道/上游账号（name/base_url/api_key/enabled）
---   x_gate_model     渠道下挂载的模型（channel_id 挂接，fail_count 在模型行）
---   x_gate_customer  客户/API KEY（原 model_channels）
---   x_gate_call_log  调用日志（原 call_logs）
--- 老库（旧三表 upstream_providers/model_channels/call_logs）由
--- DatabaseMigrateRunner 在启动时自动迁移为上述新表。
+-- 表命名（按「它是什么」命名，与实体类对齐）：
+--   upstream_provider  上游供应商账号（name/base_url/api_key/enabled）
+--   upstream_model     上游供应商下挂载的模型（channel_id 挂接到 upstream_provider，fail_count 在模型行）
+--   customer           对外接入凭证（API Key + 路由策略 + 限定模型）
+--   call_log           调用日志
+-- 历史库（旧三表 upstream_providers/model_channels/call_logs，以及
+-- x_gate_ 前缀四表）由 DatabaseMigrateRunner 在启动时自动 RENAME/迁移
+-- 为本脚本定义的表名。
+-- 索引：customer 的 api_key/public_model_name、upstream_model 的
+-- (channel_id, model_name) 均由 UNIQUE 约束自动建索引；call_log 的
+-- 查询索引由 DatabaseMigrateRunner.ensureIndexes() 在表名就绪后幂等创建
+-- （避免 schema.sql 执行时表尚未 RENAME 而报错）。
 -- ============================================================
 
-CREATE TABLE IF NOT EXISTS x_gate_channel (
+CREATE TABLE IF NOT EXISTS upstream_provider (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
     base_url TEXT NOT NULL,
@@ -20,7 +25,7 @@ CREATE TABLE IF NOT EXISTS x_gate_channel (
     created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 
-CREATE TABLE IF NOT EXISTS x_gate_model (
+CREATE TABLE IF NOT EXISTS upstream_model (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     channel_id INTEGER NOT NULL,
     model_name TEXT NOT NULL,
@@ -32,7 +37,7 @@ CREATE TABLE IF NOT EXISTS x_gate_model (
     UNIQUE (channel_id, model_name)
 );
 
-CREATE TABLE IF NOT EXISTS x_gate_customer (
+CREATE TABLE IF NOT EXISTS customer (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     public_model_name TEXT NOT NULL UNIQUE,
     api_key TEXT NOT NULL UNIQUE,
@@ -43,7 +48,7 @@ CREATE TABLE IF NOT EXISTS x_gate_customer (
     created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 
-CREATE TABLE IF NOT EXISTS x_gate_call_log (
+CREATE TABLE IF NOT EXISTS call_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     api_key TEXT,
     public_model TEXT,

@@ -6,7 +6,7 @@ import lombok.Data;
 /**
  * ProviderModelDTO 渠道下挂载模型的单条编辑项
  * <p>
- * 新增/编辑渠道时随 ProviderDTO 一起提交，一个模型对应 x_gate_model 一行。
+ * 新增/编辑渠道时随 ProviderDTO 一起提交，一个模型对应 upstream_model 一行。
  * </p>
  *
  * @author xgateai

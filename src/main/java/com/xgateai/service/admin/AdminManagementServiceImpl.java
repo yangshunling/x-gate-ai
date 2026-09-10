@@ -34,7 +34,7 @@ import java.util.*;
  * AdminManagementServiceImpl 管理端业务服务实现
  * <p>
  * 实现渠道（含其下模型行）与客户（对外 API Key）的增删改查、连通性测试及服务器信息获取。
- * 渠道账号存 x_gate_channel，渠道下的模型按「一个模型一行」存 x_gate_model。
+ * 渠道账号存 upstream_provider，渠道下的模型按「一个模型一行」存 upstream_model。
  * API Key 存储前经 {@link EncryptUtil} 加密，查询结果中自动脱敏。
  * </p>
  *

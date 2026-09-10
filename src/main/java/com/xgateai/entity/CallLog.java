@@ -7,7 +7,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 /**
- * CallLog 调用日志实体（表 x_gate_call_log）
+ * CallLog 调用日志实体（表 call_log）
  * <p>
  * 记录每一次通过网关转发的模型调用请求，包括客户端标识、上游路由信息、
  * Token 用量、延迟及 HTTP 状态码等关键指标，用于日志查询与仪表盘统计。
@@ -17,7 +17,7 @@ import lombok.Data;
  * @since 2026/9/4
  */
 @Data
-@TableName("x_gate_call_log")
+@TableName("call_log")
 public class CallLog {
 
     /**

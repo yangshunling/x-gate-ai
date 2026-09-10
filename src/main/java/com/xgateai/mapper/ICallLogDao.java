@@ -7,7 +7,7 @@ import org.apache.ibatis.annotations.Mapper;
 /**
  * ICallLogDao 调用日志数据访问接口
  * <p>
- * 基于 MyBatis-Plus BaseMapper 扩展，提供 call_logs 表的通用 CRUD 操作。
+ * 基于 MyBatis-Plus BaseMapper 扩展，提供 call_log 表的通用 CRUD 操作。
  * 业务查询逻辑集中在 {@code CallLogAnalysisService} 中。
  * </p>
  *

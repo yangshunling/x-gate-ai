@@ -7,7 +7,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 /**
- * UpstreamModel 渠道下挂载的模型实体（表 x_gate_model）
+ * UpstreamModel 渠道下挂载的模型实体（表 upstream_model）
  * <p>
  * 一个渠道（{@link UpstreamProvider}）可挂载多个模型，每条记录对应一个模型。
  * 路由候选、故障计数（failCount）、故障转移均以模型行为粒度。
@@ -17,7 +17,7 @@ import lombok.Data;
  * @since 2026/9/9
  */
 @Data
-@TableName("x_gate_model")
+@TableName("upstream_model")
 public class UpstreamModel {
 
     /**
@@ -27,7 +27,7 @@ public class UpstreamModel {
     private Long id;
 
     /**
-     * 所属渠道 ID（对应 x_gate_channel.id）
+     * 所属渠道 ID（对应 upstream_provider.id）
      */
     @JsonProperty("channel_id")
     private Long channelId;

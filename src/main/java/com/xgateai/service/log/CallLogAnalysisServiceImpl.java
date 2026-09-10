@@ -163,48 +163,28 @@ public class CallLogAnalysisServiceImpl implements CallLogAnalysisService {
     public Map<String, Object> dashboardStats() {
         Map<String, Object> stats = new LinkedHashMap<>();
 
-        // 历史累计调用统计
-        long totalCalls = callLogDao.selectCount(new QueryWrapper<CallLog>());
-        long totalSuccess = callLogDao.selectCount(
-                new QueryWrapper<CallLog>()
-                        .ge("http_status", CommonConstant.HTTP_OK)
-                        .lt("http_status", CommonConstant.HTTP_BAD_REQUEST));
+        // 历史累计：调用数 / 成功数 / Token 汇总，单条聚合 SQL 完成（避免全表物化与多次 COUNT）
+        Map<String, Object> hist = aggregateCallStats(null);
+        long totalCalls = toLong(hist.get("calls"));
+        long totalSuccess = toLong(hist.get("success_calls"));
         stats.put("totalCalls", totalCalls);
         stats.put("totalSuccess", totalSuccess);
         stats.put("totalFail", totalCalls - totalSuccess);
+        stats.put("totalInputTokens", toLong(hist.get("input_tokens")));
+        stats.put("totalOutputTokens", toLong(hist.get("output_tokens")));
 
-        // 历史累计 Token 汇总
-        List<CallLog> allLogs = callLogDao.selectList(
-                new QueryWrapper<CallLog>().select("input_tokens", "output_tokens"));
-        int totalInputTokens = allLogs.stream()
-                .mapToInt(log -> defaultIfNull(log.getInputTokens(), 0)).sum();
-        int totalOutputTokens = allLogs.stream()
-                .mapToInt(log -> defaultIfNull(log.getOutputTokens(), 0)).sum();
-        stats.put("totalInputTokens", totalInputTokens);
-        stats.put("totalOutputTokens", totalOutputTokens);
-
-        // 今日统计
+        // 今日统计：追加 created_at >= 今日零点 范围条件
         String todayStart = DateUtil.format(DateUtil.beginOfDay(new Date()), CommonConstant.DATETIME_FORMAT);
-        QueryWrapper<CallLog> todayWrapper = new QueryWrapper<CallLog>().ge("created_at", todayStart);
-        long todayCalls = callLogDao.selectCount(todayWrapper);
-        long todaySuccess = callLogDao.selectCount(
-                new QueryWrapper<CallLog>()
-                        .ge("created_at", todayStart)
-                        .ge("http_status", CommonConstant.HTTP_OK)
-                        .lt("http_status", CommonConstant.HTTP_BAD_REQUEST));
+        Map<String, Object> today = aggregateCallStats(todayStart);
+        long todayCalls = toLong(today.get("calls"));
+        long todaySuccess = toLong(today.get("success_calls"));
         stats.put("todayCalls", todayCalls);
         stats.put("todaySuccess", todaySuccess);
         stats.put("todayFail", todayCalls - todaySuccess);
+        stats.put("todayInputTokens", toLong(today.get("input_tokens")));
+        stats.put("todayOutputTokens", toLong(today.get("output_tokens")));
 
-        List<CallLog> todayLogs = callLogDao.selectList(todayWrapper);
-        int todayInputTokens = todayLogs.stream()
-                .mapToInt(log -> defaultIfNull(log.getInputTokens(), 0)).sum();
-        int todayOutputTokens = todayLogs.stream()
-                .mapToInt(log -> defaultIfNull(log.getOutputTokens(), 0)).sum();
-        stats.put("todayInputTokens", todayInputTokens);
-        stats.put("todayOutputTokens", todayOutputTokens);
-
-        // 客户总数（已接入的对外客户数，取自 model_channels）与启用资源数
+        // 客户总数与启用资源数（小表，count 无碍）
         long totalCustomers = modelChannelDao.selectCount(null);
         long enabledChannels = modelChannelDao.selectCount(
                 new QueryWrapper<ModelChannel>().eq("enabled", CommonConstant.ENABLED));
@@ -215,6 +195,30 @@ public class CallLogAnalysisServiceImpl implements CallLogAnalysisService {
         stats.put("enabledProviders", enabledProviders);
 
         return stats;
+    }
+
+    /**
+     * 聚合统计 call_log：调用数、成功数（http_status 2xx/3xx）、输入/输出 Token 汇总。
+     * <p>
+     * 用单条 SQL 聚合替代原来的 selectList 全表物化 + 多次 selectCount，
+     * 消除大表下的内存压力与 int 溢出风险（SUM 走数据库，返回 long）。
+     * </p>
+     *
+     * @param createdAtGe 若非 null，追加 created_at >= ? 范围条件（今日统计用）
+     * @return 单行聚合结果 Map，键为 calls / success_calls / input_tokens / output_tokens
+     */
+    private Map<String, Object> aggregateCallStats(String createdAtGe) {
+        QueryWrapper<CallLog> wrapper = new QueryWrapper<CallLog>()
+                .select("COUNT(*) AS calls",
+                        "COALESCE(SUM(CASE WHEN http_status >= " + CommonConstant.HTTP_OK
+                                + " AND http_status < " + CommonConstant.HTTP_BAD_REQUEST
+                                + " THEN 1 ELSE 0 END), 0) AS success_calls",
+                        "COALESCE(SUM(input_tokens), 0) AS input_tokens",
+                        "COALESCE(SUM(output_tokens), 0) AS output_tokens");
+        if (createdAtGe != null) {
+            wrapper.ge("created_at", createdAtGe);
+        }
+        return callLogDao.selectMaps(wrapper).stream().findFirst().orElse(Collections.emptyMap());
     }
 
     @Override

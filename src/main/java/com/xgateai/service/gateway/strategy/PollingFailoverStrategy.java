@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 /**
  * PollingFailoverStrategy 轮询故障转移策略
  * <p>
- * 候选粒度为「渠道下的模型行」（x_gate_model），同一渠道下的不同模型彼此独立；
+ * 候选粒度为「渠道下的模型行」（upstream_model），同一渠道下的不同模型彼此独立；
  * 失败次数少的上游优先，失败时自动切换到下一个候选。路由规则：
  * <ol>
  *   <li>Key 限定模型时只允许调用该模型</li>

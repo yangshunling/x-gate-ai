@@ -374,7 +374,7 @@ public class GatewayService {
     }
 
     /**
-     * 记录调用日志到 x_gate_call_log 表
+     * 记录调用日志到 call_log 表
      *
      * @param channel     对客通道信息
      * @param route       最终选中的路由目标（渠道 + 模型行）

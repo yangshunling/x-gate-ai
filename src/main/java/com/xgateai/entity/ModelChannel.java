@@ -7,7 +7,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 /**
- * ModelChannel 客户实体（表 x_gate_customer，即 API KEY）
+ * ModelChannel 客户实体（表 customer，即 API KEY）
  * <p>
  * 每个客户对应一个面向调用方的 API Key，可限定具体模型名（为 null 时表示不限定），
  * 配合渠道模型池实现路由转发与鉴权。
@@ -17,7 +17,7 @@ import lombok.Data;
  * @since 2026/9/4
  */
 @Data
-@TableName("x_gate_customer")
+@TableName("customer")
 public class ModelChannel {
 
     /**

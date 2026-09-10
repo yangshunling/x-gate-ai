@@ -6,18 +6,18 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 /**
- * UpstreamProvider 渠道实体（表 x_gate_channel）
+ * UpstreamProvider 渠道实体（表 upstream_provider）
  * <p>
  * 代表一个已接入的上游大模型服务账号（如 OpenAI、Anthropic 等兼容接口），
  * 包含 BaseUrl、加密后的 API Key。一个渠道下挂载多个模型，
- * 模型记录在 {@link UpstreamModel}（表 x_gate_model），通过 channelId 挂接。
+ * 模型记录在 {@link UpstreamModel}（表 upstream_model），通过 channelId 挂接。
  * </p>
  *
  * @author xgateai
  * @since 2026/9/4
  */
 @Data
-@TableName("x_gate_channel")
+@TableName("upstream_provider")
 public class UpstreamProvider {
 
     /**

@@ -11,7 +11,7 @@ import java.util.Map;
  * AdminManagementService 管理端业务服务接口
  * <p>
  * 定义管理员操作的契约，包括渠道（含其下模型）与客户/API KEY 的增删改查。
- * 渠道数据分散在 x_gate_channel（账号）与 x_gate_model（模型行）两张表。
+ * 渠道数据分散在 upstream_provider（账号）与 upstream_model（模型行）两张表。
  * </p>
  *
  * @author xgateai

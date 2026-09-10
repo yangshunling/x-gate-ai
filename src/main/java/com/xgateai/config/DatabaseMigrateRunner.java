@@ -17,12 +17,17 @@ import java.util.Set;
  * DatabaseMigrateRunner 存量数据库迁移器（一次性，幂等）
  * <p>
  * 旧版库使用三张旧表（upstream_providers / model_channels / call_logs），
- * 新版统一为 x_gate_ 前缀四张表。此组件在应用启动时检测旧表是否存在，
- * 存在则把存量数据搬入新表并删除旧表，仅执行一次。
+ * 新版统一为四张表（upstream_provider / upstream_model / customer / call_log）。
+ * 此组件在应用启动时执行三步迁移（均幂等）：
+ * <ol>
+ *   <li>把历史 x_gate_ 前缀四表 RENAME 为新表名（照顾上一版命名库平滑升级）</li>
+ *   <li>把更早的旧三表数据搬入新表并删除旧表</li>
+ *   <li>补齐后续迭代新增的列与查询索引</li>
+ * </ol>
  * <ul>
- *   <li>upstream_providers  → x_gate_channel（渠道），其逗号分隔的 model_name 拆分为 x_gate_model 多行</li>
- *   <li>model_channels      → x_gate_customer（客户/API KEY）</li>
- *   <li>call_logs           → x_gate_call_log（调用日志）</li>
+ *   <li>upstream_providers  → upstream_provider，其逗号分隔的 model_name 拆分为 upstream_model 多行</li>
+ *   <li>model_channels      → customer（客户/API KEY）</li>
+ *   <li>call_logs           → call_log（调用日志）</li>
  * </ul>
  * </p>
  *
@@ -33,10 +38,15 @@ import java.util.Set;
 @Component
 public class DatabaseMigrateRunner implements ApplicationRunner {
 
-    private static final String T_CHANNEL = "x_gate_channel";
-    private static final String T_MODEL = "x_gate_model";
-    private static final String T_CUSTOMER = "x_gate_customer";
-    private static final String T_CALL_LOG = "x_gate_call_log";
+    private static final String T_CHANNEL = "upstream_provider";
+    private static final String T_MODEL = "upstream_model";
+    private static final String T_CUSTOMER = "customer";
+    private static final String T_CALL_LOG = "call_log";
+    /** 历史 x_gate_ 前缀表名，启动时 RENAME 为新名（幂等） */
+    private static final String LEGACY_CHANNEL = "x_gate_channel";
+    private static final String LEGACY_MODEL = "x_gate_model";
+    private static final String LEGACY_CUSTOMER = "x_gate_customer";
+    private static final String LEGACY_CALL_LOG = "x_gate_call_log";
     private static final String T_OLD_PROVIDER = "upstream_providers";
     private static final String T_OLD_CHANNEL = "model_channels";
     private static final String T_OLD_CALL_LOG = "call_logs";
@@ -54,8 +64,10 @@ public class DatabaseMigrateRunner implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         try {
             enableWalMode();
+            renameLegacyXGateTables();
             migrate();
             ensureNewColumns();
+            ensureIndexes();
         } catch (Exception e) {
             log.error("数据库结构迁移失败，请检查旧表数据", e);
         }
@@ -73,14 +85,77 @@ public class DatabaseMigrateRunner implements ApplicationRunner {
     }
 
     /**
+     * 把历史 x_gate_ 前缀四表幂等 RENAME 为新表名。
+     * 此步在 schema.sql（CREATE TABLE IF NOT EXISTS 新名）执行之后运行，
+     * 新名表可能已被建为空壳——此时先 DROP 空壳再 RENAME，避免数据丢失。
+     */
+    private void renameLegacyXGateTables() {
+        renameIfLegacy(LEGACY_CHANNEL, T_CHANNEL);
+        renameIfLegacy(LEGACY_MODEL, T_MODEL);
+        renameIfLegacy(LEGACY_CUSTOMER, T_CUSTOMER);
+        renameIfLegacy(LEGACY_CALL_LOG, T_CALL_LOG);
+    }
+
+    /**
+     * 单表 RENAME：旧表存在且新表不存在时直接 RENAME；
+     * 旧表存在且新表也存在但为空（schema 刚建的空壳）时，先 DROP 空壳再 RENAME；
+     * 旧表存在且新表已有数据时，旧表视为残留，直接清理。
+     */
+    private void renameIfLegacy(String legacyName, String newName) {
+        if (!tableExists(legacyName)) {
+            return;
+        }
+        if (tableExists(newName)) {
+            Long newRows = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM " + newName, Long.class);
+            if (newRows != null && newRows > 0) {
+                jdbcTemplate.update("DROP TABLE IF EXISTS " + legacyName);
+                log.info("清理残留历史表（新表已有数据）: {}", legacyName);
+                return;
+            }
+            jdbcTemplate.update("DROP TABLE " + newName);
+        }
+        jdbcTemplate.update("ALTER TABLE " + legacyName + " RENAME TO " + newName);
+        log.info("数据库迁移：{} → {}", legacyName, newName);
+    }
+
+    /**
      * 为存量新表补充后续迭代新增的列（幂等：已存在则跳过）
      */
     private void ensureNewColumns() {
         if (tableExists(T_MODEL) && !hasColumn(T_MODEL, "max_concurrency")) {
             jdbcTemplate.update("ALTER TABLE " + T_MODEL
                     + " ADD COLUMN max_concurrency INTEGER NOT NULL DEFAULT 0");
-            log.info("数据库迁移：x_gate_model 新增列 max_concurrency");
+            log.info("数据库迁移：upstream_model 新增列 max_concurrency");
         }
+    }
+
+    /**
+     * 幂等创建 call_log 表查询索引（大表加速）。
+     * 在表名 RENAME/迁移完成后执行，确保表已存在；schema.sql 不建索引，
+     * 避免老库首次启动时表尚未 RENAME 即执行 CREATE INDEX 报错。
+     */
+    private void ensureIndexes() {
+        if (!tableExists(T_CALL_LOG)) {
+            return;
+        }
+        createIndexIfNotExists("idx_call_log_created_at", T_CALL_LOG, "created_at");
+        createIndexIfNotExists("idx_call_log_customer", T_CALL_LOG, "customer_name, created_at");
+        createIndexIfNotExists("idx_call_log_model", T_CALL_LOG, "upstream_model");
+    }
+
+    /**
+     * 幂等建索引：索引已存在则跳过。
+     */
+    private void createIndexIfNotExists(String indexName, String table, String columns) {
+        Integer cnt = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND name = ?",
+                Integer.class, indexName);
+        if (cnt != null && cnt > 0) {
+            return;
+        }
+        jdbcTemplate.update("CREATE INDEX " + indexName + " ON " + table + " (" + columns + ")");
+        log.info("数据库迁移：创建索引 {} ON {}({})", indexName, table, columns);
     }
 
     private void migrate() {
@@ -103,7 +178,7 @@ public class DatabaseMigrateRunner implements ApplicationRunner {
 
         txTemplate.executeWithoutResult(status -> doMigrate());
         dropOldTables();
-        log.info("存量数据迁移完成：旧三表 → x_gate_ 四表");
+        log.info("存量数据迁移完成：旧三表 → 新四表");
     }
 
     private void doMigrate() {
@@ -113,7 +188,7 @@ public class DatabaseMigrateRunner implements ApplicationRunner {
         resetSequences();
     }
 
-    /** upstream_providers → x_gate_channel + x_gate_model（逗号模型拆行） */
+    /** upstream_providers → upstream_provider + upstream_model（逗号模型拆行） */
     private void migrateProvidersAndModels() {
         boolean hasOld = tableExists(T_OLD_PROVIDER);
         if (!hasOld) {
@@ -141,7 +216,7 @@ public class DatabaseMigrateRunner implements ApplicationRunner {
         }
     }
 
-    /** model_channels → x_gate_customer */
+    /** model_channels → customer */
     private void migrateCustomers() {
         if (!tableExists(T_OLD_CHANNEL)) {
             return;
@@ -152,7 +227,7 @@ public class DatabaseMigrateRunner implements ApplicationRunner {
                 + "COALESCE(created_at, datetime('now', 'localtime')) FROM " + T_OLD_CHANNEL);
     }
 
-    /** call_logs → x_gate_call_log（按列复制，兼容老库列差异） */
+    /** call_logs → call_log（按列复制，兼容老库列差异） */
     private void migrateCallLogs() {
         if (!tableExists(T_OLD_CALL_LOG)) {
             return;

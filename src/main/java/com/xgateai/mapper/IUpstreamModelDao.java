@@ -9,7 +9,7 @@ import org.apache.ibatis.annotations.Update;
 /**
  * IUpstreamModelDao 渠道模型数据访问接口
  * <p>
- * 基于 MyBatis-Plus BaseMapper 扩展，提供 x_gate_model 表的通用 CRUD 操作。
+ * 基于 MyBatis-Plus BaseMapper 扩展，提供 upstream_model 表的通用 CRUD 操作。
  * 路由候选列表查询（按 fail_count 升序）由策略类直接调用此接口。
  * </p>
  *
@@ -25,6 +25,6 @@ public interface IUpstreamModelDao extends BaseMapper<UpstreamModel> {
      * @param id 模型行主键
      * @return 影响行数
      */
-    @Update("UPDATE x_gate_model SET fail_count = COALESCE(fail_count, 0) + 1 WHERE id = #{id}")
+    @Update("UPDATE upstream_model SET fail_count = COALESCE(fail_count, 0) + 1 WHERE id = #{id}")
     int incrementFailCount(@Param("id") Long id);
 }

@@ -12,7 +12,7 @@ import java.util.List;
  * ProviderDTO 渠道新增/编辑请求参数
  * <p>
  * 一个渠道携带其下挂载的模型列表（{@link ProviderModelDTO}），
- * 后端保存时按渠道与模型分别落库（x_gate_channel / x_gate_model）。
+ * 后端保存时按渠道与模型分别落库（upstream_provider / upstream_model）。
  * 新增时 apiKey 必填；编辑时 apiKey 为空表示不修改原有密钥。
  * </p>
  *
