@@ -41,8 +41,6 @@ public class GatewayLogger {
     /** 网关框式日志专用 Logger（仅控制台，带 ANSI 彩色） */
     private static final Logger GATEWAY_CONSOLE = LoggerFactory.getLogger("GATEWAY_CONSOLE");
 
-    /** 日志摘要预览最大字符数 */
-    private static final int SUMMARY_PREVIEW_MAX = 200;
     /** 上游 URL 显示最大字符数 */
     private static final int URL_DISPLAY_MAX = 42;
     /** 框式日志整体宽度 */
@@ -267,7 +265,7 @@ public class GatewayLogger {
                 }
             }
             summary.put("roles", roles);
-            summary.put("preview", truncateDisplay(lastUserText, SUMMARY_PREVIEW_MAX));
+            summary.put("preview", lastUserText);
             return summary.toJSONString();
         } catch (Exception e) {
             return null;
@@ -284,7 +282,7 @@ public class GatewayLogger {
                 summary.put("inputCount", arr.size());
             } else if (input instanceof String text) {
                 summary.put("inputCount", 1);
-                summary.put("preview", truncateDisplay(text, SUMMARY_PREVIEW_MAX));
+                summary.put("preview", text);
             } else {
                 summary.put("inputCount", 0);
             }

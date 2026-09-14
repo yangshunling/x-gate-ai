@@ -60,33 +60,16 @@ const LogsApp = {
       } catch (e) { return []; }
     },
 
+    userMessages(log) {
+      return this.requestMessages(log).filter(m => m.role === 'user');
+    },
+
     requestSummary(log) {
       if (!log.request_body) return null;
       try {
         const body = JSON.parse(log.request_body);
         return (body && (body.type === 'chat' || body.type === 'embedding')) ? body : null;
       } catch (e) { return null; }
-    },
-
-    summaryRolesText(summary) {
-      if (!summary || !summary.roles) return '';
-      const roleNames = { system: 'System', user: 'User', assistant: 'AI', tool: 'Tool' };
-      return Object.keys(summary.roles).map(r =>
-        (roleNames[r] || r) + ' ×' + summary.roles[r]
-      ).join(' · ');
-    },
-
-    roleLabel(role) {
-      return { system: 'System', user: 'User', assistant: 'AI', tool: 'Tool' }[role] || role;
-    },
-
-    roleClass(role) {
-      return { system: 'role-system', user: 'role-user', assistant: 'role-ai', tool: 'role-tool' }[role] || '';
-    },
-
-    prettyJson(json) {
-      if (!json) return '';
-      try { return JSON.stringify(JSON.parse(json), null, 2); } catch (e) { return json; }
     },
   },
 };

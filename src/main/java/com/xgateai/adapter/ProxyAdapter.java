@@ -103,6 +103,7 @@ public class ProxyAdapter {
      * @param provider    目标上游 Provider
      * @param requestBody 原始请求体 JSON
      * @return            上游响应体字符串
+     *
      */
     public String embeddings(UpstreamProvider provider, String requestBody) throws IOException {
         return postJson(mainClient, provider, GatewayConstant.PATH_EMBEDDINGS, requestBody);
