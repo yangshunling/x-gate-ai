@@ -372,14 +372,13 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         }
 
         channel.setPublicModelName(StrUtil.trim(dto.getPublicModelName()));
-        channel.setModelName(StrUtil.blankToDefault(StrUtil.trim(dto.getModelName()), ""));
         channel.setEnabled(defaultIfNull(dto.getEnabled(), CommonConstant.ENABLED));
         channel.setRemark(dto.getRemark());
 
         if (isNew) {
             channel.setCreatedAt(DateUtil.format(DateUtil.date(), CommonConstant.DATETIME_FORMAT));
             modelChannelDao.insert(channel);
-            log.info("新增客户: {} ({}) [default 全池]",
+            log.info("新增客户: {} ({})",
                     channel.getPublicModelName(), channel.getId());
         } else {
             modelChannelDao.updateById(channel);

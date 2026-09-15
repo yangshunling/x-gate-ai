@@ -84,7 +84,6 @@ public class ApiKeyInterceptor implements HandlerInterceptor {
         // 写入 MDC 上下文，供日志使用
         GatewayLog.putChannelId(String.valueOf(channel.getId()));
         GatewayLog.putChannelName(channel.getPublicModelName());
-        GatewayLog.putChannelModel(StrUtil.blankToDefault(channel.getModelName(), "default"));
         GatewayLog.putChannelKey(maskApiKey(channel.getApiKey()));
 
         return true;

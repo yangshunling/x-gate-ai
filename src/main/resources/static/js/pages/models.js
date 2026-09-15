@@ -7,9 +7,8 @@ const ModelsApp = {
   data() {
     return {
       channels: [],
-      modelOptions: [],
       loading: false,
-      modal: { open: false, editId: null, saving: false, form: { customerName: '', modelName: '', enabled: true, remark: '' } },
+      modal: { open: false, editId: null, saving: false, form: { customerName: '', enabled: true, remark: '' } },
       keyResult: { open: false, key: '', serviceName: '', copying: false },
       baseURL: window.location.origin + '/v1',
     };
@@ -22,9 +21,7 @@ const ModelsApp = {
     async load() {
       this.loading = true;
       try {
-        const [keys, providers] = await Promise.all([XApi.listKeys(), XApi.listProviders()]);
-        this.channels = keys || [];
-        this.modelOptions = this.collectModels(providers || []);
+        this.channels = await XApi.listKeys() || [];
       } catch (e) {
         this.toastError(e);
       } finally {
@@ -32,28 +29,14 @@ const ModelsApp = {
       }
     },
 
-    collectModels(providers) {
-      const set = [];
-      const seen = {};
-      (providers || []).forEach(p => {
-        if (p.enabled !== 1) return;
-        (p.models || []).forEach(m => {
-          if (m.enabled !== 1 || !m.modelName) return;
-          const name = m.modelName.trim();
-          if (name && !seen[name]) { seen[name] = true; set.push(name); }
-        });
-      });
-      return set;
-    },
-
     openModal(c) {
       this.modal.saving = false;
       if (c) {
         this.modal.editId = c.id;
-        this.modal.form = { customerName: c.public_model_name, modelName: c.model_name || '', enabled: !!c.enabled, remark: c.remark || '' };
+        this.modal.form = { customerName: c.public_model_name, enabled: !!c.enabled, remark: c.remark || '' };
       } else {
         this.modal.editId = null;
-        this.modal.form = { customerName: '', modelName: '', enabled: true, remark: '' };
+        this.modal.form = { customerName: '', enabled: true, remark: '' };
       }
       this.modal.open = true;
     },
@@ -62,7 +45,7 @@ const ModelsApp = {
     async save() {
       const f = this.modal.form;
       if (!f.customerName) { this.message('请输入客户名', 'warn'); return; }
-      const body = { publicModelName: f.customerName, modelName: f.modelName || '', enabled: f.enabled ? 1 : 0, remark: f.remark || '' };
+      const body = { publicModelName: f.customerName, enabled: f.enabled ? 1 : 0, remark: f.remark || '' };
       if (this.modal.editId) body.id = this.modal.editId;
       this.modal.saving = true;
       try {
@@ -93,7 +76,7 @@ const ModelsApp = {
       const prev = c.enabled;
       c.enabled = evt.target.checked ? 1 : 0;
       try {
-        await XApi.updateKey({ id: c.id, publicModelName: c.public_model_name, modelName: c.model_name || '', enabled: c.enabled, remark: c.remark || '' });
+        await XApi.updateKey({ id: c.id, publicModelName: c.public_model_name, enabled: c.enabled, remark: c.remark || '' });
         this.message(c.enabled ? '已启用' : '已停用');
       } catch (e) {
         c.enabled = prev;
@@ -110,5 +93,6 @@ const ModelsApp = {
     },
     copyKey() { this.copyText(this.keyResult.key, 'Key 已复制'); },
     copyListKey(c, text) { this.copyText(text || c.api_key, 'Key 已复制'); },
+    copyBaseUrl() { this.copyText(this.baseURL, 'BASE URL 已复制'); },
   },
 };

@@ -9,7 +9,7 @@ import lombok.Data;
 /**
  * ModelChannel 客户实体（表 customer，即 API KEY）
  * <p>
- * 每个客户对应一个面向调用方的 API Key，可限定具体模型名（为 null 时表示不限定），
+ * 每个客户对应一个面向调用方的 API Key，
  * 配合渠道模型池实现路由转发与鉴权。
  * </p>
  *
@@ -31,12 +31,6 @@ public class ModelChannel {
      */
     @JsonProperty("public_model_name")
     private String publicModelName;
-
-    /**
-     * 上游真实模型名；为 null 或空字符串时表示不限定模型（全池路由）
-     */
-    @JsonProperty("model_name")
-    private String modelName;
 
     /**
      * 该通道专属的 API Key，对外暴露给调用方使用

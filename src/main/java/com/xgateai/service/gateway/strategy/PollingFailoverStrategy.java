@@ -1,6 +1,5 @@
 package com.xgateai.service.gateway.strategy;
 
-import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.xgateai.constant.CommonConstant;
@@ -27,8 +26,7 @@ import java.util.stream.Collectors;
  * 候选粒度为「渠道下的模型行」（upstream_model），同一渠道下的不同模型彼此独立；
  * 失败次数少的上游优先，失败时自动切换到下一个候选。路由规则：
  * <ol>
- *   <li>Key 限定模型时只允许调用该模型</li>
- *   <li>请求 model=default 且未限定模型时，按全池路由</li>
+ *   <li>请求 model=default 时，按全池路由</li>
  *   <li>否则精确匹配模型行 model_name</li>
  *   <li>候选按 fail_count 升序排列，失败越少越优先（模型行粒度）</li>
  *   <li>渠道被禁用时其下所有模型不参与候选</li>
@@ -56,16 +54,8 @@ public class PollingFailoverStrategy implements UpstreamStrategy {
 
     @Override
     public List<UpstreamRoute> selectCandidates(ModelChannel channel, String requestedModel) {
-        String pinnedModel = StrUtil.blankToDefault(channel.getModelName(), "").trim();
-
-        // 规则1: Key 限定模型时校验请求模型是否匹配
-        if (StrUtil.isNotBlank(pinnedModel) && !pinnedModel.equals(requestedModel)) {
-            throw new BadRequestException(
-                    String.format("该 Key 已限定仅可调用模型: %s，当前请求: %s", pinnedModel, requestedModel));
-        }
-
-        // 规则2: 全池路由
-        boolean poolRouting = StrUtil.isBlank(pinnedModel) && GatewayConstant.MODEL_POOL.equals(requestedModel);
+        // 全池路由：请求 model=default 时路由池内所有启用模型
+        boolean poolRouting = GatewayConstant.MODEL_POOL.equals(requestedModel);
 
         String cacheKey = channel.getId() + ":" + requestedModel;
         List<UpstreamRoute> cached = routeCache.getIfPresent(cacheKey);

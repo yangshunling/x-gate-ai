@@ -4,7 +4,7 @@
 -- 表命名（按「它是什么」命名，与实体类对齐）：
 --   upstream_provider  上游供应商账号（name/base_url/api_key/enabled）
 --   upstream_model     上游供应商下挂载的模型（channel_id 挂接到 upstream_provider，fail_count 在模型行）
---   customer           对外接入凭证（API Key + 路由策略 + 限定模型）
+--   customer           对外接入凭证（API Key + 路由策略）
 --   call_log           调用日志
 -- 历史库（旧三表 upstream_providers/model_channels/call_logs，以及
 -- x_gate_ 前缀四表）由 DatabaseMigrateRunner 在启动时自动 RENAME/迁移
@@ -43,7 +43,6 @@ CREATE TABLE IF NOT EXISTS customer (
     api_key TEXT NOT NULL UNIQUE,
     enabled INTEGER NOT NULL DEFAULT 1,
     strategy TEXT NOT NULL DEFAULT 'ROUND_ROBIN',
-    model_name TEXT,
     remark TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
 );

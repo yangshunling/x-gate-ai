@@ -26,7 +26,12 @@
           <div class="conn-rows">
             <div class="conn-row">
               <div class="cr-k"><span class="n">1</span>BASE URL 网关地址</div>
-              <div class="cr-v">{{ baseURL }}</div>
+              <div class="cr-v">
+                <div class="flex" style="gap:8px;align-items:center">
+                  <span class="mono" style="font-weight:600">{{ baseURL }}</span>
+                  <a class="row-link" style="white-space:nowrap" @click="copyBaseUrl">复制</a>
+                </div>
+              </div>
             </div>
             <div class="conn-row">
               <div class="cr-k"><span class="n">2</span>ACCESS KEY 访问密钥</div>
@@ -34,7 +39,7 @@
             </div>
             <div class="conn-row">
               <div class="cr-k"><span class="n">3</span>MODEL 请求模型</div>
-              <div class="cr-v"><small>请求体 model 必传：default 可填任意模型；限定客户仅限所限模型</small></div>
+              <div class="cr-v"><small>请求体 model 必传：default 走全池路由；填具体模型名则仅路由到提供该模型的渠道</small></div>
             </div>
           </div>
         </div>
@@ -55,14 +60,14 @@
             <table class="tbl tbl-fixed">
               <thead>
                 <tr>
-                  <th style="width:150px">客户名</th><th style="width:200px">限定模型</th><th>专属 Key</th>
+                  <th style="width:150px">客户名</th><th>专属 Key</th>
                   <th>创建时间</th><th style="width:80px">状态</th><th style="width:140px">备注</th><th style="width:140px">操作</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-if="loading"><td colspan="7" class="empty-row"><div class="spinner"></div>&nbsp;加载中…</td></tr>
+                <tr v-if="loading"><td colspan="6" class="empty-row"><div class="spinner"></div>&nbsp;加载中…</td></tr>
                 <tr v-else-if="channels.length === 0">
-                  <td colspan="7" class="empty-row">
+                  <td colspan="6" class="empty-row">
                     <div class="empty-state">
                       <span class="es-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v5h5"/><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M9 13h6M9 17h4"/></svg>
@@ -73,12 +78,6 @@
                 </tr>
                 <tr v-for="c in channels" :key="c.id">
                   <td><span style="color:var(--primary);font-weight:600">{{ c.public_model_name }}</span></td>
-                   <td>
-                     <div class="flex" style="gap:8px;align-items:center">
-                       <span class="mono">{{ c.model_name || 'default' }}</span>
-                        <a class="row-link" style="white-space:nowrap;font-size:13px" @click="copyListKey(c, c.model_name || 'default')">复制</a>
-                     </div>
-                   </td>
                   <td>
                     <div class="flex" style="gap:8px;width:100%">
                       <span class="mono ellip" style="flex:1;min-width:0;display:inline-block;vertical-align:middle" :title="c.api_key">{{ c.api_key }}</span>
@@ -124,16 +123,6 @@
                  placeholder="如：客户A / 张三团队 / 内部测试">
         </div>
         <div class="form-item">
-          <label>限定模型 <span class="form-hint">default 不限制，客户端可请求池内任意模型；选择具体模型则仅允许该模型</span></label>
-          <select class="input" v-model="modal.form.modelName">
-            <option value="">default（不限制，路由池内所有模型）</option>
-            <option v-for="m in modelOptions" :key="m" :value="m">{{ m }}</option>
-          </select>
-          <div v-if="modelOptions.length === 0" style="margin-top:6px;font-size:13px;color:var(--slate-400)">
-            当前尚无启用的模型，请先到「渠道管理」为渠道添加并启用模型。
-          </div>
-        </div>
-        <div class="form-item">
           <label>状态</label>
           <div class="check-cell">
             <label class="checkbox-line">
@@ -147,7 +136,7 @@
         </div>
         <div class="form-item" style="margin-bottom:0">
           <div style="padding:12px 16px;background:var(--slate-50);border:1px solid var(--border);border-radius:var(--r-md);font-size:14px;color:var(--slate-500);line-height:1.7">
-            请求体 <b>model</b> 必传：default 可选任意模型；限定客户仅限所限模型。
+            请求体 <b>model</b> 必传：default 走全池路由；填具体模型名则仅路由到提供该模型的渠道。
           </div>
         </div>
       </div>
@@ -178,7 +167,7 @@
           客户端调用方式：<br>
           <span class="mono">POST {{ baseURL }}/chat/completions</span><br>
           <span class="mono">Authorization: Bearer {{ keyResult.key }}</span><br>
-          <span class="muted">请求体 model 必传：default 可填任意模型；限定客户仅限所限模型。</span>
+          <span class="muted">请求体 model 必传：default 走全池路由；填具体模型名则仅路由到提供该模型的渠道。</span>
         </div>
       </div>
       <div class="modal-foot">

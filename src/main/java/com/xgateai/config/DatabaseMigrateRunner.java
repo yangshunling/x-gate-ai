@@ -222,8 +222,8 @@ public class DatabaseMigrateRunner implements ApplicationRunner {
             return;
         }
         jdbcTemplate.update("INSERT INTO " + T_CUSTOMER
-                + " (id, public_model_name, api_key, enabled, strategy, model_name, remark, created_at) "
-                + "SELECT id, public_model_name, api_key, enabled, strategy, model_name, remark, "
+                + " (id, public_model_name, api_key, enabled, strategy, remark, created_at) "
+                + "SELECT id, public_model_name, api_key, enabled, strategy, remark, "
                 + "COALESCE(created_at, datetime('now', 'localtime')) FROM " + T_OLD_CHANNEL);
     }
 

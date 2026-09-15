@@ -23,7 +23,6 @@ public final class GatewayLog {
     public static final String MDC_CLIENT_IP = "clientIp";
     public static final String MDC_CHANNEL_ID = "channelId";
     public static final String MDC_CHANNEL_NAME = "channelName";
-    public static final String MDC_CHANNEL_MODEL = "channelModel";
     public static final String MDC_CHANNEL_KEY = "channelKey";
 
     // ==================== MDC 操作 ====================
@@ -49,10 +48,6 @@ public final class GatewayLog {
 
     public static void putChannelName(String value) {
         MDC.put(MDC_CHANNEL_NAME, StrUtil.blankToDefault(value, "-"));
-    }
-
-    public static void putChannelModel(String value) {
-        MDC.put(MDC_CHANNEL_MODEL, StrUtil.blankToDefault(value, "-"));
     }
 
     public static void putChannelKey(String value) {

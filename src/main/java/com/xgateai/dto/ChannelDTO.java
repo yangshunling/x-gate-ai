@@ -28,11 +28,6 @@ public class ChannelDTO {
     private String publicModelName;
 
     /**
-     * 限定模型名；为空时表示不限定模型（走全池路由）
-     */
-    private String modelName;
-
-    /**
      * 是否启用；为 null 时默认启用（值 1）
      */
     private Integer enabled;
