@@ -365,6 +365,7 @@ public class GatewayLogger {
         rows.add(new Object[]{"链路标识", StrUtil.blankToDefault(tid, "-"), null});
         rows.add(new Object[]{"用户名称", customer + " (" + fullKey + ")", null});
         rows.add(new Object[]{"请求接口", "POST " + path + "  ✦  " + mode, null});
+        rows.add(new Object[]{"请求模型", StrUtil.blankToDefault(requestedModel, "-"), null});
         if (inTokens != null || outTokens != null) {
             int in = inTokens == null ? 0 : inTokens;
             int out = outTokens == null ? 0 : outTokens;

@@ -24,6 +24,8 @@ import com.xgateai.mapper.IUpstreamProviderDao;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.net.Inet4Address;
 import java.net.InetAddress;
@@ -177,7 +179,7 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         }
 
         syncModels(provider.getId(), nameMap);
-        routeCache.invalidateAll();
+        invalidateRouteCacheAfterCommit();
     }
 
     /**
@@ -227,7 +229,7 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         upstreamModelDao.delete(
                 new LambdaQueryWrapper<UpstreamModel>().eq(UpstreamModel::getChannelId, id));
         log.info("删除渠道及其模型: {}", id);
-        routeCache.invalidateAll();
+        invalidateRouteCacheAfterCommit();
     }
 
     @Override
@@ -458,6 +460,24 @@ public class AdminManagementServiceImpl implements AdminManagementService {
     }
 
     // ==================== 私有辅助方法 ====================
+
+    /**
+     * 事务提交后再清空 routeCache，避免「清缓存→并发请求用未提交旧数据重建缓存」的竞态。
+     * 非事务上下文（如 updateConcurrencyLimit）直接同步清空。
+     */
+    private void invalidateRouteCacheAfterCommit() {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(
+                    new TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            routeCache.invalidateAll();
+                        }
+                    });
+        } else {
+            routeCache.invalidateAll();
+        }
+    }
 
     private Map<String, Object> toModelMap(UpstreamModel model) {
         Map<String, Object> map = new LinkedHashMap<>();

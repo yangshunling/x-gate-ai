@@ -127,9 +127,16 @@ public class GatewayController {
     @GetMapping("/models")
     public ResponseEntity<String> listModels(HttpServletRequest request) {
         ModelChannel channel = resolveChannel(request);
+        if (channel == null) {
+            return buildErrorResponse(400, "invalid_request_error", "无法识别调用方对客服务");
+        }
+
+        JSONArray data = new JSONArray();
+        data.addAll(gatewayService.listAvailableModels());
+
         JSONObject result = new JSONObject();
         result.put("object", "list");
-        result.put("data", new JSONArray());
+        result.put("data", data);
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(result.toJSONString());

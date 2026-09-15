@@ -3,9 +3,11 @@ package com.xgateai.service.gateway;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.xgateai.entity.CallLog;
 import com.xgateai.entity.ModelChannel;
 import com.xgateai.entity.UpstreamModel;
+import com.xgateai.entity.UpstreamProvider;
 import com.xgateai.entity.UpstreamRoute;
 import com.xgateai.constant.CommonConstant;
 import com.xgateai.constant.GatewayConstant;
@@ -17,6 +19,7 @@ import com.xgateai.logging.GatewayLog;
 import com.xgateai.logging.GatewayLogger;
 import com.xgateai.mapper.ICallLogDao;
 import com.xgateai.mapper.IUpstreamModelDao;
+import com.xgateai.mapper.IUpstreamProviderDao;
 import com.xgateai.service.gateway.strategy.UpstreamStrategy;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -25,15 +28,23 @@ import org.slf4j.MDC;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 /**
  * GatewayService 网关核心服务
@@ -54,6 +65,7 @@ public class GatewayService {
     private final GatewayLogger gatewayLogger;
     private final ICallLogDao callLogDao;
     private final IUpstreamModelDao upstreamModelDao;
+    private final IUpstreamProviderDao upstreamProviderDao;
     private final InflightRegistry inflightRegistry;
     private ExecutorService logExecutor;
 
@@ -62,12 +74,14 @@ public class GatewayService {
                           GatewayLogger gatewayLogger,
                           ICallLogDao callLogDao,
                           IUpstreamModelDao upstreamModelDao,
+                          IUpstreamProviderDao upstreamProviderDao,
                           InflightRegistry inflightRegistry) {
         this.proxyAdapter = proxyAdapter;
         this.upstreamStrategy = upstreamStrategy;
         this.gatewayLogger = gatewayLogger;
         this.callLogDao = callLogDao;
         this.upstreamModelDao = upstreamModelDao;
+        this.upstreamProviderDao = upstreamProviderDao;
         this.inflightRegistry = inflightRegistry;
     }
 
@@ -152,6 +166,78 @@ public class GatewayService {
         return executeWithFailover(channel, requestedModel, rawBody, false, candidates,
                 (route, body) -> proxyAdapter.embeddings(route.getProvider(), body),
                 (route, body, latencyMs, usage) -> recordCallLog(channel, route, body, usage, latencyMs, 200));
+    }
+
+    // ==================== 模型列表 ====================
+
+    /**
+     * 查询当前池内所有启用的模型列表（OpenAI 兼容格式）
+     * <p>
+     * 仅返回启用渠道下的启用模型，按模型名去重。
+     * </p>
+     *
+     * @return 模型信息列表，每个元素包含 id/object/created/owned_by
+     */
+    public List<JSONObject> listAvailableModels() {
+        List<UpstreamModel> models = upstreamModelDao.selectList(
+                new LambdaQueryWrapper<UpstreamModel>()
+                        .eq(UpstreamModel::getEnabled, CommonConstant.ENABLED)
+                        .orderByAsc(UpstreamModel::getModelName));
+        if (models.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        Map<Long, UpstreamProvider> providerMap = loadEnabledProviders();
+        if (providerMap.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // 按模型名去重，组装 OpenAI 兼容格式
+        LinkedHashMap<String, JSONObject> dedup = new LinkedHashMap<>();
+        for (UpstreamModel model : models) {
+            UpstreamProvider provider = providerMap.get(model.getChannelId());
+            if (provider == null) {
+                continue;
+            }
+            String modelName = model.getModelName();
+            if (dedup.containsKey(modelName)) {
+                continue;
+            }
+            JSONObject entry = new JSONObject();
+            entry.put("id", modelName);
+            entry.put("object", "model");
+            entry.put("created", parseCreatedToEpoch(model.getCreatedAt()));
+            entry.put("owned_by", provider.getName());
+            dedup.put(modelName, entry);
+        }
+        return new ArrayList<>(dedup.values());
+    }
+
+    /**
+     * 装载所有启用的渠道，以 id 为键
+     */
+    private Map<Long, UpstreamProvider> loadEnabledProviders() {
+        List<UpstreamProvider> providers = upstreamProviderDao.selectList(
+                new LambdaQueryWrapper<UpstreamProvider>()
+                        .eq(UpstreamProvider::getEnabled, CommonConstant.ENABLED));
+        return providers.stream()
+                .collect(Collectors.toMap(UpstreamProvider::getId, p -> p, (a, b) -> a, HashMap::new));
+    }
+
+    /**
+     * 将 createdAt 字符串解析为 epoch 秒，解析失败返回 0
+     */
+    private long parseCreatedToEpoch(String createdAt) {
+        if (StrUtil.isBlank(createdAt)) {
+            return 0;
+        }
+        try {
+            return LocalDateTime.parse(createdAt,
+                    DateTimeFormatter.ofPattern(CommonConstant.DATETIME_FORMAT))
+                    .toEpochSecond(ZoneId.systemDefault());
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     // ==================== 私有辅助方法 ====================
