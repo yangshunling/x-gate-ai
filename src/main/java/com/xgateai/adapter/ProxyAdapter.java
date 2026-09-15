@@ -7,6 +7,7 @@ import com.alibaba.fastjson2.JSONObject;
 import com.xgateai.component.EncryptUtil;
 import com.xgateai.entity.UpstreamProvider;
 import com.xgateai.exception.UpstreamException;
+import com.xgateai.exception.ClientDisconnectedException;
 import com.xgateai.logging.GatewayLogger;
 import com.xgateai.constant.GatewayConstant;
 import lombok.extern.slf4j.Slf4j;
@@ -216,8 +217,13 @@ public class ProxyAdapter {
                 while ((n = in.read(buf)) != -1) {
                     if (n > 0) {
                         byte[] chunk = java.util.Arrays.copyOf(buf, n);
-                        onChunk.accept(chunk);
-                        captureUsage(result, chunk);
+                        try {
+                            onChunk.accept(chunk);
+                            captureUsage(result, chunk);
+                        } catch (ClientDisconnectedException e) {
+                            log.warn("流式写出中断, 客户端可能已断开连接, 上游: {}", provider.getName());
+                            break;
+                        }
                     }
                 }
                 result.complete = true;

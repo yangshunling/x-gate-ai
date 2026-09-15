@@ -7,6 +7,7 @@ import com.alibaba.fastjson2.JSONObject;
 import com.xgateai.entity.ModelChannel;
 import com.xgateai.constant.GatewayConstant;
 import com.xgateai.exception.BadRequestException;
+import com.xgateai.exception.ClientDisconnectedException;
 import com.xgateai.service.gateway.GatewayService;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletRequest;
@@ -70,6 +71,8 @@ public class GatewayController {
                 initSseResponse(response);
                 try {
                     gatewayService.chatStream(channel, rawBody, chunk -> writeBytes(out, chunk));
+                } catch (ClientDisconnectedException e) {
+                    log.warn("SSE 流式写出中断, 客户端已断开连接, model: {}", channel.getPublicModelName());
                 } catch (Exception ex) {
                     log.error("流式调用上游全部失败, model: {}", channel.getPublicModelName(), ex);
                     writeSseError(out, ex.getMessage());
@@ -151,8 +154,8 @@ public class GatewayController {
         try {
             out.write(bytes);
             out.flush();
-        } catch (IOException e) {
-            log.error("SSE 写出失败", e);
+        } catch (Exception e) {
+            throw new ClientDisconnectedException("SSE 写出失败, 客户端可能已断开连接", e);
         }
     }
 
@@ -161,8 +164,8 @@ public class GatewayController {
             out.write(("data: " + buildErrorJson("server_error", message) + "\n\n")
                     .getBytes(StandardCharsets.UTF_8));
             out.flush();
-        } catch (IOException e) {
-            log.error("写出 SSE 错误事件失败", e);
+        } catch (Exception e) {
+            log.warn("写出 SSE 错误事件失败, 客户端可能已断开连接", e);
         }
     }
 
@@ -176,7 +179,7 @@ public class GatewayController {
             }
             out.write(buildErrorJson(type, message).getBytes(StandardCharsets.UTF_8));
             out.flush();
-        } catch (IOException e) {
+        } catch (Exception e) {
             log.error("写出错误响应失败", e);
         }
     }

@@ -7,8 +7,10 @@ import com.xgateai.entity.CallLog;
 import com.xgateai.entity.ModelChannel;
 import com.xgateai.entity.UpstreamModel;
 import com.xgateai.entity.UpstreamRoute;
+import com.xgateai.constant.CommonConstant;
 import com.xgateai.constant.GatewayConstant;
 import com.xgateai.exception.BadRequestException;
+import com.xgateai.exception.UpstreamException;
 import com.xgateai.adapter.ProxyAdapter;
 import com.xgateai.component.InflightRegistry;
 import com.xgateai.logging.GatewayLog;
@@ -207,6 +209,9 @@ public class GatewayService {
         List<String> chain = new ArrayList<>();
         long totalStart = System.currentTimeMillis();
         String lastError = "";
+        // 最后一个被尝试的候选及其上游状态码，用于全链路失败时落库
+        UpstreamRoute lastRoute = null;
+        int lastStatus = CommonConstant.HTTP_INTERNAL_SERVER_ERROR;
         boolean anyAttempted = false;
 
         for (int i = 0; i < candidates.size(); i++) {
@@ -221,6 +226,7 @@ public class GatewayService {
                 continue;
             }
             anyAttempted = true;
+            lastRoute = route;
             long start = System.currentTimeMillis();
 
             try {
@@ -237,6 +243,7 @@ public class GatewayService {
                 return result;
             } catch (Exception e) {
                 lastError = resolveMessage(e);
+                lastStatus = resolveUpstreamStatus(e);
                 chain.add(gatewayLogger.buildChainEntry(route, "FAIL", lastError));
                 bumpFailCount(route);
             } finally {
@@ -252,6 +259,7 @@ public class GatewayService {
             if (route != null) {
                 UpstreamModel model = route.getModel();
                 inflightRegistry.forceAcquire(model.getId());
+                lastRoute = route;
                 long start = System.currentTimeMillis();
                 try {
                     String upstreamBody = rebindUpstreamModel(rawBody, route.getModelName());
@@ -266,6 +274,7 @@ public class GatewayService {
                     return result;
                 } catch (Exception e) {
                     lastError = resolveMessage(e);
+                    lastStatus = resolveUpstreamStatus(e);
                     chain.add(gatewayLogger.buildChainEntry(route, "FAIL", lastError));
                     bumpFailCount(route);
                 } finally {
@@ -274,6 +283,11 @@ public class GatewayService {
             }
         }
 
+        // 全链路失败：以最后一个候选的上游状态码落库，供日志查询与仪表盘失败统计
+        if (lastRoute != null) {
+            recordCallLog(channel, lastRoute, rawBody, null,
+                    System.currentTimeMillis() - totalStart, lastStatus);
+        }
         logCall("chat", channel, requestedModel, rawBody, stream,
                 "ALL_FAILED", null, System.currentTimeMillis() - totalStart, null, chain);
         throw new BadRequestException("所有上游调用失败: " + lastError);
@@ -295,6 +309,9 @@ public class GatewayService {
         List<String> chain = new ArrayList<>();
         long totalStart = System.currentTimeMillis();
         String lastError = "";
+        // 最后一个被尝试的候选及其上游状态码，用于全链路失败时落库
+        UpstreamRoute lastRoute = null;
+        int lastStatus = CommonConstant.HTTP_INTERNAL_SERVER_ERROR;
         boolean anyAttempted = false;
 
         for (int i = 0; i < candidates.size(); i++) {
@@ -309,6 +326,7 @@ public class GatewayService {
                 continue;
             }
             anyAttempted = true;
+            lastRoute = route;
             long start = System.currentTimeMillis();
 
             try {
@@ -328,6 +346,7 @@ public class GatewayService {
                 return;
             } catch (Exception e) {
                 lastError = resolveMessage(e);
+                lastStatus = resolveUpstreamStatus(e);
                 chain.add(gatewayLogger.buildChainEntry(route, "FAIL", lastError));
                 bumpFailCount(route);
             } finally {
@@ -343,6 +362,7 @@ public class GatewayService {
             if (route != null) {
                 UpstreamModel model = route.getModel();
                 inflightRegistry.forceAcquire(model.getId());
+                lastRoute = route;
                 long start = System.currentTimeMillis();
                 try {
                     String upstreamBody = rebindUpstreamModel(rawBody, route.getModelName());
@@ -360,6 +380,7 @@ public class GatewayService {
                     return;
                 } catch (Exception e) {
                     lastError = resolveMessage(e);
+                    lastStatus = resolveUpstreamStatus(e);
                     chain.add(gatewayLogger.buildChainEntry(route, "FAIL", lastError));
                     bumpFailCount(route);
                 } finally {
@@ -368,6 +389,11 @@ public class GatewayService {
             }
         }
 
+        // 全链路失败：以最后一个候选的上游状态码落库，供日志查询与仪表盘失败统计
+        if (lastRoute != null) {
+            recordCallLog(channel, lastRoute, rawBody, null,
+                    System.currentTimeMillis() - totalStart, lastStatus);
+        }
         logCall("chat", channel, requestedModel, rawBody, true,
                 "ALL_FAILED", null, System.currentTimeMillis() - totalStart, null, chain);
         throw new BadRequestException("所有上游流式调用失败: " + lastError);
@@ -484,6 +510,23 @@ public class GatewayService {
         }
         String message = cause.getMessage();
         return StrUtil.isBlank(message) ? cause.getClass().getSimpleName() : message;
+    }
+
+    /**
+     * 解析异常链最深处的上游 HTTP 状态码，非上游异常按 500 处理
+     *
+     * @param throwable 上游调用异常
+     * @return 上游返回的状态码，或 500
+     */
+    private int resolveUpstreamStatus(Throwable throwable) {
+        Throwable cause = throwable;
+        while (cause.getCause() != null && cause.getCause() != cause) {
+            cause = cause.getCause();
+        }
+        if (cause instanceof UpstreamException upstreamException) {
+            return upstreamException.getUpstreamHttpStatus();
+        }
+        return CommonConstant.HTTP_INTERNAL_SERVER_ERROR;
     }
 
     /** 上游非流式调用函数式接口 */

@@ -47,7 +47,7 @@ public class GatewayConstant {
     public static final String PATH_MODELS = "/models";
 
     /**
-     * 全池路由通配模型名：当客户端请求 model=default 时走全池匹配逻辑
+     * 自动路由通配模型名：当客户端请求 model=auto 时走全池匹配逻辑
      */
-    public static final String MODEL_POOL = "default";
+    public static final String MODEL_POOL = "auto";
 }

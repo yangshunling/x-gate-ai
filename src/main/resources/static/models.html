@@ -39,7 +39,7 @@
             </div>
             <div class="conn-row">
               <div class="cr-k"><span class="n">3</span>MODEL 请求模型</div>
-              <div class="cr-v"><small>请求体 model 必传：default 走全池路由；填具体模型名则仅路由到提供该模型的渠道</small></div>
+              <div class="cr-v"><small>请求体 model 必传：auto 走全池自动路由；填具体模型名则优先路由到提供该模型的渠道，全部失败后由池内其他模型兜底</small></div>
             </div>
           </div>
         </div>
@@ -136,7 +136,7 @@
         </div>
         <div class="form-item" style="margin-bottom:0">
           <div style="padding:12px 16px;background:var(--slate-50);border:1px solid var(--border);border-radius:var(--r-md);font-size:14px;color:var(--slate-500);line-height:1.7">
-            请求体 <b>model</b> 必传：default 走全池路由；填具体模型名则仅路由到提供该模型的渠道。
+            请求体 <b>model</b> 必传：auto 走全池自动路由；填具体模型名则优先路由到提供该模型的渠道，全部失败后由池内其他模型兜底。
           </div>
         </div>
       </div>
@@ -167,7 +167,7 @@
           客户端调用方式：<br>
           <span class="mono">POST {{ baseURL }}/chat/completions</span><br>
           <span class="mono">Authorization: Bearer {{ keyResult.key }}</span><br>
-          <span class="muted">请求体 model 必传：default 走全池路由；填具体模型名则仅路由到提供该模型的渠道。</span>
+          <span class="muted">请求体 model 必传：auto 走全池自动路由；填具体模型名则优先路由到提供该模型的渠道，全部失败后由池内其他模型兜底。</span>
         </div>
       </div>
       <div class="modal-foot">
