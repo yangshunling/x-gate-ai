@@ -117,26 +117,6 @@ html[data-theme="inkAlgorithm"] {
 }
 
 /* ================================================================
-   6. 深海星港 — Dark
-   ================================================================ */
-html[data-theme="abyssStarport"] {
-  --bg-base: #071b24; --bg-layer1: #0c2732; --bg-layer2: #123542;
-  --accent: #28d7d0;
-  --text: #e7fbff; --text-secondary: #9bc9d2; --text-muted: #5a7e87;
-  --border: rgba(58,231,224,.18); --border-hover: rgba(58,231,224,.34);
-  --sidebar-bg: linear-gradient(180deg, rgba(3,20,29,.82), rgba(5,37,49,.6));
-  --surface-bg: linear-gradient(145deg, rgba(4,24,34,calc(.2 * var(--glass-alpha))), rgba(8,51,62,calc(.1 * var(--glass-alpha))));
-  --surface-border: rgba(58,231,224,.34); --surface-radius: 8px;
-  --surface-filter: blur(20px) saturate(135%);
-  --surface-shadow: 0 18px 44px rgba(0,11,17,.5), 0 0 24px rgba(40,215,208,.08), inset 0 1px rgba(157,255,250,.08);
-  --wallpaper: radial-gradient(ellipse 55% 45% at 77% 50%, rgba(40,200,200,.06), transparent 70%),
-               linear-gradient(90deg, rgba(3,15,22,.88) 0%, rgba(3,15,22,.5) 42%, transparent 75%),
-               url("../img/abyss-starport.webp") 77% 50% / cover no-repeat;
-  --green: #34d399; --amber: #fbbf24; --red: #f87171; --cyan: #67e8f9;
-  --logo-gradient: linear-gradient(135deg, #28d7d0, #178b8e);
-}
-
-/* ================================================================
    7. 深海鲸歌 — Dark
    ================================================================ */
 html[data-theme="deepseaWhale"] {
@@ -162,7 +142,7 @@ html[data-theme="deepseaWhale"] {
 html[data-theme="maidAtelier"] {
   --bg-base: #dce6f5; --bg-layer1: #f8faf5; --bg-layer2: #e0e8f6;
   --accent: #526aa8;
-  --text: #172347; --text-secondary: #4d5d7f; --text-muted: #8a94aa;
+  --text: #172347; --text-secondary: #4d5d7f; --text-muted: #5f6f94;
   --border: rgba(71,91,145,.18); --border-hover: rgba(197,164,104,.5);
   --sidebar-bg: linear-gradient(180deg, #10204d 0%, #0a173b 100%);
   --surface-bg: linear-gradient(145deg, rgba(248,250,255,calc(.4 * var(--glass-alpha))), rgba(235,240,250,calc(.28 * var(--glass-alpha))));
@@ -176,22 +156,20 @@ html[data-theme="maidAtelier"] {
 }
 
 /* ================================================================
-   9. 虎鲸链路 — Light (orca-link)
+   9. 经典后台 — Light (classic)
    ================================================================ */
-html[data-theme="orcaLink"] {
-  --bg-base: #f6f1e7; --bg-layer1: #fdfaf4; --bg-layer2: #ece8de;
-  --accent: #4b483f;
-  --text: #11151b; --text-secondary: #343b47; --text-muted: #778399;
-  --border: rgba(43,55,72,.14); --border-hover: rgba(43,55,72,.25);
-  --sidebar-bg: linear-gradient(180deg, rgba(250,247,241,.92), rgba(240,236,229,.85));
-  --surface-bg: linear-gradient(145deg, rgba(255,252,246,calc(.5 * var(--glass-alpha))), rgba(247,244,238,calc(.38 * var(--glass-alpha))));
-  --surface-border: rgba(43,55,72,.16); --surface-radius: 0px;
-  --surface-filter: blur(14px) saturate(108%);
-  --surface-shadow: 0 18px 55px rgba(27,39,58,.12), 0 2px 5px rgba(27,39,58,.1);
-  --wallpaper: linear-gradient(90deg, rgba(246,241,231,.5) 0%, rgba(246,241,231,.2) 50%, transparent 80%),
-               url("../img/orca-light-hero.webp") center / cover no-repeat;
-  --green: #168aa6; --amber: #b8780c; --red: #c74440; --cyan: #20c7e8;
-  --logo-gradient: linear-gradient(135deg, #4b483f, #11151b);
+html[data-theme="classic"] {
+  --bg-base: #f0f2f5; --bg-layer1: #ffffff; --bg-layer2: #f8fafc;
+  --accent: #2563eb;
+  --text: #1e293b; --text-secondary: #475569; --text-muted: #64748b;
+  --border: rgba(15,23,42,.08); --border-hover: rgba(15,23,42,.15);
+  --sidebar-bg: #ffffff;
+  --surface-bg: #ffffff; --surface-border: rgba(15,23,42,.08); --surface-radius: 6px;
+  --surface-filter: none;
+  --surface-shadow: 0 1px 3px rgba(15,23,42,.06), 0 1px 2px rgba(15,23,42,.04);
+  --wallpaper: #f0f2f5;
+  --green: #16a34a; --amber: #d97706; --red: #dc2626; --cyan: #0891b2;
+  --logo-gradient: linear-gradient(135deg, #2563eb, #1d4ed8);
 }
 
 /* ================================================================
@@ -269,6 +247,14 @@ html[data-theme="maidAtelier"] .menu-item.active .nav-ico {
 }
 html[data-theme="maidAtelier"] .brand-name { color: #f3e3c0; }
 html[data-theme="maidAtelier"] .brand-name small { color: #b5c1dd; }
+html[data-theme="maidAtelier"] .brand {
+  background: rgba(255, 252, 243, .06);
+  border-color: rgba(197, 164, 104, .22);
+  box-shadow: 0 8px 24px rgba(5, 12, 32, .4);
+}
+html[data-theme="maidAtelier"] .brand-mark {
+  box-shadow: 0 8px 20px rgba(82, 106, 168, .28);
+}
 
 /* —— maid 角色立绘 —— */
 .maid-char { display: none; }

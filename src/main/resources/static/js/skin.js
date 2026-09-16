@@ -12,13 +12,12 @@
  * swatch 值与 themes.css 中 --logo-gradient 对应
  */
 const SKIN_THEMES = [
-  { key: 'maidAtelier',   name: '女仆工坊',  scheme: '浅色', swatch: 'linear-gradient(135deg, #526aa8, #c5a468)' },
-  { key: 'deepseekChan',  name: '深海回响',  scheme: '深色', swatch: 'linear-gradient(135deg, #4d9fff, #0b1425)' },
-  { key: 'cloudLab',      name: '云海实验室', scheme: '浅色', swatch: 'linear-gradient(135deg, #5e7ce2, #c8e6ff)' },
-  { key: 'inkAlgorithm', name: '山海算境',  scheme: '浅色', swatch: 'linear-gradient(135deg, #b13a34, #f2f0ea)' },
-  { key: 'abyssStarport', name: '深海星港',  scheme: '深色', swatch: 'linear-gradient(135deg, #28d7d0, #071b24)' },
-  { key: 'deepseaWhale',  name: '深海鲸歌',  scheme: '深色', swatch: 'linear-gradient(135deg, #55bdf2, #082039)' },
-  { key: 'orcaLink',      name: '虎鲸链路',  scheme: '浅色', swatch: 'linear-gradient(135deg, #4b483f, #20c7e8)' },
+  { key: 'classic',       name: '经典后台',  scheme: '浅色', swatch: 'linear-gradient(135deg, #2563eb, #1d4ed8)', wallpaper: 'url("preview/classic.png") center / cover no-repeat', sidebar: '#ffffff' },
+  { key: 'maidAtelier',   name: '女仆工坊',  scheme: '浅色', swatch: 'linear-gradient(135deg, #526aa8, #c5a468)', wallpaper: 'url("preview/maidAtelier.png") center / cover no-repeat', sidebar: '#10204d' },
+  { key: 'deepseekChan',  name: '深海回响',  scheme: '深色', swatch: 'linear-gradient(135deg, #4d9fff, #0b1425)', wallpaper: 'url("preview/deepseekChan.png") center / cover no-repeat', sidebar: '#0b1425' },
+  { key: 'cloudLab',      name: '云海实验室', scheme: '浅色', swatch: 'linear-gradient(135deg, #5e7ce2, #c8e6ff)', wallpaper: 'url("preview/cloudLab.png") center / cover no-repeat', sidebar: '#e8f2fb' },
+  { key: 'inkAlgorithm', name: '山海算境',  scheme: '浅色', swatch: 'linear-gradient(135deg, #b13a34, #f2f0ea)', wallpaper: 'url("preview/inkAlgorithm.png") center / cover no-repeat', sidebar: '#f7f3e8' },
+  { key: 'deepseaWhale',  name: '深海鲸歌',  scheme: '深色', swatch: 'linear-gradient(135deg, #55bdf2, #082039)', wallpaper: 'url("preview/deepseaWhale.png") center / cover no-repeat', sidebar: '#0d2c4c' },
 ];
 
 /**
@@ -26,15 +25,15 @@ const SKIN_THEMES = [
  * @namespace
  */
 const SkinManager = {
-  /** 当前皮肤 key（默认 maidAtelier） */
-  current: 'maidAtelier',
+  /** 当前皮肤 key（默认 classic） */
+  current: 'classic',
 
   /** localStorage 键名 */
   STORAGE_KEY: 'x-gate-skin',
 
   /** 初始化：读取已保存皮肤并应用 */
   init() {
-    this.current = localStorage.getItem(this.STORAGE_KEY) || 'maidAtelier';
+    this.current = localStorage.getItem(this.STORAGE_KEY) || 'classic';
     this.apply(this.current);
   },
 
@@ -99,7 +98,8 @@ const SkinSwitcher = {
                  class="skin-chip" :class="{ active: t.key === current }"
                  :title="t.name + ' · ' + t.scheme"
                  @click="select(t.key)">
-              <div class="skin-chip-preview" :style="{ background: t.swatch }">
+              <div class="skin-chip-preview" :style="{ background: t.wallpaper }">
+                <div class="sp-side" :style="{ background: t.sidebar }"></div>
                 <svg v-if="t.key === current" class="skin-chip-check" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
               </div>
               <div class="skin-chip-text">

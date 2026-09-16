@@ -546,11 +546,11 @@ textarea.input { height: auto; padding: 12px 14px; resize: vertical; line-height
 .skin-chip:hover { background: var(--accent-soft); }
 .skin-chip.active { background: var(--accent-tint); border-color: var(--surface-border); }
 .skin-chip-preview {
-  height: 44px; border-radius: var(--r-sm);
-  display: flex; align-items: center; justify-content: center;
-  position: relative; overflow: hidden;
+  height: 64px; border-radius: var(--r-sm);
+  overflow: hidden; position: relative;
 }
-.skin-chip-check { filter: drop-shadow(0 1px 2px rgba(0,0,0,.4)); }
+.sp-side { position: absolute; left: 0; top: 0; bottom: 0; width: 28%; opacity: .8; }
+.skin-chip-check { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); filter: drop-shadow(0 1px 3px rgba(0,0,0,.6)); z-index: 2; }
 .skin-chip-text { display: flex; align-items: baseline; gap: 6px; padding: 0 2px; }
 .skin-chip-name { font-size: 13px; font-weight: 500; color: var(--text); }
 .skin-chip-scheme { font-size: 10px; color: var(--text-muted); }

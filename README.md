@@ -1,219 +1,245 @@
-# X-Gate-AI · 统一大模型网关
+<div align="center">
 
-[![Java](https://img.shields.io/badge/Java-17-007396)](https://www.oracle.com/java/technologies/downloads/)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.4-6DB33F)](https://spring.io/projects/spring-boot)
-[![MyBatis-Plus](https://img.shields.io/badge/MyBatis--Plus-3.5.11-0EA5E9)](https://baomidou.com/)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
+# X-Gate-AI
 
-> 面向 **OpenAI 兼容协议**的统一模型网关：把 DeepSeek、通义千问、OpenAI、vLLM 本地推理等零散的上游大模型服务收拢到一个固定 API 地址背后，通过 Web 控制台**动态调度、免重启切换**。
+**统一大模型网关 · 一个地址接入所有模型**
 
-- 对外只暴露一套 **OpenAI 兼容 API**，工具 / 业务系统只需配置一个地址
-- 上游的 URL、Key、模型名全部可在控制台动态维护，实时生效
-- Java 服务与 Web 控制台**合并为单个可执行 jar**，开箱即用
+<p>
+<a href="https://www.oracle.com/java/technologies/downloads/"><img src="https://img.shields.io/badge/Java-17-007396?style=flat-square&logo=openjdk&logoColor=white" alt="Java 17"></a>
+<a href="https://spring.io/projects/spring-boot"><img src="https://img.shields.io/badge/Spring%20Boot-3.4.4-6DB33F?style=flat-square&logo=springboot&logoColor=white" alt="Spring Boot 3.4.4"></a>
+<a href="https://baomidou.com/"><img src="https://img.shields.io/badge/MyBatis--Plus-3.5.11-0EA5E9?style=flat-square" alt="MyBatis-Plus 3.5.11"></a>
+<a href="https://www.sqlite.org/"><img src="https://img.shields.io/badge/SQLite-3.46-003B57?style=flat-square&logo=sqlite&logoColor=white" alt="SQLite 3.46"></a>
+<a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue?style=flat-square" alt="License Apache 2.0"></a>
+</p>
+
+面向 **OpenAI 兼容协议** 的统一模型网关：将 DeepSeek、通义千问、OpenAI、vLLM 本地推理等上游大模型服务收拢到一个固定 API 地址，通过 Web 控制台动态调度、免重启切换。
+
+<p>
+<a href="#-为什么选择-x-gate-ai"><kbd>为什么选择</kbd></a>
+<a href="#-效果预览"><kbd>效果预览</kbd></a>
+<a href="#-支持范围"><kbd>支持范围</kbd></a>
+<a href="#-快速开始"><kbd>快速开始</kbd></a>
+<a href="#-部署与数据"><kbd>部署与数据</kbd></a>
+<a href="#-web-控制台"><kbd>Web 控制台</kbd></a>
+</p>
+
+</div>
 
 ---
 
-## 目录
+## 💡 为什么选择 X-Gate-AI
 
-- [核心特性](#核心特性)
-- [架构概览](#架构概览)
-- [技术栈](#技术栈)
-- [快速开始](#快速开始)
-- [配置说明](#配置说明)
-- [API 使用示例](#api-使用示例)
-- [Web 控制台](#web-控制台)
-- [数据存储](#数据存储)
-- [项目结构](#项目结构)
-- [License](#license)
+<blockquote style="background:#ddf4ff;border-left:4px solid #0969da;border-radius:8px;padding:12px 16px;color:#1f2328">
+💡 <b style="color:#0969da">应用只需配置一个地址</b><br>
+服务商、API Key、模型名与路由策略，全部在控制台里完成。
+</blockquote>
+
+<table width="100%" style="width:100%">
+<tr>
+<td width="50%" valign="top">
+<b>🔌 统一入口，保留原生协议</b><br>
+客户端继续使用 OpenAI 兼容接口，OpenAI SDK、Cherry Studio、Dify 及各类 Agent 框架可直接接入，无需改造代码
+</td>
+<td width="50%" valign="top">
+<b>🔄 多上游调度与故障转移</b><br>
+一个模型通道可绑定多个上游，按失败计数排序轮询调度；连接失败自动切换下一个可用上游，全部失败才返回错误
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+<b>⚡ 零重启热切换</b><br>
+新增 / 编辑 / 启停上游、调整通道绑定均在控制台完成，即时生效
+</td>
+<td width="50%" valign="top">
+<b>📊 全链路可观测</b><br>
+调用日志、Token 用量、延迟与 HTTP 状态一目了然，日志按天滚动自动清理
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+<b>🔐 轻量自持，开箱即用</b><br>
+服务与控制台合并为单个 JAR；SQLite 单文件数据库无外部依赖，首次启动自动建库建表；上游 Key 加密存储
+</td>
+<td width="50%" valign="top">
+<b>🎨 多主题控制台</b><br>
+内置 6 套皮肤一键切换（含深色主题），支持角色立绘与玻璃浓度调节
+</td>
+</tr>
+</table>
 
 ---
 
-## 核心特性
+## 🖼️ 效果预览
 
-- **统一出口**：对外仅暴露 `/v1/chat/completions`、`/v1/embeddings`、`/v1/models`，协议与 OpenAI 完全兼容，OpenAI SDK、Cherry Studio、Dify、各类 Agent 框架可直接接入
-- **流式透传**：`chat/completions` 经 OkHttp 读取上游 SSE（`text/event-stream`）字节后原样写回，非流式则原样返回完整 JSON
-- **通道与多上游**：一个对外模型名（通道）可绑定多个上游服务，按排序轮询调度
-- **故障转移**：上游连接失败 / 非 2xx 自动切换到下一个可用上游重试，全部失败才返回错误
-- **零重启热切换**：新增 / 编辑 / 启停上游、调整通道绑定均在控制台完成，即时生效
-- **调用观测**：记录每次调用的 Token（取上游返回的 usage，不做本地统计）、延迟、HTTP 状态，控制台提供日志查询与用量统计
-- **轻量存储**：SQLite 单文件数据库，无外部依赖，首次启动自动建库建表；上游 Key 加密存储
-- **自动清理**：调用日志按天滚动保留（默认 30 天），定时任务自动清理
+<p align="center"><sub>点击图片查看完整尺寸</sub></p>
 
-## 架构概览
+<table width="100%" style="width:100%">
+<tr>
+<td align="center" width="50%">
+<a href="src/main/resources/static/preview/classic.png"><img src="src/main/resources/static/preview/classic.png" alt="经典后台" width="100%"></a>
+<br><sub><b>经典后台</b></sub>
+</td>
+<td align="center" width="50%">
+<a href="src/main/resources/static/preview/maidAtelier.png"><img src="src/main/resources/static/preview/maidAtelier.png" alt="女仆工坊" width="100%"></a>
+<br><sub><b>女仆工坊</b></sub>
+</td>
+</tr>
+<tr>
+<td align="center" width="50%">
+<a href="src/main/resources/static/preview/cloudLab.png"><img src="src/main/resources/static/preview/cloudLab.png" alt="云海实验室" width="100%"></a>
+<br><sub><b>云海实验室</b></sub>
+</td>
+<td align="center" width="50%">
+<a href="src/main/resources/static/preview/inkAlgorithm.png"><img src="src/main/resources/static/preview/inkAlgorithm.png" alt="山海算境" width="100%"></a>
+<br><sub><b>山海算境</b></sub>
+</td>
+</tr>
+<tr>
+<td align="center" width="50%">
+<a href="src/main/resources/static/preview/deepseekChan.png"><img src="src/main/resources/static/preview/deepseekChan.png" alt="深海回响" width="100%"></a>
+<br><sub><b>深海回响</b></sub>
+</td>
+<td align="center" width="50%">
+<a href="src/main/resources/static/preview/deepseaWhale.png"><img src="src/main/resources/static/preview/deepseaWhale.png" alt="深海鲸歌" width="100%"></a>
+<br><sub><b>深海鲸歌</b></sub>
+</td>
+</tr>
+</table>
 
-```
-                工具 / 客户端（OpenAI SDK、Cherry Studio、Dify、Agent 框架）
-                                    │
-                                    ▼
-                    对外统一 API（OpenAI 兼容）
-              /v1/chat/completions  /v1/embeddings  /v1/models
-                                    │
-                    ┌───────────────┴───────────────┐
-                    ▼                               ▼
-          【对外 API + 路由调度】            【Web 控制台】
-              轮询 / 故障转移 / 模型名映射       仪表盘 / 通道 / 服务 / 日志 / 用量
-                    │                              （静态资源内嵌于 jar）
-                    ▼
-        ┌────────┼────────┬────────┐
-        ▼        ▼        ▼        ▼
-   DeepSeek  通义千问   OpenAI   vLLM 本地   ... 任意 OpenAI 兼容服务
-```
+<blockquote style="background:#f5efff;border-left:4px solid #8250df;border-radius:8px;padding:12px 16px;color:#1f2328">
+🎨 <b style="color:#8250df">皮肤说明</b><br>
+「女仆工坊」会在页面两侧注入角色立绘，顶栏提供玻璃浓度调节滑块，可实时调整卡片不透明度（0%–300%），效果持久化到 localStorage。
+</blockquote>
 
-核心链路：请求进入 → 按对外模型名实时查库加载上游候选（按 sort 排序 + 轮询）→ 经共享 OkHttpClient 原样转发（仅替换 `model` 字段）→ 失败自动切换下一候选 → 流式透传 / JSON 返回。
+---
 
-## 技术栈
+## 🧩 支持范围
 
-| 分类 | 选型 | 版本 |
+### 客户端协议
+
+| 协议 | 入口 |
+|---|---|
+| OpenAI Chat Completions | `POST /v1/chat/completions`（流式 / 非流式） |
+| OpenAI Embeddings | `POST /v1/embeddings` |
+| OpenAI Models | `GET /v1/models` |
+
+所有接口与 OpenAI 官方协议完全兼容，客户端零改造接入。
+
+### 上游渠道
+
+| 类型 | 服务 |
+|---|---|
+| 官方与云平台 | OpenAI、DeepSeek、通义千问 |
+| 本地推理 | vLLM 及任意 OpenAI 兼容推理引擎 |
+| 自定义 | 任意符合 OpenAI API 协议的上游服务 |
+
+---
+
+## 🚀 快速开始
+
+### 1. 环境要求
+
+| 依赖 | 版本 | 说明 |
 |---|---|---|
-| 语言 | Java | 17 |
-| 框架 | Spring Boot（MVC，Servlet） | 3.4.4 |
-| 出站 HTTP/SSE | OkHttp | 4.12.0 |
-| 数据访问 | MyBatis-Plus（spring-boot3 starter） | 3.5.11 |
-| 数据库 | SQLite（xerial jdbc） | 3.46.1.3 |
-| 前端 | 静态页 + Vue 3（vue.global.prod.js，内嵌于 jar） | — |
-| 工具库 | HuTool / Fastjson2 / Lombok | 5.8.47 / 2.0.64 / 1.18.46 |
+| JDK | 17+ | 运行必需 |
+| Maven | 3.6+ | 仅构建需要，运行只需 JAR |
 
-## 快速开始
-
-### 环境要求
-
-- JDK 17+
-- Maven 3.6+（仅构建需要，运行只需 jar）
-
-### 构建与运行
+### 2. 构建与运行
 
 ```bash
-# 1. 打包（产物：target/x-gate-ai-1.0.0.jar）
 mvn clean package -DskipTests
-
-# 2. 运行
 java -jar target/x-gate-ai-1.0.0.jar
 ```
 
-启动完成后：
+### 3. 访问入口
 
-| 访问入口 | 地址 |
+| 入口 | 地址 |
 |---|---|
 | Web 控制台 | <http://localhost:8090/> |
 | 对外 API（OpenAI 兼容） | <http://localhost:8090/v1> |
-| 数据库文件 | `./x-gate-ai.db`（jar 同级目录，首次启动自动创建） |
+| 数据库文件 | `./x-gate-ai.db`（JAR 同级目录，首次启动自动创建） |
 
-> 默认端口为 `8090`，可通过 `--server.port=8080` 或环境变量覆盖。
+<blockquote style="background:#e6f6ec;border-left:4px solid #1a7f37;border-radius:8px;padding:12px 16px;color:#1f2328">
+💡 <b style="color:#1a7f37">端口说明</b><br>
+默认端口 <code>8090</code>，可通过 <code>--server.port=8080</code> 或环境变量 <code>SERVER_PORT</code> 覆盖。
+</blockquote>
 
-## 配置说明
+### 4. 首次配置
 
-配置文件位于 [src/main/resources/application.properties](src/main/resources/application.properties)，核心项：
+1. 打开 Web 控制台，进入 **「渠道管理」** 添加上游大模型服务（填入 `base_url`、`api_key`、模型名）
+2. 进入 **「客户管理」** 创建 API Key，配置对外模型名与路由策略
+3. 将控制台生成的 **Base URL** 与 **Access Key** 交给应用端即可接入
+
+---
+
+## 📦 部署与数据
+
+Java 服务与 Web 控制台合并为单个可执行 JAR，SQLite 单文件数据库，无外部依赖，首次启动自动建库建表。
+
+<blockquote style="background:#ffebe9;border-left:4px solid #cf222e;border-radius:8px;padding:12px 16px;color:#1f2328">
+⚠️ <b style="color:#cf222e">密钥安全</b><br>
+<code>gateway.encrypt-key</code> 用于加密上游 API Key。生产环境务必通过环境变量 <code>XGATE_ENCRYPT_KEY</code> 覆盖默认值；密钥丢失或被替换后，已有加密凭据无法恢复。
+</blockquote>
+
+<details>
+<summary><b>核心配置项</b>（点击展开）</summary>
 
 | 配置项 | 默认值 | 说明 |
 |---|---|---|
 | `server.port` | `8090` | 服务端口 |
 | `spring.datasource.url` | `jdbc:sqlite:./x-gate-ai.db` | SQLite 数据文件位置 |
-| `gateway.time-out-of-minutes` | `3` | 上游调用超时时间（分钟），用于耗时较长的生成任务 |
+| `gateway.time-out-of-minutes` | `3` | 上游调用超时（分钟） |
 | `gateway.log-retention-days` | `30` | 调用日志保留天数，按天滚动清理 |
-| `gateway.encrypt-key` | `xgate-ai-encrypt-2026` | 上游 api_key 加密密钥，**生产环境务必通过环境变量 `XGATE_ENCRYPT_KEY` 覆盖** |
+| `gateway.encrypt-key` | `xgate-ai-encrypt-2026` | 上游 api_key 加密密钥，**生产环境务必覆盖** |
 
-## API 使用示例
+</details>
 
-### 对话（非流式）
-
-```bash
-curl http://localhost:8090/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "<对外模型名，如控制台配置的模型通道>",
-    "messages": [{ "role": "user", "content": "你好，介绍一下你自己" }],
-    "stream": false
-  }'
-```
-
-### 对话（SSE 流式）
-
-```bash
-curl -N http://localhost:8090/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "<对外模型名>",
-    "messages": [{ "role": "user", "content": "讲个故事" }],
-    "stream": true
-  }'
-```
-
-### 向量化 & 模型列表
-
-```bash
-curl http://localhost:8090/v1/embeddings \
-  -H "Content-Type: application/json" \
-  -d '{ "model": "<对外模型名>", "input": "你好" }'
-
-curl http://localhost:8090/v1/models
-```
-
-### OpenAI SDK 接入
-
-只需把 `base_url` 指向网关：
-
-```python
-from openai import OpenAI
-
-client = OpenAI(
-    base_url="http://localhost:8090/v1",  # 网关地址
-    api_key="任意占位"                       # 网关对外未启用鉴权时可任意填
-)
-
-resp = client.chat.completions.create(
-    model="<对外模型名>",
-    messages=[{"role": "user", "content": "你好"}],
-)
-```
-
-## Web 控制台
-
-浏览器打开 <http://localhost:8090/> 即进入控制台，包含以下页面：
-
-- **仪表盘**：关键指标概览与统计
-- **模型通道**：维护对外暴露的模型名（public model）、启停状态、负载策略
-- **上游服务**：维护各上游大模型的 `base_url` / `api_key`（加密存储）/ 模型名 / 启停
-- **通道绑定**：为通道绑定多个上游并配置权重
-- **调用日志**：按时间、模型、状态检索调用明细（Token、延迟、HTTP 状态）
-- **用量统计**：Token 用量与调用量统计
-
-## 数据存储
-
-基于 SQLite 单文件（`./x-gate-ai.db`），建表脚本见 [schema.sql](src/main/resources/db/schema.sql)：
+### 数据表
 
 | 表 | 说明 |
 |---|---|
-| `upstream_providers` | 上游大模型服务（名称、base_url、api_key、模型名、启停、备注） |
-| `model_channels` | 对外模型通道（对外模型名唯一、启停、负载策略） |
-| `channel_upstreams` | 通道与上游的绑定关系（含权重、排序） |
-| `call_logs` | 调用日志（api_key、模型、token、延迟、HTTP 状态、时间） |
+| `upstream_provider` | 上游供应商账号（名称、base_url、api_key、启停） |
+| `upstream_model` | 供应商下挂载的模型（渠道绑定、失败计数、最大并发） |
+| `customer` | 对外接入凭证（API Key、对外模型名、路由策略） |
+| `call_log` | 调用日志（Token、延迟、HTTP 状态、时间） |
 
-## 项目结构
+---
 
-```
-x-gate-ai
-├── doc/
-│   └── x-gate-ai-技术方案设计.md        # 技术方案设计文档
-├── src/main/
-│   ├── java/com/xgateai/
-│   │   ├── XGateAiApplication.java      # 启动类
-│   │   ├── adminbridge/                 # 控制台管理（上游/通道服务、Key 加密）
-│   │   ├── application/                 # 对外 API 控制器、实体、异常处理
-│   │   ├── gatewaybridge/               # 网关桥接（ProxyAdapter 统一出站透传、故障转移、日志清理）
-│   │   └── mapper/                      # MyBatis-Plus Mapper
-│   └── resources/
-│       ├── application.properties       # 配置文件
-│       ├── db/schema.sql                # 建表脚本（幂等）
-│       └── static/                      # Web 控制台前端（内嵌发布）
-│           ├── index.html               # 仪表盘
-│           ├── models.html              # 模型通道
-│           ├── services.html            # 上游服务
-│           └── logs.html                # 调用日志
-│           └── js/ / css/ / lib/        # 前端资源
-├── pom.xml
-└── LICENSE                              # Apache-2.0
-```
+## 🖥️ Web 控制台
 
-## License
+浏览器打开 <http://localhost:8090/> 即进入控制台。
 
-[Apache License 2.0](LICENSE)
+<table width="100%" style="width:100%">
+<tr>
+<td width="50%" valign="top">
+<b>📊 仪表盘</b><br>
+历史累计与今日调用指标概览、客户用量 Top5、模型调用权重排行
+</td>
+<td width="50%" valign="top">
+<b>👥 客户管理</b><br>
+维护 API Key（客户）、查看接入 BaseURL 与 Access Key、按 model 精确匹配渠道
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+<b>🧭 渠道管理</b><br>
+维护各上游大模型的 <code>base_url</code> / <code>api_key</code>（加密存储）/ 模型名 / 启停
+</td>
+<td width="50%" valign="top">
+<b>🚦 流控管理</b><br>
+路由规则与并发控制，按优先级 + 触发条件决定请求最终落到哪个上游模型
+</td>
+</tr>
+<tr>
+<td colspan="2" valign="top">
+<b>📜 调用日志</b><br>
+按时间、客户名、模型、状态检索调用明细（Token、延迟、HTTP 状态）
+</td>
+</tr>
+</table>
+
+---
+
+## 📄 许可
+
+本项目基于 [Apache License 2.0](LICENSE) 开源。
