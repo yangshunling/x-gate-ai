@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>客户管理 · 大模型统一网关</title>
 <script>(function(){var k=localStorage.getItem('x-gate-skin')||'maidAtelier';document.documentElement.dataset.theme=k;})();</script>
-<link rel="stylesheet" href="css/themes.css?v=2">
-<link rel="stylesheet" href="css/app.css?v=2">
+<link rel="stylesheet" href="css/themes.css?v=4">
+<link rel="stylesheet" href="css/app.css?v=8">
 </head>
 <body>
 <div id="app" class="main-shell" v-cloak>
@@ -112,13 +112,8 @@
   </div>
 
   <!-- ==================== 新增 / 编辑弹窗 ==================== -->
-  <div v-if="modal.open" class="modal-mask">
-    <div class="modal">
-      <div class="modal-head">
-        <span class="modal-title">{{ modal.editId ? '编辑 API Key' : '新建 API Key' }}</span>
-        <button class="modal-close" @click="closeModal">✕</button>
-      </div>
-      <div class="modal-body">
+  <x-modal v-if="modal.open" :title="modal.editId ? '编辑 API Key' : '新建 API Key'"
+           :saving="modal.saving" @close="closeModal" @ok="save">
         <div class="form-item">
           <label>客户名 <span class="req">*</span> <span class="form-hint">该 Key 归属的客户 / 用途，仅作管理标识</span></label>
           <input class="input" v-model.trim="modal.form.customerName"
@@ -141,24 +136,11 @@
             请求体 <b>model</b> 必传：auto 走全池自动路由；填具体模型名则优先路由到提供该模型的渠道，全部失败后由池内其他模型兜底。
           </div>
         </div>
-      </div>
-      <div class="modal-foot">
-        <button class="btn btn-ghost" @click="closeModal">取消</button>
-        <button class="btn btn-primary" :disabled="modal.saving" @click="save">
-          <span v-if="modal.saving" class="spinner"></span>保存
-        </button>
-      </div>
-    </div>
-  </div>
+  </x-modal>
 
   <!-- ==================== 专属 Key 展示弹窗（创建后仅一次） ==================== -->
-  <div v-if="keyResult.open" class="modal-mask">
-    <div class="modal">
-      <div class="modal-head">
-        <span class="modal-title">API Key 创建成功</span>
-        <button class="modal-close" @click="closeKeyResult">✕</button>
-      </div>
-      <div class="modal-body">
+  <x-modal v-if="keyResult.open" title="API Key 创建成功" ok-text="复制 Key" cancel-text="关闭"
+           :saving="keyResult.copying" @close="closeKeyResult" @ok="copyKey">
         <div style="padding:14px 16px;border:1px solid var(--warning-soft);background:var(--warning-soft);border-radius:var(--r-md);font-size:14px;color:var(--warning);line-height:1.7">
           客户 <b>{{ keyResult.serviceName }}</b> 的专属 Key 已自动生成，仅本次展示，请复制后妥善保存（列表页也可随时复制）。
         </div>
@@ -171,15 +153,7 @@
           <span class="mono">Authorization: Bearer {{ keyResult.key }}</span><br>
           <span class="muted">请求体 model 必传：auto 走全池自动路由；填具体模型名则优先路由到提供该模型的渠道，全部失败后由池内其他模型兜底。</span>
         </div>
-      </div>
-      <div class="modal-foot">
-        <button class="btn btn-ghost" @click="closeKeyResult">关闭</button>
-        <button class="btn btn-primary" :disabled="keyResult.copying" @click="copyKey">
-          <span v-if="keyResult.copying" class="spinner"></span>复制 Key
-        </button>
-      </div>
-    </div>
-  </div>
+  </x-modal>
 
   <!-- Toast（公共组件） -->
   <x-toast :list="toasts"></x-toast>
@@ -188,8 +162,8 @@
 
 <script src="lib/vue.global.prod.js"></script>
 <script src="js/http.js"></script>
-<script src="js/skin.js?v=2"></script>
-<script src="js/ui.js?v=2"></script>
+<script src="js/skin.js?v=6"></script>
+<script src="js/ui.js?v=4"></script>
 <script src="js/api.js"></script>
 <script src="js/pages/models.js"></script>
 <script>XUi.mount(ModelsApp);</script>

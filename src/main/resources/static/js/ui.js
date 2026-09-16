@@ -71,6 +71,7 @@ const XUi = (() => {
       <div class="head">
         <h1><span class="bar"></span>{{ title }}</h1>
         <div class="head-actions">
+          <x-glass></x-glass>
           <x-skin></x-skin>
         </div>
       </div>
@@ -85,6 +86,39 @@ const XUi = (() => {
       <div class="toast-wrap">
         <div v-for="t in list" :key="t.id" class="toast" :class="t.type">
           <span class="dot"></span>{{ t.message }}
+        </div>
+      </div>
+    `,
+  };
+
+  /**
+   * 弹窗组件：遮罩 + 标题 + 底部按钮，正文由默认插槽提供
+   * 用法：<x-modal v-if="open" title="新增" :saving="saving" @close="close" @ok="save">正文</x-modal>
+   */
+  const Modal = {
+    name: 'XModal',
+    props: {
+      title: { type: String, required: true },
+      saving: Boolean,
+      okText: { type: String, default: '保存' },
+      cancelText: { type: String, default: '取消' },
+      width: { type: String, default: '620px' },
+    },
+    emits: ['close', 'ok'],
+    template: `
+      <div class="modal-mask">
+        <div class="modal" :style="{ maxWidth: width }">
+          <div class="modal-head">
+            <span class="modal-title">{{ title }}</span>
+            <button class="modal-close" @click="$emit('close')">✕</button>
+          </div>
+          <div class="modal-body"><slot></slot></div>
+          <div class="modal-foot">
+            <button class="btn btn-ghost" @click="$emit('close')">{{ cancelText }}</button>
+            <button class="btn btn-primary" :disabled="saving" @click="$emit('ok')">
+              <span v-if="saving" class="spinner"></span>{{ okText }}
+            </button>
+          </div>
         </div>
       </div>
     `,
@@ -241,7 +275,7 @@ const XUi = (() => {
 
   return {
     NAV_ITEMS,
-    components: { Nav, Head, Toast },
+    components: { Nav, Head, Toast, Modal },
     mixin,
 
     /**
@@ -254,8 +288,12 @@ const XUi = (() => {
        app.component('x-nav', Nav);
        app.component('x-head', Head);
        app.component('x-toast', Toast);
+       app.component('x-modal', Modal);
        if (typeof SkinSwitcher !== 'undefined') {
          app.component('x-skin', SkinSwitcher);
+       }
+       if (typeof GlassControl !== 'undefined') {
+         app.component('x-glass', GlassControl);
        }
        return app.mount('#app');
      },

@@ -46,5 +46,4 @@ const XHttp = {
   post(url, body) { return this.request(url, { method: 'POST', body }); },
   put(url, body) { return this.request(url, { method: 'PUT', body }); },
   delete(url) { return this.request(url, { method: 'DELETE' }); },
-  patch(url, body) { return this.request(url, { method: 'PATCH', body }); },
 };

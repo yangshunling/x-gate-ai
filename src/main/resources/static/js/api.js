@@ -15,12 +15,6 @@ const XApi = {
   /** 获取仪表盘汇总数据 */
   dashboard() { return XHttp.get('/admin/dashboard'); },
 
-  /** 获取模型调用统计（按上游模型聚合） */
-  modelStats() { return XHttp.get('/admin/dashboard/models'); },
-
-  /** 获取模型失败次数统计 */
-  modelFailStats() { return XHttp.get('/admin/dashboard/model-fail-stats'); },
-
   /** 获取模型调用权重统计（按上游 Provider 聚合） */
   modelWeightStats() { return XHttp.get('/admin/dashboard/model-weight-stats'); },
 
@@ -70,14 +64,8 @@ const XApi = {
   /** 删除渠道（级联删除其下全部模型） */
   deleteProvider(id) { return XHttp.delete('/admin/provider/' + id); },
 
-  /** 测试渠道下全部模型的连通性 */
-  testProvider(id) { return XHttp.post('/admin/provider/' + id + '/test'); },
-
   /** 测试单个模型行的连通性 */
   testModel(id) { return XHttp.post('/admin/model/' + id + '/test'); },
-
-  /** 批量测试所有渠道下全部模型 */
-  testAllProviders() { return XHttp.post('/admin/providers/test-all'); },
 
   /**
    * 探测上游渠道可用模型列表（新增/编辑渠道表单一键导入）

@@ -87,28 +87,25 @@ const SkinSwitcher = {
   name: 'XSkin',
   template: `
     <div class="skin-wrap">
-      <button class="skin-btn" @click.stop="togglePanel" title="切换皮肤">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="9"/>
-          <path d="M12 3a9 9 0 0 0 0 18" />
-          <path d="M3 12h18" />
-          <path d="M12 3a9 9 0 0 1 0 18" />
-          <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" opacity=".3"/>
-        </svg>
+      <button class="skin-pill" @click.stop="togglePanel" title="切换皮肤">
+        <span class="skin-pill-dot" :style="{ background: currentSwatch }"></span>
+        <span class="skin-pill-label">{{ currentName }}</span>
+        <svg class="skin-pill-caret" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <transition name="skin-drop">
         <div v-if="open" class="skin-panel">
-          <div class="skin-panel-title">皮肤切换</div>
-          <div class="skin-list">
+          <div class="skin-grid">
             <div v-for="t in themes" :key="t.key || 'default'"
-                 class="skin-item" :class="{ active: t.key === current }"
+                 class="skin-chip" :class="{ active: t.key === current }"
+                 :title="t.name + ' · ' + t.scheme"
                  @click="select(t.key)">
-              <div class="skin-swatch" :style="{ background: t.swatch }"></div>
-              <div class="skin-info">
-                <div class="skin-name">{{ t.name }}</div>
-                <div class="skin-scheme">{{ t.scheme }}</div>
+              <div class="skin-chip-preview" :style="{ background: t.swatch }">
+                <svg v-if="t.key === current" class="skin-chip-check" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
               </div>
-              <svg v-if="t.key === current" class="skin-check" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              <div class="skin-chip-text">
+                <span class="skin-chip-name">{{ t.name }}</span>
+                <span class="skin-chip-scheme">{{ t.scheme }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -121,6 +118,13 @@ const SkinSwitcher = {
       themes: SKIN_THEMES,
       current: SkinManager.current,
     };
+  },
+  computed: {
+    currentTheme() {
+      return this.themes.find(t => t.key === this.current) || this.themes[0];
+    },
+    currentSwatch() { return this.currentTheme.swatch; },
+    currentName() { return this.currentTheme.name; },
   },
   mounted() {
     document.addEventListener('click', this.handleOutside);
@@ -137,6 +141,61 @@ const SkinSwitcher = {
       SkinManager.apply(key);
       this.open = false;
     },
+    handleOutside(e) {
+      if (!this.$el.contains(e.target)) this.open = false;
+    },
+  },
+};
+
+/**
+ * 玻璃浓度调节器 Vue 组件
+ * 注册为 <x-glass>，嵌入顶栏右上角（皮肤按钮左侧）
+ * 拖动滑块即时改写 html.style.--glass-alpha 并持久化到 localStorage
+ */
+const GlassControl = {
+  name: 'XGlass',
+  template: `
+    <div class="skin-wrap">
+      <button class="skin-pill" @click.stop="toggle" title="玻璃浓度">
+        <svg class="glass-pill-ico" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/><path d="M9 14a3 3 0 0 0 3 3" stroke-width="1.4" opacity=".55"/></svg>
+        <span class="glass-pill-val">{{ value }}%</span>
+        <svg class="skin-pill-caret" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <transition name="skin-drop">
+        <div v-if="open" class="skin-panel glass-panel">
+          <div class="glass-ctl">
+            <input type="range" min="0" max="300" step="1" v-model.number="value" @input="apply">
+            <div class="glass-info">
+              <span class="glass-val">{{ value }}%</span>
+              <a class="glass-reset" @click="reset">重置</a>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </div>
+  `,
+  data() {
+    const raw = Number(localStorage.getItem('x-gate-glass'));
+    return {
+      open: false,
+      value: isNaN(raw) ? 100 : Math.min(300, Math.max(0, raw)),
+    };
+  },
+  mounted() {
+    this.apply();
+    document.addEventListener('click', this.handleOutside);
+  },
+  beforeUnmount() {
+    document.removeEventListener('click', this.handleOutside);
+  },
+  methods: {
+    apply() {
+      const a = (this.value / 100).toFixed(2);
+      document.documentElement.style.setProperty('--glass-alpha', a);
+      localStorage.setItem('x-gate-glass', this.value);
+    },
+    reset() { this.value = 100; this.apply(); },
+    toggle() { this.open = !this.open; },
     handleOutside(e) {
       if (!this.$el.contains(e.target)) this.open = false;
     },
