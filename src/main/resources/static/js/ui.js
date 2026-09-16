@@ -63,13 +63,16 @@ const XUi = (() => {
     data() { return { items: NAV_ITEMS }; },
   };
 
-  /** 顶栏组件 */
+  /** 顶栏组件（含皮肤切换按钮） */
   const Head = {
     name: 'XHead',
     props: { title: { type: String, required: true } },
     template: `
       <div class="head">
         <h1><span class="bar"></span>{{ title }}</h1>
+        <div class="head-actions">
+          <x-skin></x-skin>
+        </div>
       </div>
     `,
   };
@@ -246,12 +249,15 @@ const XUi = (() => {
      * @param {object} appOptions - Vue 组件配置（含 mixins/data/methods）
      * @returns {Vue} 已挂载的 Vue 实例
      */
-    mount(appOptions) {
-      const app = Vue.createApp(appOptions);
-      app.component('x-nav', Nav);
-      app.component('x-head', Head);
-      app.component('x-toast', Toast);
-      return app.mount('#app');
-    },
+     mount(appOptions) {
+       const app = Vue.createApp(appOptions);
+       app.component('x-nav', Nav);
+       app.component('x-head', Head);
+       app.component('x-toast', Toast);
+       if (typeof SkinSwitcher !== 'undefined') {
+         app.component('x-skin', SkinSwitcher);
+       }
+       return app.mount('#app');
+     },
   };
 })();

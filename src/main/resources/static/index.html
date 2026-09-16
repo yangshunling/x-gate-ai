@@ -4,7 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>仪表盘 · 大模型统一网关</title>
-<link rel="stylesheet" href="css/app.css">
+<script>(function(){var k=localStorage.getItem('x-gate-skin')||'maidAtelier';document.documentElement.dataset.theme=k;})();</script>
+<link rel="stylesheet" href="css/themes.css?v=2">
+<link rel="stylesheet" href="css/app.css?v=2">
 </head>
 <body>
 <div id="app" class="main-shell" v-cloak>
@@ -30,27 +32,27 @@
           <div class="stat-row-label">历史累计</div>
           <div class="stat-grid">
             <div class="stat">
-              <div class="k"><span class="stat-ico" style="background:#eef2ff;color:#6366f1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M12 8v6M8 11h8"/></svg></span>调用总数</div>
+              <div class="k"><span class="stat-ico ico-accent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M12 8v6M8 11h8"/></svg></span>调用总数</div>
               <div class="v">{{ dash.totalCalls != null ? fmtTokens(dash.totalCalls) : '—' }}</div>
               <div class="u">历史累计请求</div>
             </div>
             <div class="stat ok">
-              <div class="k"><span class="stat-ico" style="background:#ecfdf5;color:#10b981"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>成功总数</div>
+              <div class="k"><span class="stat-ico ico-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>成功总数</div>
               <div class="v">{{ dash.totalSuccess != null ? fmtTokens(dash.totalSuccess) : '—' }}</div>
               <div class="u">历史累计成功</div>
             </div>
             <div class="stat bad">
-              <div class="k"><span class="stat-ico" style="background:#fef2f2;color:#ef4444"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>失败总数</div>
+              <div class="k"><span class="stat-ico ico-red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>失败总数</div>
               <div class="v">{{ dash.totalFail != null ? fmtTokens(dash.totalFail) : '—' }}</div>
               <div class="u">历史累计失败</div>
             </div>
             <div class="stat">
-              <div class="k"><span class="stat-ico" style="background:#f5f3ff;color:#8b5cf6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></span>总输入 Token</div>
+              <div class="k"><span class="stat-ico ico-purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></span>总输入 Token</div>
               <div class="v">{{ fmtTokens(dash.totalInputTokens) }}</div>
               <div class="u">历史累计输入消耗</div>
             </div>
             <div class="stat">
-              <div class="k"><span class="stat-ico" style="background:#ecfeff;color:#06b6d4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg></span>总输出 Token</div>
+              <div class="k"><span class="stat-ico ico-cyan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg></span>总输出 Token</div>
               <div class="v">{{ fmtTokens(dash.totalOutputTokens) }}</div>
               <div class="u">历史累计输出消耗</div>
             </div>
@@ -60,27 +62,27 @@
           <div class="stat-row-label">今日</div>
           <div class="stat-grid">
             <div class="stat">
-              <div class="k"><span class="stat-ico" style="background:#eef2ff;color:#6366f1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 3v6h6"/></svg></span>今日调用</div>
+              <div class="k"><span class="stat-ico ico-accent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 3v6h6"/></svg></span>今日调用</div>
               <div class="v">{{ dash.todayCalls != null ? fmtTokens(dash.todayCalls) : '—' }}</div>
               <div class="u">今日请求总次数</div>
             </div>
             <div class="stat ok">
-              <div class="k"><span class="stat-ico" style="background:#ecfdf5;color:#10b981"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>今日成功</div>
+              <div class="k"><span class="stat-ico ico-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>今日成功</div>
               <div class="v">{{ dash.todaySuccess != null ? fmtTokens(dash.todaySuccess) : '—' }}</div>
               <div class="u">状态码 200~399</div>
             </div>
             <div class="stat bad">
-              <div class="k"><span class="stat-ico" style="background:#fef2f2;color:#ef4444"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>今日失败</div>
+              <div class="k"><span class="stat-ico ico-red"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg></span>今日失败</div>
               <div class="v">{{ dash.todayFail != null ? fmtTokens(dash.todayFail) : '—' }}</div>
               <div class="u">异常请求</div>
             </div>
             <div class="stat">
-              <div class="k"><span class="stat-ico" style="background:#f5f3ff;color:#8b5cf6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></span>今日输入 Token</div>
+              <div class="k"><span class="stat-ico ico-purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></span>今日输入 Token</div>
               <div class="v">{{ fmtTokens(dash.todayInputTokens) }}</div>
               <div class="u">今日提示词消耗</div>
             </div>
             <div class="stat">
-              <div class="k"><span class="stat-ico" style="background:#ecfeff;color:#06b6d4"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg></span>今日输出 Token</div>
+              <div class="k"><span class="stat-ico ico-cyan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg></span>今日输出 Token</div>
               <div class="v">{{ fmtTokens(dash.todayOutputTokens) }}</div>
               <div class="u">今日生成内容消耗</div>
             </div>
@@ -90,22 +92,22 @@
           <div class="stat-row-label">资源</div>
           <div class="stat-grid stat-grid--4">
             <div class="stat">
-              <div class="k"><span class="stat-ico" style="background:#eff6ff;color:#2563eb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="18" r="2.4"/><circle cx="18" cy="6" r="2.4"/><path d="M8.3 7.3 15.7 16.7M8.3 4.7h7.4"/><path d="M4.7 8.3v7.4h9"/></svg></span>客户总数</div>
+              <div class="k"><span class="stat-ico ico-accent"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="18" r="2.4"/><circle cx="18" cy="6" r="2.4"/><path d="M8.3 7.3 15.7 16.7M8.3 4.7h7.4"/><path d="M4.7 8.3v7.4h9"/></svg></span>客户总数</div>
               <div class="v">{{ dash.totalCustomers != null ? dash.totalCustomers : '—' }}</div>
               <div class="u">累计调用客户数</div>
             </div>
             <div class="stat">
-              <div class="k"><span class="stat-ico" style="background:#f5f3ff;color:#8b5cf6"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="7" rx="2"/><rect x="5" y="14" width="14" height="7" rx="2"/><path d="M9 6.5h.01M9 17.5h.01"/></svg></span>渠道总数</div>
+              <div class="k"><span class="stat-ico ico-purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="7" rx="2"/><rect x="5" y="14" width="14" height="7" rx="2"/><path d="M9 6.5h.01M9 17.5h.01"/></svg></span>渠道总数</div>
               <div class="v">{{ providersTotal != null ? providersTotal : '—' }}</div>
               <div class="u">已接入上游渠道</div>
             </div>
             <div class="stat ok">
-              <div class="k"><span class="stat-ico" style="background:#ecfdf5;color:#10b981"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span>启用客户数</div>
+              <div class="k"><span class="stat-ico ico-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span>启用客户数</div>
               <div class="v">{{ dash.enabledChannels != null ? dash.enabledChannels : '—' }}</div>
               <div class="u">当前启用的 API Key</div>
             </div>
             <div class="stat ok">
-              <div class="k"><span class="stat-ico" style="background:#ecfdf5;color:#10b981"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="7" rx="2"/><rect x="5" y="14" width="14" height="7" rx="2"/><path d="M9 6.5h.01M9 17.5h.01"/></svg></span>启用渠道数</div>
+              <div class="k"><span class="stat-ico ico-green"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="7" rx="2"/><rect x="5" y="14" width="14" height="7" rx="2"/><path d="M9 6.5h.01M9 17.5h.01"/></svg></span>启用渠道数</div>
               <div class="v">{{ dash.enabledProviders != null ? dash.enabledProviders : '—' }}</div>
               <div class="u">当前启用的上游渠道</div>
             </div>
@@ -193,7 +195,8 @@
 
 <script src="lib/vue.global.prod.js"></script>
 <script src="js/http.js"></script>
-<script src="js/ui.js"></script>
+<script src="js/skin.js?v=2"></script>
+<script src="js/ui.js?v=2"></script>
 <script src="js/api.js"></script>
 <script src="js/pages/dashboard.js"></script>
 <script>XUi.mount(DashboardApp);</script>

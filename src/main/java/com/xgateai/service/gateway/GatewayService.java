@@ -130,8 +130,11 @@ public class GatewayService {
         String requestedModel = parseRequestedModel(rawBody);
         List<UpstreamRoute> candidates = upstreamStrategy.selectCandidates(channel, requestedModel);
         return executeWithFailover(channel, requestedModel, rawBody, false, candidates,
-                (route, body) -> proxyAdapter.chat(route.getProvider(), body),
-                (route, body, latencyMs, usage) -> recordCallLog(channel, route, body, usage, latencyMs, 200));
+                (route, body, onChunk) -> {
+                    String resp = proxyAdapter.chat(route.getProvider(), body);
+                    return new CallResult(resp, true, resp);
+                },
+                null);
     }
 
     /**
@@ -145,8 +148,12 @@ public class GatewayService {
     public void chatStream(ModelChannel channel, String rawBody, Consumer<byte[]> onChunk) {
         String requestedModel = parseRequestedModel(rawBody);
         List<UpstreamRoute> candidates = upstreamStrategy.selectCandidates(channel, requestedModel);
-        executeWithFailoverStream(channel, requestedModel, rawBody, candidates,
-                (route, body, chunkConsumer) -> proxyAdapter.streamChat(route.getProvider(), body, chunkConsumer),
+        executeWithFailover(channel, requestedModel, rawBody, true, candidates,
+                (route, body, chunkConsumer) -> {
+                    ProxyAdapter.StreamResult sr = proxyAdapter.streamChat(
+                            route.getProvider(), body, chunkConsumer);
+                    return new CallResult(null, sr.complete, sr.usageChunkJson);
+                },
                 onChunk);
     }
 
@@ -164,8 +171,11 @@ public class GatewayService {
         String requestedModel = parseRequestedModel(rawBody);
         List<UpstreamRoute> candidates = upstreamStrategy.selectCandidates(channel, requestedModel);
         return executeWithFailover(channel, requestedModel, rawBody, false, candidates,
-                (route, body) -> proxyAdapter.embeddings(route.getProvider(), body),
-                (route, body, latencyMs, usage) -> recordCallLog(channel, route, body, usage, latencyMs, 200));
+                (route, body, onChunk) -> {
+                    String resp = proxyAdapter.embeddings(route.getProvider(), body);
+                    return new CallResult(resp, true, resp);
+                },
+                null);
     }
 
     // ==================== 模型列表 ====================
@@ -234,7 +244,8 @@ public class GatewayService {
         try {
             return LocalDateTime.parse(createdAt,
                     DateTimeFormatter.ofPattern(CommonConstant.DATETIME_FORMAT))
-                    .toEpochSecond(ZoneId.systemDefault());
+                    .atZone(ZoneId.systemDefault())
+                    .toEpochSecond();
         } catch (Exception e) {
             return 0;
         }
@@ -278,34 +289,32 @@ public class GatewayService {
     }
 
     /**
-     * 带故障转移的重试执行框架（非流式）
+     * 统一的故障转移执行框架（流式与非流式共用）
      *
      * @param channel        对客通道信息
      * @param requestedModel 客户端请求的模型名
      * @param rawBody        原始请求体
-     * @param stream         是否流式（用于日志标记）
+     * @param stream         是否流式（用于日志标记和结果处理）
      * @param candidates     上游候选列表
-     * @param callFn         上游调用函数
-     * @param onSuccessFn    调用成功后的记录函数
-     * @return               上游响应 JSON
+     * @param callFn         上游调用函数，返回 CallResult
+     * @param onChunk        流式数据块回调（非流式时为 null）
+     * @return               非流式返回上游响应 JSON；流式返回 null（数据已通过 onChunk 写出）
+     * @throws BadRequestException 当所有上游候选均调用失败时抛出
      */
     private String executeWithFailover(ModelChannel channel, String requestedModel, String rawBody,
                                         boolean stream, List<UpstreamRoute> candidates,
-                                        UpstreamCallFn callFn, OnSuccessFn onSuccessFn) {
+                                        UpstreamCall callFn, Consumer<byte[]> onChunk) {
         List<String> chain = new ArrayList<>();
         long totalStart = System.currentTimeMillis();
         String lastError = "";
-        // 最后一个被尝试的候选及其上游状态码，用于全链路失败时落库
         UpstreamRoute lastRoute = null;
         int lastStatus = CommonConstant.HTTP_INTERNAL_SERVER_ERROR;
         boolean anyAttempted = false;
 
-        for (int i = 0; i < candidates.size(); i++) {
-            UpstreamRoute route = candidates.get(i);
+        for (UpstreamRoute route : candidates) {
             UpstreamModel model = route.getModel();
             int limit = maxConcurrencyOf(model);
 
-            // 并发上限检查：在途已达上限则跳过该候选，故障转移到下一优先级
             if (!inflightRegistry.tryAcquire(model.getId(), limit)) {
                 chain.add(gatewayLogger.buildChainEntry(route, "FULL",
                         "已满" + inflightRegistry.inFlight(model.getId()) + "/" + limit));
@@ -313,20 +322,9 @@ public class GatewayService {
             }
             anyAttempted = true;
             lastRoute = route;
-            long start = System.currentTimeMillis();
-
             try {
-                // 关键：将客户端请求的 model 替换为该路由目标（渠道下模型行）的真实模型名后再转发
-                String upstreamBody = rebindUpstreamModel(rawBody, route.getModelName());
-                String result = callFn.call(route, upstreamBody);
-                long latencyMs = System.currentTimeMillis() - start;
-                JSONObject usage = parseUsageFromResponse(result);
-                onSuccessFn.onSuccess(route, upstreamBody, latencyMs, usage);
-
-                chain.add(gatewayLogger.buildChainEntry(route, "OK", null));
-                logCall("chat", channel, requestedModel, rawBody, stream,
-                        "SUCCESS", route, System.currentTimeMillis() - totalStart, usage, chain);
-                return result;
+                return attemptCandidate(route, channel, requestedModel, rawBody,
+                        stream, callFn, onChunk, chain, totalStart);
             } catch (Exception e) {
                 lastError = resolveMessage(e);
                 lastStatus = resolveUpstreamStatus(e);
@@ -337,7 +335,7 @@ public class GatewayService {
             }
         }
 
-        // 全部候选并发已满：退化为「在途最少」候选强制转发一单，避免请求被并发上限丢弃
+        // 全部候选并发已满：退化为「在途最少」候选强制转发一单
         if (!anyAttempted) {
             UpstreamRoute route = candidates.stream()
                     .min(Comparator.comparingInt(r -> inflightRegistry.inFlight(r.getModel().getId())))
@@ -346,18 +344,9 @@ public class GatewayService {
                 UpstreamModel model = route.getModel();
                 inflightRegistry.forceAcquire(model.getId());
                 lastRoute = route;
-                long start = System.currentTimeMillis();
                 try {
-                    String upstreamBody = rebindUpstreamModel(rawBody, route.getModelName());
-                    String result = callFn.call(route, upstreamBody);
-                    long latencyMs = System.currentTimeMillis() - start;
-                    JSONObject usage = parseUsageFromResponse(result);
-                    onSuccessFn.onSuccess(route, upstreamBody, latencyMs, usage);
-
-                    chain.add(gatewayLogger.buildChainEntry(route, "OK", null));
-                    logCall("chat", channel, requestedModel, rawBody, stream,
-                            "SUCCESS", route, System.currentTimeMillis() - totalStart, usage, chain);
-                    return result;
+                    return attemptCandidate(route, channel, requestedModel, rawBody,
+                            stream, callFn, onChunk, chain, totalStart);
                 } catch (Exception e) {
                     lastError = resolveMessage(e);
                     lastStatus = resolveUpstreamStatus(e);
@@ -369,7 +358,7 @@ public class GatewayService {
             }
         }
 
-        // 全链路失败：以最后一个候选的上游状态码落库，供日志查询与仪表盘失败统计
+        // 全链路失败：以最后一个候选的上游状态码落库
         if (lastRoute != null) {
             recordCallLog(channel, lastRoute, rawBody, null,
                     System.currentTimeMillis() - totalStart, lastStatus);
@@ -380,120 +369,35 @@ public class GatewayService {
     }
 
     /**
-     * 带故障转移的重试执行框架（流式）
+     * 尝试单个候选的上游调用
+     * <p>
+     * 成功或流式中断时返回结果（流式返回 null），失败时抛出异常由调用方处理故障转移。
+     * </p>
      *
-     * @param channel        对客通道信息
-     * @param requestedModel 客户端请求的模型名
-     * @param rawBody        原始请求体
-     * @param candidates     上游候选列表
-     * @param streamCallFn   流式上游调用函数
-     * @param onChunk        数据块回调
+     * @return 非流式返回响应 JSON；流式返回 null（数据已通过 onChunk 写出）
+     * @throws Exception 上游调用失败时抛出
      */
-    private void executeWithFailoverStream(ModelChannel channel, String requestedModel, String rawBody,
-                                            List<UpstreamRoute> candidates,
-                                            StreamCallFn streamCallFn, Consumer<byte[]> onChunk) {
-        List<String> chain = new ArrayList<>();
-        long totalStart = System.currentTimeMillis();
-        String lastError = "";
-        // 最后一个被尝试的候选及其上游状态码，用于全链路失败时落库
-        UpstreamRoute lastRoute = null;
-        int lastStatus = CommonConstant.HTTP_INTERNAL_SERVER_ERROR;
-        boolean anyAttempted = false;
+    private String attemptCandidate(UpstreamRoute route, ModelChannel channel, String requestedModel,
+                                     String rawBody, boolean stream, UpstreamCall callFn,
+                                     Consumer<byte[]> onChunk, List<String> chain, long totalStart) throws IOException {
+        long start = System.currentTimeMillis();
+        String upstreamBody = rebindUpstreamModel(rawBody, route.getModelName());
+        CallResult callResult = callFn.call(route, upstreamBody, onChunk);
+        long latencyMs = System.currentTimeMillis() - start;
+        JSONObject usage = parseUsageFromResponse(callResult.usageJson);
 
-        for (int i = 0; i < candidates.size(); i++) {
-            UpstreamRoute route = candidates.get(i);
-            UpstreamModel model = route.getModel();
-            int limit = maxConcurrencyOf(model);
-
-            // 并发上限检查：在途已达上限则跳过该候选，故障转移到下一优先级
-            if (!inflightRegistry.tryAcquire(model.getId(), limit)) {
-                chain.add(gatewayLogger.buildChainEntry(route, "FULL",
-                        "已满" + inflightRegistry.inFlight(model.getId()) + "/" + limit));
-                continue;
-            }
-            anyAttempted = true;
-            lastRoute = route;
-            long start = System.currentTimeMillis();
-
-            try {
-                // 关键：将客户端请求的 model 替换为该路由目标（渠道下模型行）的真实模型名后再转发
-                String upstreamBody = rebindUpstreamModel(rawBody, route.getModelName());
-                boolean complete = streamCallFn.streamCall(route, upstreamBody, onChunk);
-                long latencyMs = System.currentTimeMillis() - start;
-                String usageJson = extractUsageFromStream();
-                JSONObject usage = parseUsageFromResponse(usageJson);
-
-                String status = complete ? "OK" : "BROKEN";
-                String logResult = complete ? "SUCCESS" : "INTERRUPTED";
-                chain.add(gatewayLogger.buildChainEntry(route, status, null));
-                logCall("chat", channel, requestedModel, rawBody, true,
-                        logResult, route, System.currentTimeMillis() - totalStart, usage, chain);
-                    recordCallLog(channel, route, upstreamBody, usage, latencyMs, 200);
-                return;
-            } catch (Exception e) {
-                lastError = resolveMessage(e);
-                lastStatus = resolveUpstreamStatus(e);
-                chain.add(gatewayLogger.buildChainEntry(route, "FAIL", lastError));
-                bumpFailCount(route);
-            } finally {
-                inflightRegistry.release(model.getId());
-            }
-        }
-
-        // 全部候选并发已满：退化为「在途最少」候选强制转发一单，避免请求被并发上限丢弃
-        if (!anyAttempted) {
-            UpstreamRoute route = candidates.stream()
-                    .min(Comparator.comparingInt(r -> inflightRegistry.inFlight(r.getModel().getId())))
-                    .orElse(null);
-            if (route != null) {
-                UpstreamModel model = route.getModel();
-                inflightRegistry.forceAcquire(model.getId());
-                lastRoute = route;
-                long start = System.currentTimeMillis();
-                try {
-                    String upstreamBody = rebindUpstreamModel(rawBody, route.getModelName());
-                    boolean complete = streamCallFn.streamCall(route, upstreamBody, onChunk);
-                    long latencyMs = System.currentTimeMillis() - start;
-                    String usageJson = extractUsageFromStream();
-                    JSONObject usage = parseUsageFromResponse(usageJson);
-
-                    String status = complete ? "OK" : "BROKEN";
-                    String logResult = complete ? "SUCCESS" : "INTERRUPTED";
-                    chain.add(gatewayLogger.buildChainEntry(route, status, null));
-                    logCall("chat", channel, requestedModel, rawBody, true,
-                            logResult, route, System.currentTimeMillis() - totalStart, usage, chain);
-                recordCallLog(channel, route, upstreamBody, usage, latencyMs, 200);
-                    return;
-                } catch (Exception e) {
-                    lastError = resolveMessage(e);
-                    lastStatus = resolveUpstreamStatus(e);
-                    chain.add(gatewayLogger.buildChainEntry(route, "FAIL", lastError));
-                    bumpFailCount(route);
-                } finally {
-                    inflightRegistry.release(model.getId());
-                }
-            }
-        }
-
-        // 全链路失败：以最后一个候选的上游状态码落库，供日志查询与仪表盘失败统计
-        if (lastRoute != null) {
-            recordCallLog(channel, lastRoute, rawBody, null,
-                    System.currentTimeMillis() - totalStart, lastStatus);
-        }
-        logCall("chat", channel, requestedModel, rawBody, true,
-                "ALL_FAILED", null, System.currentTimeMillis() - totalStart, null, chain);
-        throw new BadRequestException("所有上游流式调用失败: " + lastError);
+        boolean ok = !stream || callResult.streamComplete;
+        String status = ok ? "OK" : "BROKEN";
+        String logResult = ok ? "SUCCESS" : "INTERRUPTED";
+        chain.add(gatewayLogger.buildChainEntry(route, status, null));
+        logCall("chat", channel, requestedModel, rawBody, stream,
+                logResult, route, System.currentTimeMillis() - totalStart, usage, chain);
+        recordCallLog(channel, route, upstreamBody, usage, latencyMs, 200);
+        return stream ? null : callResult.responseJson;
     }
 
     /**
      * 记录调用日志到 call_log 表
-     *
-     * @param channel     对客通道信息
-     * @param route       最终选中的路由目标（渠道 + 模型行）
-     * @param requestBody 原始请求体摘要
-     * @param usage       上游返回的 Token 用量（已解析，可能为 null）
-     * @param latencyMs   端到端耗时（毫秒）
-     * @param httpStatus  HTTP 状态码
      */
     private void recordCallLog(ModelChannel channel, UpstreamRoute route,
                                String requestBody, JSONObject usage, long latencyMs, int httpStatus) {
@@ -576,17 +480,6 @@ public class GatewayService {
     }
 
     /**
-     * 从 ThreadLocal 中取出当前流的 usage chunk，并清理 ThreadLocal
-     */
-    private String extractUsageFromStream() {
-        ProxyAdapter.StreamResult result = ProxyAdapter.getStreamResult();
-        if (result == null) return null;
-        String usage = result.usageChunkJson;
-        ProxyAdapter.clearStreamResult();
-        return usage;
-    }
-
-    /**
      * 解析异常链最深层的 message
      */
     private String resolveMessage(Throwable throwable) {
@@ -600,9 +493,6 @@ public class GatewayService {
 
     /**
      * 解析异常链最深处的上游 HTTP 状态码，非上游异常按 500 处理
-     *
-     * @param throwable 上游调用异常
-     * @return 上游返回的状态码，或 500
      */
     private int resolveUpstreamStatus(Throwable throwable) {
         Throwable cause = throwable;
@@ -615,21 +505,25 @@ public class GatewayService {
         return CommonConstant.HTTP_INTERNAL_SERVER_ERROR;
     }
 
-    /** 上游非流式调用函数式接口 */
+    /** 上游调用函数式接口（流式与非流式统一） */
     @FunctionalInterface
-    private interface UpstreamCallFn {
-        String call(UpstreamRoute route, String body) throws IOException;
+    private interface UpstreamCall {
+        CallResult call(UpstreamRoute route, String body, Consumer<byte[]> onChunk) throws IOException;
     }
 
-    /** 调用成功后的回调函数式接口 */
-    @FunctionalInterface
-    private interface OnSuccessFn {
-        void onSuccess(UpstreamRoute route, String body, long latencyMs, JSONObject usage);
-    }
+    /** 上游调用结果容器 */
+    private static class CallResult {
+        /** 非流式响应 JSON（流式时为 null） */
+        final String responseJson;
+        /** 流式是否完整结束（非流式固定为 true） */
+        final boolean streamComplete;
+        /** 从响应或流中提取的 usage JSON 字符串 */
+        final String usageJson;
 
-    /** 流式调用函数式接口 */
-    @FunctionalInterface
-    private interface StreamCallFn {
-        boolean streamCall(UpstreamRoute route, String body, Consumer<byte[]> onChunk) throws IOException;
+        CallResult(String responseJson, boolean streamComplete, String usageJson) {
+            this.responseJson = responseJson;
+            this.streamComplete = streamComplete;
+            this.usageJson = usageJson;
+        }
     }
 }

@@ -1,0 +1,417 @@
+/* ============================================================
+   themes.css — 8 套皮肤主题令牌定义
+   职责：定义每套皮肤的颜色 / 阴影 / 壁纸令牌，
+         并映射到 app.css 已有变量名（--primary, --card 等），
+         使 app.css 无需感知具体主题。
+   用法：在 <head> 中先于 app.css 加载；
+         切换皮肤时设置 html[data-theme="skinKey"]。
+   ============================================================ */
+
+/* ================================================================
+   0. 默认主题 — 原始浅蓝（不设 data-theme 时的兜底）
+   ================================================================ */
+:root {
+  /* —— 壁纸 & 基础底色 —— */
+  --bg-base: #f4f6fa;
+  --bg-layer1: #eef1f6;
+  --bg-layer2: #f8fafc;
+  --wallpaper: linear-gradient(180deg, #f7f9fc 0%, #eef3f8 100%);
+
+  /* —— 主色 —— */
+  --accent: #2563eb;
+  --accent-soft: rgba(37, 99, 235, .12);
+  --accent-hover: #1d4ed8;
+
+  /* —— 文字 —— */
+  --text: #111827;
+  --text-secondary: #5b6b80;
+  --text-muted: #94a3b8;
+
+  /* —— 边框 —— */
+  --border: rgba(17, 24, 39, 0.08);
+  --border-hover: rgba(17, 24, 39, 0.14);
+
+  /* —— 侧栏 —— */
+  --sidebar-bg: #eef2f8;
+  --sidebar-shadow: none;
+
+  /* —— 卡片 / 面板表面 —— */
+  --surface-bg: rgba(255, 255, 255, .92);
+  --surface-border: rgba(17, 24, 39, 0.08);
+  --surface-solid: #ffffff;
+  --surface-radius: 12px;
+  --surface-filter: blur(8px);
+  --surface-shadow: 0 1px 2px rgba(17, 24, 39, 0.04), 0 4px 12px rgba(17, 24, 39, 0.06);
+
+  /* —— 功能色 —— */
+  --green: #059669;   --green-soft: rgba(5, 150, 105, .1);
+  --amber: #b45309;   --amber-soft: rgba(180, 83, 9, .1);
+  --red: #e11d48;    --red-soft: rgba(225, 29, 72, .1);
+  --cyan: #06b6d4;   --cyan-soft: rgba(6, 182, 212, .1);
+
+  /* —— 渐变令牌 —— */
+  --logo-gradient: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+  --bar-gradient: linear-gradient(to top, #1d4ed8, #2563eb);
+
+  /* —— 实心 tint（用于标签/徽章/开关等需要不透明背景的元素） —— */
+  --accent-tint: #dbeafe;
+  --green-tint: #d1fae5;
+  --amber-tint: #fef3c7;
+  --red-tint: #ffe4e6;
+  --cyan-tint: #cffafe;
+  --surface-tint: #e2e8f0;
+  --surface-tint-strong: #cbd5e1;
+}
+
+/* —— 任何已命名主题的 solid 表面跟随 bg-layer1 —— */
+html[data-theme] { --surface-solid: var(--bg-layer1); }
+
+/* —— 皮肤主题统一使用各自的 surface-shadow —— */
+html[data-theme] {
+  --shadow-sm: var(--surface-shadow);
+  --shadow-md: var(--surface-shadow);
+  --shadow-lg: var(--surface-shadow);
+}
+
+/* ================================================================
+   1. DeepSeek娘·深海回响 — Dark
+   ================================================================ */
+html[data-theme="deepseekChan"] {
+  --bg-base: #0b1425; --bg-layer1: #121e34; --bg-layer2: #192844;
+  --accent: #4d9fff; --accent-soft: rgba(77,159,255,.15); --accent-hover: #6aa5ff;
+  --text: #e9f3ff; --text-secondary: #a9c2df; --text-muted: #6b7e9a;
+  --border: rgba(112,174,255,.22); --border-hover: rgba(112,174,255,.38);
+  --sidebar-bg: linear-gradient(180deg, rgba(4,12,28,.78), rgba(8,21,45,.56));
+  --sidebar-shadow: inset -1px 0 rgba(101,163,255,.22), 10px 0 34px rgba(0,7,24,.2);
+  --surface-bg: linear-gradient(145deg, rgba(8,18,38,.18), rgba(18,39,75,.08));
+  --surface-border: rgba(112,174,255,.38); --surface-radius: 18px;
+  --surface-filter: blur(24px) saturate(150%);
+  --surface-shadow: 0 18px 48px rgba(0,5,19,.46), 0 0 28px rgba(61,132,255,.1), inset 0 1px rgba(255,255,255,.09);
+  --wallpaper: radial-gradient(ellipse 60% 50% at 72% 48%, rgba(40,90,180,.2), transparent 70%),
+               linear-gradient(90deg, rgba(6,16,32,.88) 0%, rgba(6,16,32,.5) 40%, transparent 72%),
+               url("../img/deepseek-chan.webp") 72% 48% / cover no-repeat;
+  --green: #34d399; --amber: #fbbf24; --red: #f87171; --cyan: #22d3ee;
+  --green-soft: rgba(52,211,153,.12); --amber-soft: rgba(251,191,36,.12);
+  --red-soft: rgba(248,113,113,.12); --cyan-soft: rgba(34,211,238,.12);
+  --bar-gradient: linear-gradient(to top, #2d6bbd, #4d9fff);
+  --logo-gradient: linear-gradient(135deg, #4d9fff, #2d6bbd);
+  --accent-tint: rgba(77,159,255,.16);
+  --green-tint: rgba(52,211,153,.16);
+  --amber-tint: rgba(251,191,36,.16);
+  --red-tint: rgba(248,113,113,.16);
+  --cyan-tint: rgba(34,211,238,.16);
+  --surface-tint: rgba(112,174,255,.10);
+  --surface-tint-strong: rgba(112,174,255,.20);
+}
+
+/* ================================================================
+   2. 云海实验室 — Light
+   ================================================================ */
+html[data-theme="cloudLab"] {
+  --bg-base: #f3f7ff; --bg-layer1: #fbfdff; --bg-layer2: #e8f2fb;
+  --accent: #5e7ce2; --accent-soft: rgba(94,124,226,.12); --accent-hover: #4a66d0;
+  --text: #1f3152; --text-secondary: #60728e; --text-muted: #94a3b8;
+  --border: rgba(122,197,235,.3); --border-hover: rgba(122,197,235,.5);
+  --sidebar-bg: linear-gradient(180deg, rgba(244,252,255,.72), rgba(214,240,255,.5));
+  --sidebar-shadow: inset -1px 0 rgba(102,183,226,.24), 8px 0 30px rgba(85,157,199,.08);
+  --surface-bg: linear-gradient(145deg, rgba(255,255,255,.22), rgba(224,246,255,.12));
+  --surface-border: rgba(122,197,235,.44); --surface-radius: 14px;
+  --surface-filter: blur(20px) saturate(125%);
+  --surface-shadow: 0 16px 40px rgba(67,137,180,.16), inset 0 1px rgba(255,255,255,.9);
+  --wallpaper: radial-gradient(ellipse 55% 45% at 72% 46%, rgba(120,160,230,.12), transparent 70%),
+               linear-gradient(90deg, rgba(232,240,250,.7) 0%, rgba(232,240,250,.3) 45%, transparent 75%),
+               url("../img/cloud-lab.webp") 72% 46% / cover no-repeat;
+  --green: #10b981; --amber: #f59e0b; --red: #ef4444; --cyan: #06b6d4;
+  --green-soft: rgba(16,185,129,.1); --amber-soft: rgba(245,158,11,.1);
+  --red-soft: rgba(239,68,68,.1); --cyan-soft: rgba(6,182,212,.1);
+  --bar-gradient: linear-gradient(to top, #4a66d0, #7c9bf0);
+  --logo-gradient: linear-gradient(135deg, #5e7ce2, #4a66d0);
+  --accent-tint: #e0e7fb;
+  --green-tint: #d4f5e7;
+  --amber-tint: #fdf0d5;
+  --red-tint: #fbe0e3;
+  --cyan-tint: #d4f0f5;
+  --surface-tint: #e2e8f0;
+  --surface-tint-strong: #cbd5e1;
+}
+
+/* ================================================================
+   3. 山海算境 — Light
+   ================================================================ */
+html[data-theme="inkAlgorithm"] {
+  --bg-base: #f2f0ea; --bg-layer1: #fbfaf6; --bg-layer2: #e7e4dc;
+  --accent: #b13a34; --accent-soft: rgba(177,58,52,.1); --accent-hover: #9a302b;
+  --text: #1c292f; --text-secondary: #617077; --text-muted: #8a9499;
+  --border: rgba(46,58,62,.16); --border-hover: rgba(46,58,62,.28);
+  --sidebar-bg: linear-gradient(180deg, rgba(247,243,232,.86), rgba(229,226,216,.7));
+  --sidebar-shadow: inset -1px 0 rgba(47,57,60,.2);
+  --surface-bg: linear-gradient(180deg, rgba(255,253,247,.32), rgba(235,231,220,.22));
+  --surface-border: rgba(46,58,62,.28); --surface-radius: 5px;
+  --surface-filter: blur(10px) saturate(105%);
+  --surface-shadow: 0 12px 28px rgba(49,52,48,.14), inset 0 1px rgba(255,255,255,.82);
+  --wallpaper: radial-gradient(ellipse 50% 40% at 78% 50%, rgba(180,70,60,.04), transparent 70%),
+               linear-gradient(90deg, rgba(237,233,224,.82) 0%, rgba(237,233,224,.4) 50%, transparent 80%),
+               url("../img/ink-algorithm.webp") 78% 50% / cover no-repeat;
+  --green: #5a8c3a; --amber: #c4882a; --red: #b13a34; --cyan: #3a8c8a;
+  --green-soft: rgba(90,140,58,.1); --amber-soft: rgba(196,136,42,.1);
+  --red-soft: rgba(177,58,52,.1); --cyan-soft: rgba(58,140,138,.1);
+  --bar-gradient: linear-gradient(to top, #9a302b, #c75a52);
+  --logo-gradient: linear-gradient(135deg, #b13a34, #8a2d28);
+  --accent-tint: #f5d9d6;
+  --green-tint: #dde8ce;
+  --amber-tint: #f0e0c8;
+  --red-tint: #f5d9d6;
+  --cyan-tint: #d4e8e6;
+  --surface-tint: #e7e4dc;
+  --surface-tint-strong: #d4d0c5;
+}
+
+/* ================================================================
+   4. 深海星港 — Dark
+   ================================================================ */
+html[data-theme="abyssStarport"] {
+  --bg-base: #071b24; --bg-layer1: #0c2732; --bg-layer2: #123542;
+  --accent: #28d7d0; --accent-soft: rgba(40,215,208,.12); --accent-hover: #3ae5de;
+  --text: #e7fbff; --text-secondary: #9bc9d2; --text-muted: #5a7e87;
+  --border: rgba(58,231,224,.18); --border-hover: rgba(58,231,224,.34);
+  --sidebar-bg: linear-gradient(180deg, rgba(3,20,29,.82), rgba(5,37,49,.6));
+  --sidebar-shadow: inset -1px 0 rgba(49,221,214,.23), 10px 0 34px rgba(0,13,20,.2);
+  --surface-bg: linear-gradient(145deg, rgba(4,24,34,.2), rgba(8,51,62,.1));
+  --surface-border: rgba(58,231,224,.34); --surface-radius: 8px;
+  --surface-filter: blur(20px) saturate(135%);
+  --surface-shadow: 0 18px 44px rgba(0,11,17,.5), 0 0 24px rgba(40,215,208,.08), inset 0 1px rgba(157,255,250,.08);
+  --wallpaper: radial-gradient(ellipse 55% 45% at 77% 50%, rgba(40,200,200,.06), transparent 70%),
+               linear-gradient(90deg, rgba(3,15,22,.88) 0%, rgba(3,15,22,.5) 42%, transparent 75%),
+               url("../img/abyss-starport.webp") 77% 50% / cover no-repeat;
+  --green: #34d399; --amber: #fbbf24; --red: #f87171; --cyan: #67e8f9;
+  --green-soft: rgba(52,211,153,.12); --amber-soft: rgba(251,191,36,.12);
+  --red-soft: rgba(248,113,113,.12); --cyan-soft: rgba(103,232,249,.12);
+  --bar-gradient: linear-gradient(to top, #178b8e, #28d7d0);
+  --logo-gradient: linear-gradient(135deg, #28d7d0, #178b8e);
+  --accent-tint: rgba(40,215,208,.16);
+  --green-tint: rgba(52,211,153,.16);
+  --amber-tint: rgba(251,191,36,.16);
+  --red-tint: rgba(248,113,113,.16);
+  --cyan-tint: rgba(103,232,249,.16);
+  --surface-tint: rgba(58,231,224,.10);
+  --surface-tint-strong: rgba(58,231,224,.20);
+}
+
+/* ================================================================
+   5. 深海鲸歌 — Dark
+   ================================================================ */
+html[data-theme="deepseaWhale"] {
+  --bg-base: #082039; --bg-layer1: #0d2c4c; --bg-layer2: #12385e;
+  --accent: #55bdf2; --accent-soft: rgba(85,189,242,.12); --accent-hover: #6fcef5;
+  --text: #eff8ff; --text-secondary: #accce2; --text-muted: #6889a0;
+  --border: rgba(109,199,244,.18); --border-hover: rgba(109,199,244,.34);
+  --sidebar-bg: linear-gradient(180deg, rgba(3,24,48,.76), rgba(8,45,79,.56));
+  --sidebar-shadow: inset -1px 0 rgba(113,202,247,.2), 10px 0 34px rgba(0,18,38,.18);
+  --surface-bg: linear-gradient(150deg, rgba(7,31,58,.18), rgba(17,65,105,.08));
+  --surface-border: rgba(109,199,244,.34); --surface-radius: 22px;
+  --surface-filter: blur(24px) saturate(130%);
+  --surface-shadow: 0 20px 52px rgba(0,14,31,.46), inset 0 1px rgba(196,235,255,.1);
+  --wallpaper: radial-gradient(ellipse 50% 45% at 58% 48%, rgba(60,140,210,.08), transparent 70%),
+               linear-gradient(90deg, rgba(4,20,39,.88) 0%, rgba(4,20,39,.5) 42%, transparent 75%),
+               url("../img/deepsea-whale.webp") 58% 48% / cover no-repeat;
+  --green: #34d399; --amber: #fbbf24; --red: #f87171; --cyan: #22d3ee;
+  --green-soft: rgba(52,211,153,.12); --amber-soft: rgba(251,191,36,.12);
+  --red-soft: rgba(248,113,113,.12); --cyan-soft: rgba(34,211,238,.12);
+  --bar-gradient: linear-gradient(to top, #2f87bd, #55bdf2);
+  --logo-gradient: linear-gradient(135deg, #55bdf2, #2f87bd);
+  --accent-tint: rgba(85,189,242,.16);
+  --green-tint: rgba(52,211,153,.16);
+  --amber-tint: rgba(251,191,36,.16);
+  --red-tint: rgba(248,113,113,.16);
+  --cyan-tint: rgba(34,211,238,.16);
+  --surface-tint: rgba(109,199,244,.10);
+  --surface-tint-strong: rgba(109,199,244,.20);
+}
+
+/* ================================================================
+   6. 深海女仆工坊 — Light (maid-atelier)
+   ================================================================ */
+html[data-theme="maidAtelier"] {
+  --bg-base: #dce6f5; --bg-layer1: #f8faf5; --bg-layer2: #e0e8f6;
+  --accent: #526aa8; --accent-soft: rgba(82,106,168,.12); --accent-hover: #405a99;
+  --text: #172347; --text-secondary: #4d5d7f; --text-muted: #8a94aa;
+  --border: rgba(71,91,145,.18); --border-hover: rgba(197,164,104,.5);
+  --sidebar-bg: linear-gradient(180deg, #10204d 0%, #0a173b 100%);
+  --sidebar-shadow: inset -1px 0 rgba(255,245,215,.28), inset -3px 0 rgba(226,207,166,.22), 8px 0 34px rgba(8,17,48,.22);
+  --surface-bg: linear-gradient(145deg, rgba(248,250,255,.4), rgba(235,240,250,.28));
+  --surface-border: rgba(197,164,104,.42); --surface-radius: 8px;
+  --surface-filter: blur(18px) saturate(120%);
+  --surface-shadow: 0 18px 54px rgba(15,30,72,.2), 0 2px 8px rgba(15,30,72,.12), inset 0 1px rgba(255,255,255,.4);
+  --wallpaper: linear-gradient(90deg, rgba(220,230,245,.6) 0%, rgba(220,230,245,.2) 50%, transparent 80%),
+               url("../img/maid-palace.webp") center / cover no-repeat;
+  --green: #4a8a5c; --amber: #c58a2a; --red: #b13a3a; --cyan: #2b9fc4;
+  --green-soft: rgba(74,138,92,.1); --amber-soft: rgba(197,138,42,.1);
+  --red-soft: rgba(177,58,58,.1); --cyan-soft: rgba(43,159,196,.1);
+  --bar-gradient: linear-gradient(to top, #405a99, #7c92c8);
+  --logo-gradient: linear-gradient(135deg, #526aa8, #10204d);
+  --accent-tint: #e2e7f4;
+  --green-tint: #dce8d8;
+  --amber-tint: #f5ead0;
+  --red-tint: #f5dde0;
+  --cyan-tint: #d4e8f0;
+  --surface-tint: #e0e8f6;
+  --surface-tint-strong: #cdd7ee;
+}
+
+/* ================================================================
+   7. 虎鲸链路 — Light (orca-link)
+   ================================================================ */
+html[data-theme="orcaLink"] {
+  --bg-base: #f6f1e7; --bg-layer1: #fdfaf4; --bg-layer2: #ece8de;
+  --accent: #4b483f; --accent-soft: rgba(75,72,63,.1); --accent-hover: #3a372f;
+  --text: #11151b; --text-secondary: #343b47; --text-muted: #778399;
+  --border: rgba(43,55,72,.14); --border-hover: rgba(43,55,72,.25);
+  --sidebar-bg: linear-gradient(180deg, rgba(250,247,241,.92), rgba(240,236,229,.85));
+  --sidebar-shadow: inset -1px 0 rgba(43,55,72,.1);
+  --surface-bg: linear-gradient(145deg, rgba(255,252,246,.5), rgba(247,244,238,.38));
+  --surface-border: rgba(43,55,72,.16); --surface-radius: 0px;
+  --surface-filter: blur(14px) saturate(108%);
+  --surface-shadow: 0 18px 55px rgba(27,39,58,.12), 0 2px 5px rgba(27,39,58,.1);
+  --wallpaper: linear-gradient(90deg, rgba(246,241,231,.5) 0%, rgba(246,241,231,.2) 50%, transparent 80%),
+               url("../img/orca-light-hero.webp") center / cover no-repeat;
+  --green: #168aa6; --amber: #b8780c; --red: #c74440; --cyan: #20c7e8;
+  --green-soft: rgba(22,138,166,.1); --amber-soft: rgba(184,120,12,.1);
+  --red-soft: rgba(199,68,64,.1); --cyan-soft: rgba(32,199,232,.1);
+  --bar-gradient: linear-gradient(to top, #4b483f, #778399);
+  --logo-gradient: linear-gradient(135deg, #4b483f, #11151b);
+  --accent-tint: #e8e6e0;
+  --green-tint: #d4e8ea;
+  --amber-tint: #f0e8d4;
+  --red-tint: #f0dcd8;
+  --cyan-tint: #d4e8ec;
+  --surface-tint: #ece8de;
+  --surface-tint-strong: #d8d4c8;
+}
+
+/* ================================================================
+   变量映射层：将主题令牌映射到 app.css 已有变量名
+   这样 app.css 中所有引用 --primary / --card / --slate-* 的
+   地方都能自动跟随主题变化，无需逐一替换。
+   ================================================================ */
+:root {
+  /* —— 背景 / 文字 —— */
+  --background: var(--bg-base);
+  --foreground: var(--text);
+  --card: var(--surface-solid);
+  --card-foreground: var(--text);
+  --muted: var(--bg-layer1);
+  --muted-foreground: var(--text-secondary);
+  --sidebar: var(--sidebar-bg);
+
+  /* —— 主色 —— */
+  --primary: var(--accent);
+  --primary-dark: var(--accent-hover);
+  --primary-light: var(--accent-tint);
+  --primary-foreground: #ffffff;
+  --accent-foreground: #ffffff;
+
+  /* —— 功能色 —— */
+  --destructive: var(--red);
+  --destructive-soft: var(--red-tint);
+  --success: var(--green);
+  --success-soft: var(--green-tint);
+  --warning: var(--amber);
+  --warning-soft: var(--amber-tint);
+
+  /* —— Slate 色板 → 映射到主题文字 / 边框 / 背景 —— */
+  --slate-900: var(--text);
+  --slate-800: var(--text);
+  --slate-700: var(--text-secondary);
+  --slate-600: var(--text-secondary);
+  --slate-500: var(--text-muted);
+  --slate-400: var(--text-muted);
+  --slate-300: var(--surface-tint-strong);
+  --slate-200: var(--surface-tint);
+  --slate-100: var(--bg-layer1);
+  --slate-50: var(--bg-layer2);
+
+  /* —— 阴影（默认主题保持三档区分，皮肤主题统一使用 surface-shadow） —— */
+  --shadow-sm: 0 1px 2px rgba(17, 24, 39, 0.04), 0 4px 12px rgba(17, 24, 39, 0.06);
+  --shadow-md: 0 2px 4px rgba(17, 24, 39, 0.04), 0 12px 28px rgba(17, 24, 39, 0.09);
+  --shadow-lg: 0 8px 24px rgba(17, 24, 39, 0.12), 0 28px 64px rgba(17, 24, 39, 0.18);
+
+  /* —— 圆角 —— */
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: var(--surface-radius);
+  --r-xl: 16px;
+  --r-full: 999px;
+
+  /* —— 字体 —— */
+  --mono: "JetBrains Mono", "Cascadia Code", "SF Mono", Consolas, monospace;
+  --sans: "Plus Jakarta Sans", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, sans-serif;
+  --display: var(--sans);
+}
+
+/* ================================================================
+   maidAtelier 专属覆盖：衬线标题 / 深蓝侧栏 / 金色文字
+   ================================================================ */
+html[data-theme="maidAtelier"] .brand-name,
+html[data-theme="maidAtelier"] .panel-title,
+html[data-theme="maidAtelier"] .nav-label {
+  font-family: Georgia, "Times New Roman", serif;
+  letter-spacing: .025em;
+}
+html[data-theme="maidAtelier"] .nav-label { color: #96a8ce; }
+html[data-theme="maidAtelier"] .menu-item { color: #d7def0; }
+html[data-theme="maidAtelier"] .menu-item:hover { color: #fff1cf; background: rgba(255,252,243,.1); }
+html[data-theme="maidAtelier"] .menu-item.active {
+  color: #fff7e6; background: rgba(197,164,104,.24); border-color: rgba(225,191,124,.45);
+}
+html[data-theme="maidAtelier"] .menu-item.active .nav-ico {
+  background: rgba(197,164,104,.2); border-color: rgba(197,164,104,.35); color: #c5a468;
+}
+html[data-theme="maidAtelier"] .brand-name { color: #f3e3c0; }
+html[data-theme="maidAtelier"] .brand-name small { color: #b5c1dd; }
+html[data-theme="maidAtelier"] .side-foot { background: rgba(10,23,59,.6); border-color: rgba(197,164,104,.28); }
+html[data-theme="maidAtelier"] .side-foot .t { color: #f8f3e8; }
+html[data-theme="maidAtelier"] .side-foot .t b { color: #c5a468; }
+html[data-theme="maidAtelier"] .side-foot .v { color: #96a8ce; }
+
+/* —— maid 角色立绘 —— */
+.maid-char { display: none; }
+html[data-theme="maidAtelier"] .maid-char {
+  display: block; position: fixed; z-index: 0; pointer-events: none;
+  height: 80vh; max-height: 720px; bottom: 0; object-fit: contain; object-position: center bottom;
+  filter: drop-shadow(0 20px 24px rgba(27,44,91,.14));
+}
+html[data-theme="maidAtelier"] .maid-left { left: 288px; }
+html[data-theme="maidAtelier"] .maid-right { right: 16px; height: 76vh; max-height: 680px; }
+@media (max-width: 900px) { html[data-theme="maidAtelier"] .maid-char { height: 50vh; opacity: .6; } }
+
+/* —— 让正文/侧栏/顶栏层级高于角色立绘，避免立绘遮挡正文 —— */
+html[data-theme="maidAtelier"] .main-shell { position: relative; z-index: 1; }
+
+/* ================================================================
+   orcaLink 专属覆盖：全局零圆角 / 等宽字体
+   ================================================================ */
+html[data-theme="orcaLink"] .btn,
+html[data-theme="orcaLink"] .input,
+html[data-theme="orcaLink"] .panel,
+html[data-theme="orcaLink"] .stat,
+html[data-theme="orcaLink"] .conn-card,
+html[data-theme="orcaLink"] .conn-row,
+html[data-theme="orcaLink"] .brand,
+html[data-theme="orcaLink"] .brand-mark,
+html[data-theme="orcaLink"] .side-foot,
+html[data-theme="orcaLink"] .modal,
+html[data-theme="orcaLink"] .toast,
+html[data-theme="orcaLink"] .tag,
+html[data-theme="orcaLink"] .model-tag,
+html[data-theme="orcaLink"] .checkbox-line input[type="checkbox"],
+html[data-theme="orcaLink"] .switch .slider,
+html[data-theme="orcaLink"] .cust-rank,
+html[data-theme="orcaLink"] .skin-swatch,
+html[data-theme="orcaLink"] .skin-panel,
+html[data-theme="orcaLink"] .skin-item,
+html[data-theme="orcaLink"] .skin-btn,
+html[data-theme="orcaLink"] .seg-group button {
+  border-radius: 0 !important;
+}
+html[data-theme="orcaLink"] body { font-family: ui-monospace, "SF Mono", Consolas, "Microsoft YaHei", monospace; }
+html[data-theme="orcaLink"] .nav-label { letter-spacing: .12em; }

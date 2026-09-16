@@ -4,7 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>流控管理 · 大模型统一网关</title>
-<link rel="stylesheet" href="css/app.css">
+<script>(function(){var k=localStorage.getItem('x-gate-skin')||'maidAtelier';document.documentElement.dataset.theme=k;})();</script>
+<link rel="stylesheet" href="css/themes.css?v=2">
+<link rel="stylesheet" href="css/app.css?v=2">
 </head>
 <body>
 <div id="app" class="main-shell" v-cloak>
@@ -44,7 +46,7 @@
             </div>
 
             <div class="conc-rule">
-              <div class="conc-rule-no"><span class="tag" style="background:#fef3c7;color:#b45309">FULL</span></div>
+              <div class="conc-rule-no"><span class="tag tag-blue">FULL</span></div>
               <div class="conc-rule-text">
                 <b>并发转移</b>：候选在途请求数已达「并发上限」时，<b>不调用</b>该候选，直接跳到下一优先级。
                 链路日志记为 <span class="mono">:FULL(已满5/5)</span>，与失败转移明确区分。
@@ -137,7 +139,8 @@
 
 <script src="lib/vue.global.prod.js"></script>
 <script src="js/http.js"></script>
-<script src="js/ui.js"></script>
+<script src="js/skin.js?v=2"></script>
+<script src="js/ui.js?v=2"></script>
 <script src="js/api.js"></script>
 <script src="js/pages/concurrency.js"></script>
 <script>XUi.mount(ConcurrencyApp);</script>

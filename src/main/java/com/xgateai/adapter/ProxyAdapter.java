@@ -67,35 +67,19 @@ public class ProxyAdapter {
     }
 
     /**
-     * 流式对话请求转发（ThreadLocal 存储 usage）
+     * 流式对话请求转发，返回携带 usage 数据的结果对象
      *
-     * @param provider   目标上游 Provider
+     * @param provider    目标上游 Provider
      * @param requestBody 原始请求体 JSON
-     * @param onChunk    数据块回调
-     * @return true 表示流完整结束，false 表示被中断
+     * @param onChunk     数据块回调
+     * @return 流式结果，包含 complete 标志和 usage chunk JSON
      * @throws IOException 网络异常时抛出
      */
-    public boolean streamChat(UpstreamProvider provider, String requestBody,
-                              Consumer<byte[]> onChunk) throws IOException {
+    public StreamResult streamChat(UpstreamProvider provider, String requestBody,
+                                    Consumer<byte[]> onChunk) throws IOException {
         StreamResult result = new StreamResult();
-        boolean complete = streamOnce(provider, requestBody, onChunk, result);
-        setStreamResult(result);
-        return complete;
-    }
-
-    /**
-     * 流式对话请求转发（不写 ThreadLocal，供外部传入 StreamResult）
-     *
-     * @param provider   目标上游 Provider
-     * @param requestBody 原始请求体 JSON
-     * @param onChunk    数据块回调
-     * @param result     外部传入的 StreamResult 容器
-     * @return true 表示流完整结束
-     * @throws IOException 网络异常时抛出
-     */
-    public boolean streamChat(UpstreamProvider provider, String requestBody,
-                              Consumer<byte[]> onChunk, StreamResult result) throws IOException {
-        return streamOnce(provider, requestBody, onChunk, result);
+        result.complete = streamOnce(provider, requestBody, onChunk, result);
+        return result;
     }
 
     /**
@@ -303,23 +287,8 @@ public class ProxyAdapter {
      */
     public static class StreamResult {
         /** 是否完整结束（true=正常结束，false=被中断） */
-        boolean complete;
+        public boolean complete;
         /** usage chunk JSON 片段（最后一条含 usage 的 data 行） */
         public String usageChunkJson;
-    }
-
-    /** ThreadLocal 持有当前流的 usage 结果，请求结束后由 GatewayService 消费并清理 */
-    private static final ThreadLocal<StreamResult> STREAM_RESULT_HOLDER = new ThreadLocal<>();
-
-    public static void setStreamResult(StreamResult result) {
-        STREAM_RESULT_HOLDER.set(result);
-    }
-
-    public static StreamResult getStreamResult() {
-        return STREAM_RESULT_HOLDER.get();
-    }
-
-    public static void clearStreamResult() {
-        STREAM_RESULT_HOLDER.remove();
     }
 }

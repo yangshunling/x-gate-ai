@@ -93,8 +93,9 @@ public class GatewayLogger {
         Integer inputTokens = usage == null ? null : usage.getInteger("prompt_tokens");
         Integer outputTokens = usage == null ? null : usage.getInteger("completion_tokens");
 
+        JSONObject parsedBody = JSON.parseObject(rawBody);
         StringBuilder sb = buildSingleLineLog(type, path, stream, channel, requestedModel,
-                result, finalRoute, costMs, inputTokens, outputTokens, rawBody, chain);
+                result, finalRoute, costMs, inputTokens, outputTokens, parsedBody, chain);
 
         switch (result) {
             case "SUCCESS" -> GATEWAY_LOGGER.info(sb.toString());
@@ -102,7 +103,7 @@ public class GatewayLogger {
             default -> GATEWAY_LOGGER.error(sb.toString());
         }
 
-        printBoxedLog(type, channel, requestedModel, rawBody, stream, result,
+        printBoxedLog(type, channel, requestedModel, parsedBody, stream, result,
                 finalRoute, costMs, inputTokens, outputTokens, chain);
     }
 
@@ -159,9 +160,10 @@ public class GatewayLogger {
 
         entry.setLatencyMs(latencyMs);
         entry.setHttpStatus(httpStatus);
-        entry.setRequestBody(buildChatSummary(requestBody));
+        JSONObject parsedBody = JSON.parseObject(requestBody);
+        entry.setRequestBody(buildChatSummary(parsedBody));
         entry.setCustomerName(channel.getPublicModelName());
-        entry.setToolCallsCount(countRequestToolCalls(requestBody));
+        entry.setToolCallsCount(countRequestToolCalls(parsedBody));
         entry.setCreatedAt(DateUtil.now());
         return entry;
     }
@@ -172,7 +174,7 @@ public class GatewayLogger {
                                               ModelChannel channel, String requestedModel,
                                               String result, UpstreamRoute finalRoute,
                                               long costMs, Integer inputTokens,
-                                              Integer outputTokens, String rawBody,
+                                              Integer outputTokens, JSONObject parsedBody,
                                               List<String> chain) {
         StringBuilder sb = new StringBuilder(256);
         sb.append(type).append(' ').append(path)
@@ -198,7 +200,7 @@ public class GatewayLogger {
                     .append("/out:").append(outputTokens == null ? "?" : outputTokens);
         }
 
-        String payloadDesc = buildPayloadDescription(type, rawBody);
+        String payloadDesc = buildPayloadDescription(type, parsedBody);
         if (StrUtil.isNotBlank(payloadDesc)) {
             sb.append(' ').append(payloadDesc);
         }
@@ -209,10 +211,10 @@ public class GatewayLogger {
         return sb;
     }
 
-    private String buildPayloadDescription(String type, String rawBody) {
+    private String buildPayloadDescription(String type, JSONObject parsedBody) {
         String summaryJson = "chat".equals(type)
-                ? buildChatSummary(rawBody)
-                : buildEmbeddingSummary(rawBody);
+                ? buildChatSummary(parsedBody)
+                : buildEmbeddingSummary(parsedBody);
         if (summaryJson == null) {
             return "";
         }
@@ -243,11 +245,10 @@ public class GatewayLogger {
         return sb.toString();
     }
 
-    private String buildChatSummary(String rawBody) {
+    private String buildChatSummary(JSONObject body) {
         try {
             JSONObject summary = new JSONObject();
             summary.put("type", "chat");
-            JSONObject body = JSON.parseObject(rawBody);
             JSONArray messages = body == null ? null : body.getJSONArray("messages");
             if (messages == null || messages.isEmpty()) {
                 return summary.toJSONString();
@@ -272,11 +273,10 @@ public class GatewayLogger {
         }
     }
 
-    private String buildEmbeddingSummary(String rawBody) {
+    private String buildEmbeddingSummary(JSONObject body) {
         try {
             JSONObject summary = new JSONObject();
             summary.put("type", "embedding");
-            JSONObject body = JSON.parseObject(rawBody);
             Object input = body == null ? null : body.get("input");
             if (input instanceof JSONArray arr) {
                 summary.put("inputCount", arr.size());
@@ -309,9 +309,8 @@ public class GatewayLogger {
         return content.toString();
     }
 
-    private int countRequestToolCalls(String rawBody) {
+    private int countRequestToolCalls(JSONObject body) {
         try {
-            JSONObject body = JSON.parseObject(rawBody);
             JSONArray messages = body == null ? null : body.getJSONArray("messages");
             if (messages == null || messages.isEmpty()) return 0;
             int total = 0;
@@ -338,7 +337,7 @@ public class GatewayLogger {
     }
 
     private void printBoxedLog(String type, ModelChannel channel, String requestedModel,
-                               String rawBody, boolean stream, String result,
+                               JSONObject parsedBody, boolean stream, String result,
                                UpstreamRoute finalRoute, long costMs,
                                Integer inTokens, Integer outTokens,
                                List<String> chain) {
@@ -374,7 +373,7 @@ public class GatewayLogger {
         }
         rows.add(new Object[]{"请求性能", statusWord + "  耗时 " + costStr, statusColor});
 
-        String rolesText = buildRolesDescription(type, rawBody);
+        String rolesText = buildRolesDescription(parsedBody);
         if (StrUtil.isNotBlank(rolesText)) {
             rows.add(new Object[]{"角色分布", rolesText, null});
         }
@@ -406,11 +405,10 @@ public class GatewayLogger {
         GATEWAY_CONSOLE.info(box.toString());
     }
 
-    private String buildRolesDescription(String type, String rawBody) {
-        if (!"chat".equals(type)) return "";
+    private String buildRolesDescription(JSONObject body) {
+        if (body == null) return "";
         try {
-            JSONObject body = JSON.parseObject(rawBody);
-            JSONArray messages = body == null ? null : body.getJSONArray("messages");
+            JSONArray messages = body.getJSONArray("messages");
             if (messages == null || messages.isEmpty()) return "";
 
             JSONObject roles = new JSONObject();

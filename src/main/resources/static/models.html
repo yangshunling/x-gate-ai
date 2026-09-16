@@ -4,7 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>客户管理 · 大模型统一网关</title>
-<link rel="stylesheet" href="css/app.css">
+<script>(function(){var k=localStorage.getItem('x-gate-skin')||'maidAtelier';document.documentElement.dataset.theme=k;})();</script>
+<link rel="stylesheet" href="css/themes.css?v=2">
+<link rel="stylesheet" href="css/app.css?v=2">
 </head>
 <body>
 <div id="app" class="main-shell" v-cloak>
@@ -160,7 +162,7 @@
         <div style="padding:14px 16px;border:1px solid var(--warning-soft);background:var(--warning-soft);border-radius:var(--r-md);font-size:14px;color:var(--warning);line-height:1.7">
           客户 <b>{{ keyResult.serviceName }}</b> 的专属 Key 已自动生成，仅本次展示，请复制后妥善保存（列表页也可随时复制）。
         </div>
-        <div style="margin:16px 0;padding:16px 18px;background:#0f172a;color:#7dd3fc;border-radius:var(--r-md);font-family:var(--mono);font-size:14px;word-break:break-all">
+        <div style="margin:16px 0;padding:16px 18px" class="detail-json">
           {{ keyResult.key }}
         </div>
         <div style="font-size:14px;color:var(--slate-500);line-height:1.8">
@@ -186,7 +188,8 @@
 
 <script src="lib/vue.global.prod.js"></script>
 <script src="js/http.js"></script>
-<script src="js/ui.js"></script>
+<script src="js/skin.js?v=2"></script>
+<script src="js/ui.js?v=2"></script>
 <script src="js/api.js"></script>
 <script src="js/pages/models.js"></script>
 <script>XUi.mount(ModelsApp);</script>

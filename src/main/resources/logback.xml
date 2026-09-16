@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
 	<!-- traceId 转换器：MDC 有 traceId 时输出 "[tid=xxx] " 前缀 -->
-	<conversionRule conversionWord="traceId" converterClass="com.xgateai.logging.TraceIdConverter"/>
+	<conversionRule conversionWord="traceId" class="com.xgateai.logging.TraceIdConverter"/>
 
 	<!-- 控制台彩色日志输出 -->
 	<appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
@@ -20,9 +20,11 @@
 	<!-- 全量日志文件（滚动保留 30 天） -->
 	<appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
 		<file>logs/application.log</file>
-		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-			<fileNamePattern>logs/application.%d{yyyy-MM-dd}.log</fileNamePattern>
+		<rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+			<fileNamePattern>logs/application.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+			<maxFileSize>500MB</maxFileSize>
 			<maxHistory>30</maxHistory>
+			<totalSizeCap>10GB</totalSizeCap>
 		</rollingPolicy>
 		<encoder>
 			<pattern>%d{yyyy-MM-dd HH:mm:ss} %-5level [%thread] %traceId%logger{36} - %msg%n</pattern>
@@ -32,9 +34,11 @@
 	<!-- 网关业务日志文件（请求分块、调用链、故障转移，独立文件便于实时 tail） -->
 	<appender name="GATEWAY_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
 		<file>logs/gateway.log</file>
-		<rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-			<fileNamePattern>logs/gateway.%d{yyyy-MM-dd}.log</fileNamePattern>
+		<rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+			<fileNamePattern>logs/gateway.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+			<maxFileSize>500MB</maxFileSize>
 			<maxHistory>30</maxHistory>
+			<totalSizeCap>10GB</totalSizeCap>
 		</rollingPolicy>
 		<encoder>
 			<pattern>%d{yyyy-MM-dd HH:mm:ss} %traceId%msg%n</pattern>
