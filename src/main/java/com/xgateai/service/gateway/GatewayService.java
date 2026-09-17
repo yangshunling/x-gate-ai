@@ -125,12 +125,13 @@ public class GatewayService {
     /**
      * 非流式对话请求处理
      *
-     * @param channel   对客通道信息
-     * @param rawBody   原始请求体 JSON
-     * @return          上游响应 JSON 字符串
+     * @param channel    对客通道信息
+     * @param rawBody    原始请求体 JSON
+     * @param clientPath 客户端实际命中的网关入口路径（如 /chat/completions / /messages / /responses），用于日志展示
+     * @return           上游响应 JSON 字符串
      * @throws BadRequestException 当所有上游候选均调用失败时抛出
      */
-    public String chat(ModelChannel channel, String rawBody) {
+    public String chat(ModelChannel channel, String rawBody, String clientPath) {
         String requestedModel = parseRequestedModel(rawBody);
         List<UpstreamRoute> candidates = upstreamStrategy.selectCandidates(channel, requestedModel);
         return executeWithFailover(channel, requestedModel, rawBody, false, candidates,
@@ -138,18 +139,19 @@ public class GatewayService {
                     String resp = proxyAdapter.chat(route.getProvider(), body);
                     return new CallResult(resp, true, resp);
                 },
-                null);
+                clientPath, null);
     }
 
     /**
      * 流式对话请求处理
      *
-     * @param channel   对客通道信息
-     * @param rawBody   原始请求体 JSON
-     * @param onChunk   数据块回调函数，逐块转发至响应流
+     * @param channel    对客通道信息
+     * @param rawBody    原始请求体 JSON
+     * @param clientPath 客户端实际命中的网关入口路径（如 /chat/completions / /messages / /responses），用于日志展示
+     * @param onChunk    数据块回调函数，逐块转发至响应流
      * @throws BadRequestException 当所有上游候选均调用失败时抛出
      */
-    public void chatStream(ModelChannel channel, String rawBody, Consumer<byte[]> onChunk) {
+    public void chatStream(ModelChannel channel, String rawBody, String clientPath, Consumer<byte[]> onChunk) {
         String requestedModel = parseRequestedModel(rawBody);
         List<UpstreamRoute> candidates = upstreamStrategy.selectCandidates(channel, requestedModel);
         executeWithFailover(channel, requestedModel, rawBody, true, candidates,
@@ -158,7 +160,7 @@ public class GatewayService {
                             route.getProvider(), body, chunkConsumer);
                     return new CallResult(null, sr.complete, sr.usageChunkJson);
                 },
-                onChunk);
+                clientPath, onChunk);
     }
 
     // ==================== Embeddings 接口 ====================
@@ -166,12 +168,13 @@ public class GatewayService {
     /**
      * Embeddings 请求处理
      *
-     * @param channel  对客通道信息
-     * @param rawBody  原始请求体 JSON
-     * @return         上游响应 JSON 字符串
+     * @param channel    对客通道信息
+     * @param rawBody    原始请求体 JSON
+     * @param clientPath 客户端实际命中的网关入口路径，用于日志展示
+     * @return           上游响应 JSON 字符串
      * @throws BadRequestException 当所有上游候选均调用失败时抛出
      */
-    public String embeddings(ModelChannel channel, String rawBody) {
+    public String embeddings(ModelChannel channel, String rawBody, String clientPath) {
         String requestedModel = parseRequestedModel(rawBody);
         List<UpstreamRoute> candidates = upstreamStrategy.selectCandidates(channel, requestedModel);
         return executeWithFailover(channel, requestedModel, rawBody, false, candidates,
@@ -179,7 +182,7 @@ public class GatewayService {
                     String resp = proxyAdapter.embeddings(route.getProvider(), body);
                     return new CallResult(resp, true, resp);
                 },
-                null);
+                clientPath, null);
     }
 
     // ==================== 模型列表 ====================
@@ -304,13 +307,14 @@ public class GatewayService {
      * @param stream         是否流式（用于日志标记和结果处理）
      * @param candidates     上游候选列表
      * @param callFn         上游调用函数，返回 CallResult
+     * @param clientPath     客户端实际命中的网关入口路径，用于日志展示
      * @param onChunk        流式数据块回调（非流式时为 null）
      * @return               非流式返回上游响应 JSON；流式返回 null（数据已通过 onChunk 写出）
      * @throws BadRequestException 当所有上游候选均调用失败时抛出
      */
     private String executeWithFailover(ModelChannel channel, String requestedModel, String rawBody,
                                         boolean stream, List<UpstreamRoute> candidates,
-                                        UpstreamCall callFn, Consumer<byte[]> onChunk) {
+                                        UpstreamCall callFn, String clientPath, Consumer<byte[]> onChunk) {
         List<String> chain = new ArrayList<>();
         long totalStart = System.currentTimeMillis();
         String lastError = "";
@@ -331,7 +335,7 @@ public class GatewayService {
             lastRoute = route;
             try {
                 return attemptCandidate(route, channel, requestedModel, rawBody,
-                        stream, callFn, onChunk, chain, totalStart);
+                        stream, callFn, clientPath, onChunk, chain, totalStart);
             } catch (Exception e) {
                 lastError = resolveMessage(e);
                 lastStatus = resolveUpstreamStatus(e);
@@ -353,7 +357,7 @@ public class GatewayService {
                 lastRoute = route;
                 try {
                     return attemptCandidate(route, channel, requestedModel, rawBody,
-                            stream, callFn, onChunk, chain, totalStart);
+                            stream, callFn, clientPath, onChunk, chain, totalStart);
                 } catch (Exception e) {
                     lastError = resolveMessage(e);
                     lastStatus = resolveUpstreamStatus(e);
@@ -371,7 +375,7 @@ public class GatewayService {
                     System.currentTimeMillis() - totalStart, lastStatus);
         }
         logCall("chat", channel, requestedModel, rawBody, stream,
-                "ALL_FAILED", null, System.currentTimeMillis() - totalStart, null, chain);
+                "ALL_FAILED", null, System.currentTimeMillis() - totalStart, null, chain, clientPath);
         throw new BadRequestException("所有上游调用失败: " + lastError);
     }
 
@@ -386,7 +390,8 @@ public class GatewayService {
      */
     private String attemptCandidate(UpstreamRoute route, ModelChannel channel, String requestedModel,
                                      String rawBody, boolean stream, UpstreamCall callFn,
-                                     Consumer<byte[]> onChunk, List<String> chain, long totalStart) throws IOException {
+                                     String clientPath, Consumer<byte[]> onChunk,
+                                     List<String> chain, long totalStart) throws IOException {
         long start = System.currentTimeMillis();
         String upstreamBody = rebindUpstreamModel(rawBody, route.getModelName());
         CallResult callResult = callFn.call(route, upstreamBody, onChunk);
@@ -398,7 +403,7 @@ public class GatewayService {
         String logResult = ok ? "SUCCESS" : "INTERRUPTED";
         chain.add(gatewayLogger.buildChainEntry(route, status, null));
         logCall("chat", channel, requestedModel, rawBody, stream,
-                logResult, route, System.currentTimeMillis() - totalStart, usage, chain);
+                logResult, route, System.currentTimeMillis() - totalStart, usage, chain, clientPath);
         recordCallLog(channel, route, upstreamBody, usage, latencyMs, 200);
         return stream ? null : callResult.responseJson;
     }
@@ -423,9 +428,9 @@ public class GatewayService {
     private void logCall(String type, ModelChannel channel, String requestedModel,
                          String rawBody, boolean stream, String result,
                          UpstreamRoute finalRoute, long costMs,
-                         JSONObject usage, List<String> chain) {
+                         JSONObject usage, List<String> chain, String clientPath) {
         submitLog(() -> gatewayLogger.logCall(type, channel, requestedModel, rawBody, stream,
-                result, finalRoute, costMs, usage, chain));
+                result, finalRoute, costMs, usage, chain, clientPath));
     }
 
     /**

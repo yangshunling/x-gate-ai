@@ -12,7 +12,7 @@
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache%202.0-blue?style=flat-square" alt="License Apache 2.0"></a>
 </p>
 
-面向 **OpenAI 兼容协议** 的统一模型网关：将 DeepSeek、通义千问、OpenAI、vLLM 本地推理等上游大模型服务收拢到一个固定 API 地址，通过 Web 控制台动态调度、免重启切换。
+同时面向 **OpenAI 兼容协议** 与 **Anthropic 协议** 的统一模型网关：将 DeepSeek、通义千问、OpenAI、vLLM 本地推理等上游大模型服务收拢到一个固定 API 地址，通过 Web 控制台动态调度、免重启切换。
 
 <p>
 <a href="#-为什么选择-x-gate-ai"><kbd>为什么选择</kbd></a>
@@ -38,7 +38,7 @@
 <tr>
 <td width="50%" valign="top">
 <b>🔌 统一入口，保留原生协议</b><br>
-客户端继续使用 OpenAI 兼容接口，OpenAI SDK、Cherry Studio、Dify 及各类 Agent 框架可直接接入，无需改造代码
+客户端继续使用 OpenAI（Chat / Responses）或 Anthropic（Messages）原生接口，OpenAI SDK、Anthropic SDK、Cherry Studio、Dify、Claude Code 及各类 Agent 框架可直接接入，无需改造代码
 </td>
 <td width="50%" valign="top">
 <b>🔄 多上游调度与故障转移</b><br>
@@ -117,13 +117,25 @@
 
 ### 客户端协议
 
-| 协议 | 入口 |
-|---|---|
-| OpenAI Chat Completions | `POST /v1/chat/completions`（流式 / 非流式） |
-| OpenAI Embeddings | `POST /v1/embeddings` |
-| OpenAI Models | `GET /v1/models` |
+#### OpenAI 兼容协议
 
-所有接口与 OpenAI 官方协议完全兼容，客户端零改造接入。
+| 接口 | 入口 |
+|---|---|
+| Chat Completions | `POST /v1/chat/completions`（流式 / 非流式） |
+| Responses | `POST /v1/responses`（流式 / 非流式） |
+| Embeddings | `POST /v1/embeddings` |
+| Models | `GET /v1/models` |
+
+#### Anthropic 协议
+
+| 接口 | 入口 |
+|---|---|
+| Messages | `POST /v1/messages`（流式 / 非流式） |
+
+<blockquote style="background:#ddf4ff;border-left:4px solid #0969da;border-radius:8px;padding:12px 16px;color:#1f2328">
+💡 <b style="color:#0969da">协议转换</b><br>
+所有入口与官方协议完全兼容，客户端零改造接入。内部统一把 Anthropic Messages / OpenAI Responses 请求转换为 OpenAI Chat 请求体转发到上游，响应与流式事件再转换回对应协议格式，转换过程仅做 JSON 结构重排与字段重命名，不产生或丢失语义。
+</blockquote>
 
 ### 上游渠道
 
@@ -156,7 +168,8 @@ java -jar target/x-gate-ai-1.0.0.jar
 | 入口 | 地址 |
 |---|---|
 | Web 控制台 | <http://localhost:8090/> |
-| 对外 API（OpenAI 兼容） | <http://localhost:8090/v1> |
+| 对外 API（OpenAI 兼容） | <http://localhost:8090/v1>（Chat / Responses / Embeddings / Models） |
+| 对外 API（Anthropic） | <http://localhost:8090/v1/messages> |
 | 数据库文件 | `./x-gate-ai.db`（JAR 同级目录，首次启动自动创建） |
 
 <blockquote style="background:#e6f6ec;border-left:4px solid #1a7f37;border-radius:8px;padding:12px 16px;color:#1f2328">

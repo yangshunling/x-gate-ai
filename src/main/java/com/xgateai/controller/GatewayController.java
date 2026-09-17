@@ -79,7 +79,8 @@ public class GatewayController {
             if (body.getBooleanValue("stream")) {
                 initSseResponse(response);
                 try {
-                    gatewayService.chatStream(channel, rawBody, chunk -> writeBytes(out, chunk));
+                    gatewayService.chatStream(channel, rawBody, GatewayConstant.PATH_CHAT_COMPLETIONS,
+                            chunk -> writeBytes(out, chunk));
                 } catch (ClientDisconnectedException e) {
                     log.warn("SSE 流式写出中断, 客户端已断开连接, model: {}", channel.getPublicModelName());
                 } catch (Exception ex) {
@@ -87,7 +88,7 @@ public class GatewayController {
                     writeSseError(out, ex.getMessage());
                 }
             } else {
-                String upstreamJson = gatewayService.chat(channel, rawBody);
+                String upstreamJson = gatewayService.chat(channel, rawBody, GatewayConstant.PATH_CHAT_COMPLETIONS);
                 response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                 response.setCharacterEncoding(StandardCharsets.UTF_8.name());
                 out.write(upstreamJson.getBytes(StandardCharsets.UTF_8));
@@ -134,7 +135,7 @@ public class GatewayController {
                 try {
                     StreamTransformer transformer =
                             responsesConverter.createStreamTransformer(body.getString("model"));
-                    gatewayService.chatStream(channel, chatBody, chunk -> {
+                    gatewayService.chatStream(channel, chatBody, GatewayConstant.PATH_RESPONSES, chunk -> {
                         byte[] bytes = transformer.transform(chunk);
                         if (bytes.length > 0) {
                             writeBytes(out, bytes);
@@ -151,7 +152,7 @@ public class GatewayController {
                     writeSseError(out, ex.getMessage());
                 }
             } else {
-                String upstreamJson = gatewayService.chat(channel, chatBody);
+                String upstreamJson = gatewayService.chat(channel, chatBody, GatewayConstant.PATH_RESPONSES);
                 String responsesJson = responsesConverter.fromChatResponse(upstreamJson);
                 response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                 response.setCharacterEncoding(StandardCharsets.UTF_8.name());
@@ -199,7 +200,7 @@ public class GatewayController {
                 try {
                     StreamTransformer transformer =
                             anthropicConverter.createStreamTransformer(body.getString("model"));
-                    gatewayService.chatStream(channel, chatBody, chunk -> {
+                    gatewayService.chatStream(channel, chatBody, GatewayConstant.PATH_MESSAGES, chunk -> {
                         byte[] bytes = transformer.transform(chunk);
                         if (bytes.length > 0) {
                             writeBytes(out, bytes);
@@ -216,7 +217,7 @@ public class GatewayController {
                     writeAnthropicSseError(out, ex.getMessage());
                 }
             } else {
-                String upstreamJson = gatewayService.chat(channel, chatBody);
+                String upstreamJson = gatewayService.chat(channel, chatBody, GatewayConstant.PATH_MESSAGES);
                 String anthropicJson = anthropicConverter.fromChatResponse(upstreamJson);
                 response.setContentType(MediaType.APPLICATION_JSON_VALUE);
                 response.setCharacterEncoding(StandardCharsets.UTF_8.name());
@@ -248,7 +249,7 @@ public class GatewayController {
                 return buildErrorResponse(400, "invalid_request_error", "请求体为空或不是合法 JSON");
             }
 
-            String upstreamJson = gatewayService.embeddings(channel, rawBody);
+            String upstreamJson = gatewayService.embeddings(channel, rawBody, GatewayConstant.PATH_EMBEDDINGS);
             return ResponseEntity.ok()
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(upstreamJson);

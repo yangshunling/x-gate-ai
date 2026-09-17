@@ -81,21 +81,26 @@ public class GatewayLogger {
      * @param costMs         总耗时（毫秒）
      * @param usage          Token 用量统计（可能为 null）
      * @param chain          故障转移链路记录
+     * @param clientPath     客户端实际命中的网关入口路径（如 /chat/completions / /messages / /responses），用于日志展示
      */
     public void logCall(String type, ModelChannel channel, String requestedModel,
                         String rawBody, boolean stream, String result,
                         UpstreamRoute finalRoute, long costMs,
-                        JSONObject usage, List<String> chain) {
-        String path = "chat".equals(type)
+                        JSONObject usage, List<String> chain, String clientPath) {
+        // 上游实际调用路径：对话走 /chat/completions，向量化走 /embeddings
+        String upstreamPath = "chat".equals(type)
                 ? GatewayConstant.PATH_CHAT_COMPLETIONS
                 : GatewayConstant.PATH_EMBEDDINGS;
+        // 客户端入口路径：展示用，缺省时退回上游路径
+        String displayPath = StrUtil.isBlank(clientPath) ? upstreamPath : clientPath;
 
         Integer inputTokens = usage == null ? null : usage.getInteger("prompt_tokens");
         Integer outputTokens = usage == null ? null : usage.getInteger("completion_tokens");
 
         JSONObject parsedBody = JSON.parseObject(rawBody);
-        StringBuilder sb = buildSingleLineLog(type, path, stream, channel, requestedModel,
-                result, finalRoute, costMs, inputTokens, outputTokens, parsedBody, chain);
+        StringBuilder sb = buildSingleLineLog(type, displayPath, upstreamPath, stream, channel,
+                requestedModel, result, finalRoute, costMs, inputTokens, outputTokens,
+                parsedBody, chain);
 
         switch (result) {
             case "SUCCESS" -> GATEWAY_LOGGER.info(sb.toString());
@@ -103,7 +108,7 @@ public class GatewayLogger {
             default -> GATEWAY_LOGGER.error(sb.toString());
         }
 
-        printBoxedLog(type, channel, requestedModel, parsedBody, stream, result,
+        printBoxedLog(type, displayPath, channel, requestedModel, parsedBody, stream, result,
                 finalRoute, costMs, inputTokens, outputTokens, chain);
     }
 
@@ -170,14 +175,14 @@ public class GatewayLogger {
 
     // ==================== 私有辅助方法 ====================
 
-    private StringBuilder buildSingleLineLog(String type, String path, boolean stream,
-                                              ModelChannel channel, String requestedModel,
+    private StringBuilder buildSingleLineLog(String type, String displayPath, String upstreamPath,
+                                              boolean stream, ModelChannel channel, String requestedModel,
                                               String result, UpstreamRoute finalRoute,
                                               long costMs, Integer inputTokens,
                                               Integer outputTokens, JSONObject parsedBody,
                                               List<String> chain) {
         StringBuilder sb = new StringBuilder(256);
-        sb.append(type).append(' ').append(path)
+        sb.append(type).append(' ').append(displayPath)
                 .append(" stream=").append(stream)
                 .append(" channelId=").append(channel.getId())
                 .append(" customer=").append(StrUtil.blankToDefault(channel.getPublicModelName(), "-"))
@@ -191,7 +196,7 @@ public class GatewayLogger {
                     .append(provider.getId()).append(')')
                     .append(" upstreamModel=").append(finalRoute.getModelName())
                     .append(" url=").append(truncateDisplay(
-                            provider.getBaseUrl() + path, URL_DISPLAY_MAX));
+                            provider.getBaseUrl() + upstreamPath, URL_DISPLAY_MAX));
         }
 
         sb.append(" cost=").append(costMs).append("ms");
@@ -336,11 +341,10 @@ public class GatewayLogger {
         }
     }
 
-    private void printBoxedLog(String type, ModelChannel channel, String requestedModel,
-                               JSONObject parsedBody, boolean stream, String result,
-                               UpstreamRoute finalRoute, long costMs,
-                               Integer inTokens, Integer outTokens,
-                               List<String> chain) {
+    private void printBoxedLog(String type, String displayPath, ModelChannel channel,
+                               String requestedModel, JSONObject parsedBody, boolean stream,
+                               String result, UpstreamRoute finalRoute, long costMs,
+                               Integer inTokens, Integer outTokens, List<String> chain) {
         boolean ok = "SUCCESS".equals(result);
         String statusWord = ok ? "成功" : ("INTERRUPTED".equals(result) ? "中断" : "失败");
         String statusColor = ok ? A_GREEN : A_RED;
@@ -348,9 +352,6 @@ public class GatewayLogger {
         String tid = GatewayLog.getMdc(GatewayLog.MDC_TRACE_ID);
         String customer = StrUtil.blankToDefault(channel.getPublicModelName(), "-");
         String fullKey = StrUtil.blankToDefault(channel.getApiKey(), "-");
-        String path = "chat".equals(type)
-                ? GatewayConstant.PATH_CHAT_COMPLETIONS
-                : GatewayConstant.PATH_EMBEDDINGS;
         String mode = "chat".equals(type)
                 ? (stream ? "SSE 流式" : "JSON 非流式")
                 : "Embedding";
@@ -363,7 +364,7 @@ public class GatewayLogger {
         rows.add(new Object[]{"请求时间", time, null});
         rows.add(new Object[]{"链路标识", StrUtil.blankToDefault(tid, "-"), null});
         rows.add(new Object[]{"用户名称", customer + " (" + fullKey + ")", null});
-        rows.add(new Object[]{"请求接口", "POST " + path + "  ✦  " + mode, null});
+        rows.add(new Object[]{"请求接口", "POST " + displayPath + "  ✦  " + mode, null});
         rows.add(new Object[]{"请求模型", StrUtil.blankToDefault(requestedModel, "-"), null});
         if (inTokens != null || outTokens != null) {
             int in = inTokens == null ? 0 : inTokens;

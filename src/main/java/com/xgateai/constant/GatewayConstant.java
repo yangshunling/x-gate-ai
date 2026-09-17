@@ -47,6 +47,11 @@ public class GatewayConstant {
     public static final String PATH_MODELS = "/models";
 
     /**
+     * OpenAI Responses 协议入口路径（POST /v1/responses）
+     */
+    public static final String PATH_RESPONSES = "/responses";
+
+    /**
      * Anthropic Messages 协议入口路径（POST /v1/messages）
      */
     public static final String PATH_MESSAGES = "/messages";
