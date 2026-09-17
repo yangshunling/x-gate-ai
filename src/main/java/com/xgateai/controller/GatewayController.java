@@ -9,6 +9,7 @@ import com.xgateai.constant.GatewayConstant;
 import com.xgateai.exception.BadRequestException;
 import com.xgateai.exception.ClientDisconnectedException;
 import com.xgateai.protocol.AnthropicConverter;
+import com.xgateai.protocol.OpenAIResponsesConverter;
 import com.xgateai.protocol.StreamTransformer;
 import com.xgateai.service.gateway.GatewayService;
 import jakarta.servlet.ServletOutputStream;
@@ -39,11 +40,14 @@ public class GatewayController {
 
     private final GatewayService gatewayService;
     private final AnthropicConverter anthropicConverter;
+    private final OpenAIResponsesConverter responsesConverter;
 
     public GatewayController(GatewayService gatewayService,
-                             AnthropicConverter anthropicConverter) {
+                             AnthropicConverter anthropicConverter,
+                             OpenAIResponsesConverter responsesConverter) {
         this.gatewayService = gatewayService;
         this.anthropicConverter = anthropicConverter;
+        this.responsesConverter = responsesConverter;
     }
 
     /**
@@ -94,6 +98,71 @@ public class GatewayController {
             writeError(response, out, ex.getStatusCode(), ex.getErrorCode(), ex.getMessage());
         } catch (Exception ex) {
             log.error("处理 /v1/chat/completions 请求异常", ex);
+            writeError(response, out, 500, "server_error", ex.getMessage());
+        }
+    }
+
+    /**
+     * OpenAI Responses：对话补全接口（兼容 OpenAI Responses SDK）
+     * <p>
+     * 请求转换为 OpenAI Chat 格式后走统一网关链路，响应/流式事件再转回
+     * Responses 格式。支持流式和非流式两种模式。
+     * </p>
+     */
+    @PostMapping("/responses")
+    public void openaiResponses(@RequestBody String rawBody,
+                                HttpServletRequest request,
+                                HttpServletResponse response) throws IOException {
+        ServletOutputStream out = response.getOutputStream();
+        ModelChannel channel = resolveChannel(request);
+
+        if (channel == null) {
+            writeError(response, out, 400, "invalid_request_error", "无法识别调用方对客服务");
+            return;
+        }
+
+        try {
+            JSONObject body = JSON.parseObject(rawBody);
+            if (body == null) {
+                writeError(response, out, 400, "invalid_request_error", "请求体为空或不是合法 JSON");
+                return;
+            }
+
+            String chatBody = responsesConverter.toChatRequest(rawBody);
+            if (body.getBooleanValue("stream")) {
+                initSseResponse(response);
+                try {
+                    StreamTransformer transformer =
+                            responsesConverter.createStreamTransformer(body.getString("model"));
+                    gatewayService.chatStream(channel, chatBody, chunk -> {
+                        byte[] bytes = transformer.transform(chunk);
+                        if (bytes.length > 0) {
+                            writeBytes(out, bytes);
+                        }
+                    });
+                    byte[] tail = transformer.finish();
+                    if (tail.length > 0) {
+                        writeBytes(out, tail);
+                    }
+                } catch (ClientDisconnectedException e) {
+                    log.warn("Responses 流式写出中断, 客户端已断开连接, model: {}", channel.getPublicModelName());
+                } catch (Exception ex) {
+                    log.error("Responses 流式调用上游全部失败, model: {}", channel.getPublicModelName(), ex);
+                    writeSseError(out, ex.getMessage());
+                }
+            } else {
+                String upstreamJson = gatewayService.chat(channel, chatBody);
+                String responsesJson = responsesConverter.fromChatResponse(upstreamJson);
+                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+                out.write(responsesJson.getBytes(StandardCharsets.UTF_8));
+                out.flush();
+            }
+        } catch (BadRequestException ex) {
+            log.warn("Responses 请求校验失败, error: {}", ex.getMessage());
+            writeError(response, out, ex.getStatusCode(), ex.getErrorCode(), ex.getMessage());
+        } catch (Exception ex) {
+            log.error("处理 /v1/responses 请求异常", ex);
             writeError(response, out, 500, "server_error", ex.getMessage());
         }
     }
