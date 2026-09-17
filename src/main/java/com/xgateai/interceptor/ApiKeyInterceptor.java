@@ -54,7 +54,7 @@ public class ApiKeyInterceptor implements HandlerInterceptor {
         String apiKey = resolveApiKey(request);
         if (StrUtil.isBlank(apiKey)) {
             log.warn("API Key 为空, 拒绝访问, ip: {}", request.getRemoteAddr());
-            writeUnauthorizedResponse(response);
+            writeUnauthorizedResponse(request, response);
             return false;
         }
 
@@ -74,7 +74,7 @@ public class ApiKeyInterceptor implements HandlerInterceptor {
         if (channel == null) {
             log.warn("API Key 校验失败(未匹配启用通道), ip: {}, key: {}",
                     request.getRemoteAddr(), apiKey);
-            writeUnauthorizedResponse(response);
+            writeUnauthorizedResponse(request, response);
             return false;
         }
 
@@ -105,19 +105,37 @@ public class ApiKeyInterceptor implements HandlerInterceptor {
         return request.getHeader(CommonConstant.HEADER_X_API_KEY);
     }
 
-    private void writeUnauthorizedResponse(HttpServletResponse response) throws IOException {
-        JSONObject error = new JSONObject();
-        error.put("message", "Invalid API key");
-        error.put("type", "invalid_request_error");
-        error.put("param", null);
-        error.put("code", "invalid_api_key");
-
-        JSONObject body = new JSONObject();
-        body.put("error", error);
-
+    /**
+     * 写出 401 未授权响应，错误体格式按客户端协议区分：<ul>
+     *   <li>Anthropic Messages 协议：{@code {"type":"error","error":{"type":"authentication_error","message":...}}}</li>
+     *   <li>OpenAI 兼容协议：{@code {"error":{"type":"invalid_request_error",...}}}</li>
+     * </ul>
+     */
+    private void writeUnauthorizedResponse(HttpServletRequest request,
+                                           HttpServletResponse response) throws IOException {
+        boolean anthropic = StrUtil.endWith(request.getRequestURI(), GatewayConstant.PATH_MESSAGES, false);
+        String errorBody;
+        if (anthropic) {
+            JSONObject error = new JSONObject();
+            error.put("type", "authentication_error");
+            error.put("message", "invalid x-api-key");
+            JSONObject body = new JSONObject();
+            body.put("type", "error");
+            body.put("error", error);
+            errorBody = JSON.toJSONString(body);
+        } else {
+            JSONObject error = new JSONObject();
+            error.put("message", "Invalid API key");
+            error.put("type", "invalid_request_error");
+            error.put("param", null);
+            error.put("code", "invalid_api_key");
+            JSONObject body = new JSONObject();
+            body.put("error", error);
+            errorBody = JSON.toJSONString(body);
+        }
         response.setStatus(CommonConstant.HTTP_UNAUTHORIZED);
         response.setContentType("application/json;charset=UTF-8");
-        response.getWriter().write(JSON.toJSONString(body));
+        response.getWriter().write(errorBody);
     }
 
     private String maskApiKey(String apiKey) {

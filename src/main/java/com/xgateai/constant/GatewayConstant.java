@@ -47,6 +47,21 @@ public class GatewayConstant {
     public static final String PATH_MODELS = "/models";
 
     /**
+     * Anthropic Messages 协议入口路径（POST /v1/messages）
+     */
+    public static final String PATH_MESSAGES = "/messages";
+
+    /**
+     * Anthropic 协议请求头：API Key
+     */
+    public static final String HEADER_ANTHROPIC_API_KEY = "x-api-key";
+
+    /**
+     * Anthropic 协议请求头：协议版本
+     */
+    public static final String HEADER_ANTHROPIC_VERSION = "anthropic-version";
+
+    /**
      * 自动路由通配模型名：当客户端请求 model=auto 时走全池匹配逻辑
      */
     public static final String MODEL_POOL = "auto";

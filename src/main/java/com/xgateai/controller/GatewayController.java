@@ -8,6 +8,8 @@ import com.xgateai.entity.ModelChannel;
 import com.xgateai.constant.GatewayConstant;
 import com.xgateai.exception.BadRequestException;
 import com.xgateai.exception.ClientDisconnectedException;
+import com.xgateai.protocol.AnthropicConverter;
+import com.xgateai.protocol.StreamTransformer;
 import com.xgateai.service.gateway.GatewayService;
 import jakarta.servlet.ServletOutputStream;
 import jakarta.servlet.http.HttpServletRequest;
@@ -36,9 +38,12 @@ import java.nio.charset.StandardCharsets;
 public class GatewayController {
 
     private final GatewayService gatewayService;
+    private final AnthropicConverter anthropicConverter;
 
-    public GatewayController(GatewayService gatewayService) {
+    public GatewayController(GatewayService gatewayService,
+                             AnthropicConverter anthropicConverter) {
         this.gatewayService = gatewayService;
+        this.anthropicConverter = anthropicConverter;
     }
 
     /**
@@ -90,6 +95,71 @@ public class GatewayController {
         } catch (Exception ex) {
             log.error("处理 /v1/chat/completions 请求异常", ex);
             writeError(response, out, 500, "server_error", ex.getMessage());
+        }
+    }
+
+    /**
+     * Anthropic Messages：对话补全接口（兼容 Anthropic SDK）
+     * <p>
+     * 请求转换为 OpenAI Chat 格式后走统一网关链路，响应/流式事件再转回
+     * Anthropic Messages 格式。支持流式和非流式两种模式。
+     * </p>
+     */
+    @PostMapping("/messages")
+    public void anthropicMessages(@RequestBody String rawBody,
+                                  HttpServletRequest request,
+                                  HttpServletResponse response) throws IOException {
+        ServletOutputStream out = response.getOutputStream();
+        ModelChannel channel = resolveChannel(request);
+
+        if (channel == null) {
+            writeAnthropicError(response, out, 400, "invalid_request_error", "无法识别调用方对客服务");
+            return;
+        }
+
+        try {
+            JSONObject body = JSON.parseObject(rawBody);
+            if (body == null) {
+                writeAnthropicError(response, out, 400, "invalid_request_error", "请求体为空或不是合法 JSON");
+                return;
+            }
+
+            String chatBody = anthropicConverter.toChatRequest(rawBody);
+            if (body.getBooleanValue("stream")) {
+                initSseResponse(response);
+                try {
+                    StreamTransformer transformer =
+                            anthropicConverter.createStreamTransformer(body.getString("model"));
+                    gatewayService.chatStream(channel, chatBody, chunk -> {
+                        byte[] bytes = transformer.transform(chunk);
+                        if (bytes.length > 0) {
+                            writeBytes(out, bytes);
+                        }
+                    });
+                    byte[] tail = transformer.finish();
+                    if (tail.length > 0) {
+                        writeBytes(out, tail);
+                    }
+                } catch (ClientDisconnectedException e) {
+                    log.warn("Anthropic 流式写出中断, 客户端已断开连接, model: {}", channel.getPublicModelName());
+                } catch (Exception ex) {
+                    log.error("Anthropic 流式调用上游全部失败, model: {}", channel.getPublicModelName(), ex);
+                    writeAnthropicSseError(out, ex.getMessage());
+                }
+            } else {
+                String upstreamJson = gatewayService.chat(channel, chatBody);
+                String anthropicJson = anthropicConverter.fromChatResponse(upstreamJson);
+                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+                out.write(anthropicJson.getBytes(StandardCharsets.UTF_8));
+                out.flush();
+            }
+        } catch (BadRequestException ex) {
+            log.warn("Anthropic 请求校验失败, error: {}", ex.getMessage());
+            writeAnthropicError(response, out, ex.getStatusCode(), ex.getErrorCode(), ex.getMessage());
+        } catch (Exception ex) {
+            log.error("处理 /v1/messages 请求异常", ex);
+            writeAnthropicError(response, out, 500, "api_error", ex.getMessage());
         }
     }
 
@@ -188,6 +258,47 @@ public class GatewayController {
             out.flush();
         } catch (Exception e) {
             log.error("写出错误响应失败", e);
+        }
+    }
+
+    private void writeAnthropicSseError(ServletOutputStream out, String message) {
+        try {
+            JSONObject error = new JSONObject();
+            error.put("type", "api_error");
+            error.put("message", message);
+            JSONObject body = new JSONObject();
+            body.put("type", "error");
+            body.put("error", error);
+            out.write(("event: error\ndata: " + body.toJSONString() + "\n\n")
+                    .getBytes(StandardCharsets.UTF_8));
+            out.flush();
+        } catch (Exception e) {
+            log.warn("写出 Anthropic SSE 错误事件失败, 客户端可能已断开连接", e);
+        }
+    }
+
+    /**
+     * 写出 Anthropic Messages 格式的错误响应
+     * {@code {"type":"error","error":{"type":...,"message":...}}}
+     */
+    private void writeAnthropicError(HttpServletResponse response, ServletOutputStream out,
+                                     int status, String type, String message) {
+        try {
+            if (!response.isCommitted()) {
+                response.setStatus(status);
+                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+            }
+            JSONObject error = new JSONObject();
+            error.put("type", type);
+            error.put("message", StrUtil.isBlank(message) ? "未知错误" : message);
+            JSONObject body = new JSONObject();
+            body.put("type", "error");
+            body.put("error", error);
+            out.write(body.toJSONString().getBytes(StandardCharsets.UTF_8));
+            out.flush();
+        } catch (Exception e) {
+            log.error("写出 Anthropic 错误响应失败", e);
         }
     }
 
