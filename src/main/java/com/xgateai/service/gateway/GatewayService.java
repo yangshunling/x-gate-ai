@@ -15,6 +15,7 @@ import com.xgateai.exception.BadRequestException;
 import com.xgateai.exception.UpstreamException;
 import com.xgateai.adapter.ProxyAdapter;
 import com.xgateai.component.InflightRegistry;
+import com.xgateai.config.GatewayConfig;
 import com.xgateai.logging.GatewayLog;
 import com.xgateai.logging.GatewayLogger;
 import com.xgateai.mapper.ICallLogDao;
@@ -67,6 +68,7 @@ public class GatewayService {
     private final IUpstreamModelDao upstreamModelDao;
     private final IUpstreamProviderDao upstreamProviderDao;
     private final InflightRegistry inflightRegistry;
+    private final GatewayConfig gatewayConfig;
     private ExecutorService logExecutor;
 
     public GatewayService(ProxyAdapter proxyAdapter,
@@ -75,7 +77,8 @@ public class GatewayService {
                           ICallLogDao callLogDao,
                           IUpstreamModelDao upstreamModelDao,
                           IUpstreamProviderDao upstreamProviderDao,
-                          InflightRegistry inflightRegistry) {
+                          InflightRegistry inflightRegistry,
+                          GatewayConfig gatewayConfig) {
         this.proxyAdapter = proxyAdapter;
         this.upstreamStrategy = upstreamStrategy;
         this.gatewayLogger = gatewayLogger;
@@ -83,6 +86,7 @@ public class GatewayService {
         this.upstreamModelDao = upstreamModelDao;
         this.upstreamProviderDao = upstreamProviderDao;
         this.inflightRegistry = inflightRegistry;
+        this.gatewayConfig = gatewayConfig;
     }
 
     /**
@@ -181,9 +185,12 @@ public class GatewayService {
     // ==================== 模型列表 ====================
 
     /**
-     * 查询当前池内所有启用的模型列表（OpenAI 兼容格式）
+     * 查询池内所有启用的模型列表（OpenAI 兼容格式）
      * <p>
      * 仅返回启用渠道下的启用模型，按模型名去重。
+     * {@code owned_by} 统一为网关品牌名，不向上游调用方暴露真实供应商
+     * （如商汤科技、DeepSeek、OpenAI）。{@code auto} 是全池路由策略关键字，
+     * 非模型，不在列表中返回。
      * </p>
      *
      * @return 模型信息列表，每个元素包含 id/object/created/owned_by
@@ -217,7 +224,7 @@ public class GatewayService {
             entry.put("id", modelName);
             entry.put("object", "model");
             entry.put("created", parseCreatedToEpoch(model.getCreatedAt()));
-            entry.put("owned_by", provider.getName());
+            entry.put("owned_by", gatewayConfig.getBrandName());
             dedup.put(modelName, entry);
         }
         return new ArrayList<>(dedup.values());
