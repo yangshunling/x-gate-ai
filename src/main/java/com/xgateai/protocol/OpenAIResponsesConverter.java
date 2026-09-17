@@ -49,6 +49,11 @@ public class OpenAIResponsesConverter implements ProtocolConverter {
     private static final java.util.Set<String> ITEM_TYPES = java.util.Set.of(
             "message", "function_call", "function_call_output", "reasoning");
 
+    /**
+     * 该转换器服务的客户端协议类型
+     *
+     * @return OPENAI_RESPONSES
+     */
     @Override
     public ProtocolType clientProtocol() {
         return ProtocolType.OPENAI_RESPONSES;
@@ -56,6 +61,12 @@ public class OpenAIResponsesConverter implements ProtocolConverter {
 
     // ==================== 入站：OpenAI Responses → OpenAI Chat ====================
 
+    /**
+     * 入站转换：OpenAI Responses 请求体 → OpenAI Chat 请求体
+     *
+     * @param clientRawBody Responses 原始请求体 JSON
+     * @return OpenAI Chat 请求体 JSON
+     */
     @Override
     public String toChatRequest(String clientRawBody) {
         JSONObject body = JSON.parseObject(clientRawBody);
@@ -266,7 +277,11 @@ public class OpenAIResponsesConverter implements ProtocolConverter {
     }
 
     /**
-     * 把 content blocks（input_text/input_image/output_text）转成 OpenAI Chat content。
+     * 把 content blocks（input_text/input_image/output_text）转成 OpenAI Chat content
+     *
+     * @param role   消息角色
+     * @param blocks content blocks 数组
+     * @return 消息 JSON 对象
      */
     private JSONObject buildMessageFromBlocks(String role, JSONArray blocks) {
         JSONArray content = new JSONArray();
@@ -397,12 +412,26 @@ public class OpenAIResponsesConverter implements ProtocolConverter {
         return toolChoice;
     }
 
+    /**
+     * 字段拷贝：源对象存在该键时复制到目标对象
+     *
+     * @param from 源对象
+     * @param to   目标对象
+     * @param key  字段名
+     */
     private void copyField(JSONObject from, JSONObject to, String key) {
         if (from.containsKey(key)) {
             to.put(key, from.get(key));
         }
     }
 
+    /**
+     * 构建单条纯文本消息
+     *
+     * @param role    消息角色
+     * @param content 文本内容
+     * @return 消息 JSON 对象
+     */
     private JSONObject buildSimpleMessage(String role, String content) {
         JSONObject msg = new JSONObject();
         msg.put("role", role);
@@ -419,11 +448,21 @@ public class OpenAIResponsesConverter implements ProtocolConverter {
         /** 最近一次 function_call 的 id（用于 function_call_output 兑底链接） */
         String lastToolCallId;
 
+        /**
+         * 追加文本片段到缓冲
+         *
+         * @param t 文本片段
+         */
         void appendText(String t) {
             text.append(t);
             hasText = true;
         }
 
+        /**
+         * 追加 content blocks 中的文本部分到缓冲
+         *
+         * @param blocks content blocks 数组
+         */
         void appendBlocks(JSONArray blocks) {
             for (int i = 0; i < blocks.size(); i++) {
                 JSONObject b = blocks.getJSONObject(i);
@@ -435,6 +474,13 @@ public class OpenAIResponsesConverter implements ProtocolConverter {
             }
         }
 
+        /**
+         * 追加一个工具调用到缓冲
+         *
+         * @param id        工具调用 ID
+         * @param name      工具名称
+         * @param arguments 参数 JSON 字符串
+         */
         void appendToolCall(String id, String name, String arguments) {
             JSONObject tc = new JSONObject();
             tc.put("id", id);
@@ -448,6 +494,11 @@ public class OpenAIResponsesConverter implements ProtocolConverter {
             lastToolCallId = id;
         }
 
+        /**
+         * 将缓冲内容 flush 为一条 assistant 消息输出；无内容时跳过
+         *
+         * @param out 目标消息数组
+         */
         void flush(JSONArray out) {
             if (!hasText && !hasToolCalls) return;
             JSONObject msg = new JSONObject();
@@ -467,6 +518,12 @@ public class OpenAIResponsesConverter implements ProtocolConverter {
 
     // ==================== 出站（非流式）：OpenAI Chat → OpenAI Responses ====================
 
+    /**
+     * 出站转换（非流式）：OpenAI Chat 响应 → OpenAI Responses 响应
+     *
+     * @param chatJson 上游 OpenAI Chat 响应 JSON
+     * @return OpenAI Responses 响应 JSON
+     */
     @Override
     public String fromChatResponse(String chatJson) {
         JSONObject resp = JSON.parseObject(chatJson);
@@ -553,6 +610,12 @@ public class OpenAIResponsesConverter implements ProtocolConverter {
 
     // ==================== 出站（流式）：OpenAI Chat SSE → OpenAI Responses 事件流 ====================
 
+    /**
+     * 创建 Responses 流式事件转换器
+     *
+     * @param requestedModel 客户端请求的模型名（作响应 created 的兜底 model 字段）
+     * @return Responses 流式转换器实例
+     */
     @Override
     public StreamTransformer createStreamTransformer(String requestedModel) {
         return new ResponsesStreamTransformer(requestedModel);
@@ -601,10 +664,21 @@ public class OpenAIResponsesConverter implements ProtocolConverter {
         /** 流结束标记 */
         private boolean finished;
 
+        /**
+         * 构造流式转换器
+         *
+         * @param fallbackModel 兜底模型名
+         */
         ResponsesStreamTransformer(String fallbackModel) {
             this.fallbackModel = fallbackModel;
         }
 
+        /**
+         * 转换一个上游 SSE 数据块为 Responses 事件字节
+         *
+         * @param upstreamChunk 上游原始 SSE 数据块
+         * @return Responses 事件字节；无可输出内容时返回空数组
+         */
         @Override
         public byte[] transform(byte[] upstreamChunk) {
             StringBuilder out = new StringBuilder();
@@ -688,6 +762,11 @@ public class OpenAIResponsesConverter implements ProtocolConverter {
             return out.toString().getBytes(StandardCharsets.UTF_8);
         }
 
+        /**
+         * 上游流结束：补发收尾事件（response.completed）
+         *
+         * @return 收尾事件字节；已结束时返回空数组
+         */
         @Override
         public byte[] finish() {
             if (finished) return new byte[0];
@@ -701,6 +780,11 @@ public class OpenAIResponsesConverter implements ProtocolConverter {
 
         // ---------- 状态机辅助 ----------
 
+        /**
+         * 确保已发送 response.created 事件（幂等）
+         *
+         * @param out 事件输出构建器
+         */
         private void ensureResponseStarted(StringBuilder out) {
             if (responseStarted) return;
             responseStarted = true;
@@ -835,6 +919,13 @@ public class OpenAIResponsesConverter implements ProtocolConverter {
             currentItem = null;
         }
 
+        /**
+         * 构建 response.output_item.done 事件
+         *
+         * @param idx  output item 序号
+         * @param item 完成的 item 对象
+         * @return 事件数据对象
+         */
         private JSONObject buildOutputItemDone(int idx, JSONObject item) {
             JSONObject eventData = new JSONObject();
             eventData.put("type", "response.output_item.done");
@@ -843,6 +934,13 @@ public class OpenAIResponsesConverter implements ProtocolConverter {
             return eventData;
         }
 
+        /**
+         * 构建 response.output_text.delta 事件
+         *
+         * @param outputIndex output item 序号
+         * @param delta       文本增量
+         * @return 事件数据对象
+         */
         private JSONObject buildOutputTextDelta(int outputIndex, String delta) {
             JSONObject eventData = new JSONObject();
             eventData.put("type", "response.output_text.delta");
@@ -852,6 +950,13 @@ public class OpenAIResponsesConverter implements ProtocolConverter {
             return eventData;
         }
 
+        /**
+         * 构建 response.function_call_arguments.delta 事件
+         *
+         * @param outputIndex output item 序号
+         * @param delta       参数 JSON 增量
+         * @return 事件数据对象
+         */
         private JSONObject buildFunctionCallArgumentsDelta(int outputIndex, String delta) {
             JSONObject eventData = new JSONObject();
             eventData.put("type", "response.function_call_arguments.delta");
@@ -860,6 +965,11 @@ public class OpenAIResponsesConverter implements ProtocolConverter {
             return eventData;
         }
 
+        /**
+         * 构建 response.completed 事件数据对象
+         *
+         * @return 事件数据对象
+         */
         private JSONObject buildCompletedResponse() {
             JSONArray output = new JSONArray();
             // 简化：response.completed 的 output 为空数组，客户端用 delta 累积文本 + completed 拿 usage
@@ -883,6 +993,13 @@ public class OpenAIResponsesConverter implements ProtocolConverter {
             return eventData;
         }
 
+        /**
+         * 构建 Responses response 基础对象
+         *
+         * @param status 状态：in_progress / completed / incomplete
+         * @param output output 数组
+         * @return response 对象
+         */
         private JSONObject buildBaseResponse(String status, JSONArray output) {
             JSONObject response = new JSONObject();
             response.put("id", responseId);
@@ -894,6 +1011,13 @@ public class OpenAIResponsesConverter implements ProtocolConverter {
             return response;
         }
 
+        /**
+         * 输出一个 Responses 事件（event: <name>\ndata: <json>\n\n）
+         *
+         * @param out       事件输出构建器
+         * @param eventName 事件名
+         * @param data      事件数据对象
+         */
         private void appendEvent(StringBuilder out, String eventName, JSONObject data) {
             out.append(EVENT_PREFIX).append(eventName).append('\n');
             out.append(DATA_PREFIX).append(data.toJSONString()).append('\n');
@@ -923,11 +1047,17 @@ public class OpenAIResponsesConverter implements ProtocolConverter {
 
     /** OpenAI 单个 tool_call 的流式状态 */
     private static class ToolCallState {
+        /** 调用 ID */
         String callId;
+        /** 工具名称 */
         String name;
+        /** 是否已发送 output_item.added */
         boolean started;
+        /** 分配的 output item 序号 */
         int outputIndex;
+        /** 生成的 fc_ 前缀 item id */
         String itemId;
+        /** 参数 JSON 累积 */
         final StringBuilder accumulatedArguments = new StringBuilder();
     }
 }

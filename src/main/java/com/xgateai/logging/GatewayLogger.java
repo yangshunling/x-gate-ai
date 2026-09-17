@@ -175,6 +175,11 @@ public class GatewayLogger {
 
     // ==================== 私有辅助方法 ====================
 
+    /**
+     * 构建单行日志字符串（写入 gateway.log）
+     *
+     * @return 拼装好的单行日志
+     */
     private StringBuilder buildSingleLineLog(String type, String displayPath, String upstreamPath,
                                               boolean stream, ModelChannel channel, String requestedModel,
                                               String result, UpstreamRoute finalRoute,
@@ -216,6 +221,13 @@ public class GatewayLogger {
         return sb;
     }
 
+    /**
+     * 从请求体摘要 JSON 中构建面向单行日志的 payload 描述（roles/preview/inputCount）
+     *
+     * @param type       调用类型
+     * @param parsedBody 已解析的请求体
+     * @return payload 描述片段；无内容时返回空串
+     */
     private String buildPayloadDescription(String type, JSONObject parsedBody) {
         String summaryJson = "chat".equals(type)
                 ? buildChatSummary(parsedBody)
@@ -250,6 +262,12 @@ public class GatewayLogger {
         return sb.toString();
     }
 
+    /**
+     * 构建 chat 请求体摘要（type/roles/preview）
+     *
+     * @param body 请求体
+     * @return 摘要 JSON 字符串；解析失败返回 null
+     */
     private String buildChatSummary(JSONObject body) {
         try {
             JSONObject summary = new JSONObject();
@@ -278,6 +296,12 @@ public class GatewayLogger {
         }
     }
 
+    /**
+     * 构建 embedding 请求体摘要（type/inputCount/preview）
+     *
+     * @param body 请求体
+     * @return 摘要 JSON 字符串；解析失败返回 null
+     */
     private String buildEmbeddingSummary(JSONObject body) {
         try {
             JSONObject summary = new JSONObject();
@@ -297,6 +321,12 @@ public class GatewayLogger {
         }
     }
 
+    /**
+     * 提取 message 的文本内容：字符串原样返回，content blocks 数组拼接 text 块
+     *
+     * @param message 消息对象
+     * @return 文本内容；无文本时返回空串
+     */
     private String extractMessageText(JSONObject message) {
         Object content = message.get("content");
         if (content == null) return "";
@@ -314,6 +344,12 @@ public class GatewayLogger {
         return content.toString();
     }
 
+    /**
+     * 统计请求体中 assistant 消息的 tool_calls 总数
+     *
+     * @param body 请求体
+     * @return tool_calls 总数；解析失败返回 0
+     */
     private int countRequestToolCalls(JSONObject body) {
         try {
             JSONArray messages = body == null ? null : body.getJSONArray("messages");
@@ -332,6 +368,12 @@ public class GatewayLogger {
         }
     }
 
+    /**
+     * 从上游响应 JSON 中提取 usage 对象
+     *
+     * @param upstreamJson 上游响应 JSON
+     * @return usage 对象；解析失败返回 null
+     */
     private JSONObject parseUsage(String upstreamJson) {
         try {
             JSONObject resp = JSON.parseObject(upstreamJson);
@@ -341,6 +383,22 @@ public class GatewayLogger {
         }
     }
 
+    /**
+     * 输出框式日志到控制台（带 ANSI 颜色）
+     *
+     * @param type           调用类型
+     * @param displayPath    展示路径
+     * @param channel        对客通道
+     * @param requestedModel 请求模型
+     * @param parsedBody     已解析的请求体
+     * @param stream         是否流式
+     * @param result         调用结果
+     * @param finalRoute     最终路由目标
+     * @param costMs         总耗时
+     * @param inTokens       输入 Token
+     * @param outTokens      输出 Token
+     * @param chain          故障转移链路
+     */
     private void printBoxedLog(String type, String displayPath, ModelChannel channel,
                                String requestedModel, JSONObject parsedBody, boolean stream,
                                String result, UpstreamRoute finalRoute, long costMs,
@@ -406,6 +464,12 @@ public class GatewayLogger {
         GATEWAY_CONSOLE.info(box.toString());
     }
 
+    /**
+     * 构建请求体角色分布描述（如 system:1 user:2 assistant:1）
+     *
+     * @param body 请求体
+     * @return 角色分布描述；无内容返回空串
+     */
     private String buildRolesDescription(JSONObject body) {
         if (body == null) return "";
         try {
@@ -431,10 +495,27 @@ public class GatewayLogger {
         }
     }
 
+    /**
+     * 追加一行到框式日志（默认值列宽）
+     *
+     * @param sb    日志字符串构建器
+     * @param label 行标签
+     * @param value 行值
+     * @param color ANSI 颜色（可空）
+     */
     private void appendRow(StringBuilder sb, String label, String value, String color) {
         appendRow(sb, label, value, color, BOX_VALUE);
     }
 
+    /**
+     * 追加一行到框式日志（自定义值列宽）
+     *
+     * @param sb       日志字符串构建器
+     * @param label    行标签
+     * @param value    行值
+     * @param color    ANSI 颜色（可空）
+     * @param boxValue 值列宽
+     */
     private void appendRow(StringBuilder sb, String label, String value, String color, int boxValue) {
         String lab = truncateDisplay(label, BOX_LABEL);
         String val = truncateDisplay(value, boxValue);
@@ -449,12 +530,25 @@ public class GatewayLogger {
                 .append(A_CYAN).append(" ║").append(A_RST).append('\n');
     }
 
+    /**
+     * 将文本在指定宽度内居中填充
+     *
+     * @param text  文本
+     * @param width 目标宽度
+     * @return 居中后的字符串
+     */
     private String center(String text, int width) {
         int pad = Math.max(0, width - displayWidth(text));
         int l = pad / 2;
         return " ".repeat(l) + text + " ".repeat(pad - l);
     }
 
+    /**
+     * 生成指定宽度的空格串
+     *
+     * @param width 宽度
+     * @return 空格字符串
+     */
     private String padRight(int width) {
         return " ".repeat(Math.max(0, width));
     }
@@ -486,6 +580,12 @@ public class GatewayLogger {
         return sb + "…";
     }
 
+    /**
+     * 将 Integer 格式化为千分位分隔字符串
+     *
+     * @param n 数字
+     * @return 千分位字符串；null 返回 "?"
+     */
     private String formatThousands(Integer n) {
         if (n == null) return "?";
         return java.text.NumberFormat.getIntegerInstance().format(n);

@@ -12,6 +12,12 @@ package com.xgateai.exception;
  */
 public class ClientDisconnectedException extends RuntimeException {
 
+    /**
+     * 构造客户端断开异常
+     *
+     * @param message 错误提示信息
+     * @param cause   原始 IO 异常根因
+     */
     public ClientDisconnectedException(String message, Throwable cause) {
         super(message, cause);
     }

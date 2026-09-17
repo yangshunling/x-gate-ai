@@ -45,6 +45,13 @@ public class PollingFailoverStrategy implements UpstreamStrategy {
     private final IUpstreamProviderDao upstreamProviderDao;
     private final Cache<String, List> routeCache;
 
+    /**
+     * 构造轮询故障转移策略
+     *
+     * @param upstreamModelDao    模型行数据访问接口
+     * @param upstreamProviderDao 渠道数据访问接口
+     * @param routeCache           路由候选缓存
+     */
     public PollingFailoverStrategy(IUpstreamModelDao upstreamModelDao,
                                    IUpstreamProviderDao upstreamProviderDao,
                                    Cache<String, List> routeCache) {
@@ -53,6 +60,13 @@ public class PollingFailoverStrategy implements UpstreamStrategy {
         this.routeCache = routeCache;
     }
 
+    /**
+     * 根据请求模型选择可用上游候选列表
+     *
+     * @param channel        对客通道
+     * @param requestedModel 客户端请求的模型名（auto 走全池路由）
+     * @return 按优先级排序的候选列表
+     */
     @Override
     public List<UpstreamRoute> selectCandidates(ModelChannel channel, String requestedModel) {
         // 自动路由：请求 model=auto 时路由池内所有启用模型

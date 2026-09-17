@@ -17,7 +17,9 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 public class XGateAiApplication {
 
     /**
-     * 启动 XGateAiApplication 应用
+     * 应用主入口
+     *
+     * @param args 命令行参数
      */
     public static void main(String[] args) {
         SpringApplication.run(XGateAiApplication.class, args);

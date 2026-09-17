@@ -56,6 +56,18 @@ public class AdminManagementServiceImpl implements AdminManagementService {
     private final Cache<String, Object> channelCache;
     private final Cache<String, List> routeCache;
 
+    /**
+     * 构造管理端业务服务实现
+     *
+     * @param upstreamProviderDao 渠道数据访问接口
+     * @param upstreamModelDao    模型行数据访问接口
+     * @param modelChannelDao     客户数据访问接口
+     * @param proxyAdapter        HTTP 透传适配器
+     * @param encryptUtil         密钥加解密工具
+     * @param inflightRegistry    在途并发计数器
+     * @param channelCache        对客通道缓存
+     * @param routeCache          路由候选缓存
+     */
     public AdminManagementServiceImpl(IUpstreamProviderDao upstreamProviderDao,
                                        IUpstreamModelDao upstreamModelDao,
                                        IModelChannelDao modelChannelDao,
@@ -76,6 +88,11 @@ public class AdminManagementServiceImpl implements AdminManagementService {
 
     // ==================== 渠道管理（含模型） ====================
 
+    /**
+     * 获取所有渠道列表（含其下模型与明文 API Key，供编辑回显）
+     *
+     * @return 渠道对象列表，每个元素含 models 子列表
+     */
     @Override
     public List<Map<String, Object>> listProviders() {
         List<UpstreamProvider> providers = upstreamProviderDao.selectList(
@@ -124,6 +141,11 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         }
     }
 
+    /**
+     * 新增或更新渠道（含其下模型的差量同步，事务内完成）
+     *
+     * @param dto 渠道请求参数
+     */
     @Override
     @Transactional
     public void saveProvider(ProviderDTO dto) {
@@ -222,6 +244,11 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         }
     }
 
+    /**
+     * 删除渠道（级联删除其下全部模型）
+     *
+     * @param id 渠道 ID
+     */
     @Override
     @Transactional
     public void deleteProvider(Long id) {
@@ -232,6 +259,12 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         invalidateRouteCacheAfterCommit();
     }
 
+    /**
+     * 测试单个渠道下所有模型的连通性
+     *
+     * @param id 渠道 ID
+     * @return 每个模型的测试结果列表
+     */
     @Override
     public List<Map<String, Object>> testProvider(Long id) {
         UpstreamProvider provider = upstreamProviderDao.selectById(id);
@@ -252,6 +285,12 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         return results;
     }
 
+    /**
+     * 测试单个模型行的连通性
+     *
+     * @param modelId 模型行 ID
+     * @return 该模型的测试结果
+     */
     @Override
     public Map<String, Object> testModel(Long modelId) {
         UpstreamModel model = upstreamModelDao.selectById(modelId);
@@ -265,6 +304,11 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         return testOne(provider, model);
     }
 
+    /**
+     * 批量测试所有渠道下所有模型的连通性
+     *
+     * @return 每个模型的测试结果列表
+     */
     @Override
     public List<Map<String, Object>> testAllProviders() {
         List<UpstreamProvider> providers = upstreamProviderDao.selectList(
@@ -285,6 +329,12 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         return results;
     }
 
+    /**
+     * 探测上游渠道可用的模型列表（用于表单一键导入）
+     *
+     * @param dto 拉取模型参数
+     * @return 含 usedStoredKey / models 字段的结果
+     */
     @Override
     public Map<String, Object> fetchProviderModels(FetchModelsDTO dto) {
         if (dto == null || StrUtil.isBlank(dto.getBaseUrl())) {
@@ -323,6 +373,12 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         return result;
     }
 
+    /**
+     * 解析异常链最深层的 message，空白时回退为异常类名
+     *
+     * @param throwable 原始异常
+     * @return 最深根因的提示信息
+     */
     private String resolveMessage(Throwable throwable) {
         Throwable cause = throwable;
         while (cause.getCause() != null && cause.getCause() != cause) {
@@ -332,6 +388,13 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         return StrUtil.isBlank(message) ? cause.getClass().getSimpleName() : message;
     }
 
+    /**
+     * 对单个模型行执行连通性测试并组装结果
+     *
+     * @param provider 所属渠道
+     * @param model    模型行
+     * @return 测试结果 Map（modelId/modelName/ok/latencyMs/message）
+     */
     private Map<String, Object> testOne(UpstreamProvider provider, UpstreamModel model) {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("modelId", model.getId());
@@ -350,12 +413,23 @@ public class AdminManagementServiceImpl implements AdminManagementService {
 
     // ==================== 客户/API KEY 管理 ====================
 
+    /**
+     * 获取所有客户列表（API KEY）
+     *
+     * @return 客户列表
+     */
     @Override
     public List<ModelChannel> listChannels() {
         return modelChannelDao.selectList(
                 new LambdaQueryWrapper<ModelChannel>().orderByAsc(ModelChannel::getId));
     }
 
+    /**
+     * 新增或更新客户；新增时生成并返回 API Key，更新时 Key 保持不变
+     *
+     * @param dto 客户请求参数
+     * @return 新增时返回生成的 API Key；更新时返回 null
+     */
     @Override
     public String saveChannel(ChannelDTO dto) {
         boolean isNew = dto.getId() == null;
@@ -391,6 +465,11 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         return generatedKey;
     }
 
+    /**
+     * 删除客户并清空通道缓存
+     *
+     * @param id 客户 ID
+     */
     @Override
     public void deleteChannel(Long id) {
         modelChannelDao.deleteById(id);
@@ -400,6 +479,12 @@ public class AdminManagementServiceImpl implements AdminManagementService {
 
     // ==================== 服务器信息 ====================
 
+    /**
+     * 获取服务器接入信息（本机局域网 IP 与端口）
+     *
+     * @param port 对外端口
+     * @return 含 host / port 的信息 Map
+     */
     @Override
     public Map<String, Object> getServerInfo(int port) {
         Map<String, Object> info = new LinkedHashMap<>();
@@ -410,6 +495,11 @@ public class AdminManagementServiceImpl implements AdminManagementService {
 
     // ==================== 并发控制 ====================
 
+    /**
+     * 列出所有候选模型（启用渠道下启用模型），按优先级由高到低排列
+     *
+     * @return 候选模型列表，含 channelName/modelName/failCount/maxConcurrency/inFlight/priority
+     */
     @Override
     public List<Map<String, Object>> listConcurrencyModels() {
         // 仅启用渠道下的启用模型参与路由，按优先级（fail_count 升序，id 升序）排列
@@ -445,6 +535,12 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         return result;
     }
 
+    /**
+     * 更新指定模型行的并发上限并清空路由缓存
+     *
+     * @param modelId        模型行 ID
+     * @param maxConcurrency 并发上限；0 表示不限制
+     */
     @Override
     public void updateConcurrencyLimit(Long modelId, int maxConcurrency) {
         UpstreamModel model = upstreamModelDao.selectById(modelId);
@@ -469,6 +565,9 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(
                     new TransactionSynchronization() {
+                        /**
+                         * 事务提交后清空路由缓存
+                         */
                         @Override
                         public void afterCommit() {
                             routeCache.invalidateAll();
@@ -479,6 +578,12 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         }
     }
 
+    /**
+     * 将模型行转换为前端展示用的 Map
+     *
+     * @param model 模型行
+     * @return 模型 Map
+     */
     private Map<String, Object> toModelMap(UpstreamModel model) {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("id", model.getId());
@@ -491,6 +596,12 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         return map;
     }
 
+    /**
+     * 去除 URL 末尾的连续斜杠（保留根路径 "http://host/" 的斜杠）
+     *
+     * @param url 原始 URL
+     * @return 处理后的 URL
+     */
     private String trimTrailingSlash(String url) {
         while (url.length() > 1 && url.endsWith("/")) {
             url = url.substring(0, url.length() - 1);
@@ -498,10 +609,22 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         return url;
     }
 
+    /**
+     * 值为 null 时返回默认值
+     *
+     * @param value        值
+     * @param defaultValue 默认值
+     * @return 非 null 返回原值，否则返回默认值
+     */
     private int defaultIfNull(Integer value, int defaultValue) {
         return value != null ? value : defaultValue;
     }
 
+    /**
+     * 生成客户 API Key（前缀 xgate- + 32 位随机串）
+     *
+     * @return 生成的 API Key
+     */
     private String generateApiKey() {
         return "xgate-" + RandomUtil.randomString(32);
     }

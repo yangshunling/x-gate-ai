@@ -22,6 +22,9 @@ class AnthropicConverterTest {
 
     private AnthropicConverter converter;
 
+    /**
+     * 初始化被测转换器
+     */
     @BeforeEach
     void setUp() {
         converter = new AnthropicConverter();
@@ -29,6 +32,9 @@ class AnthropicConverterTest {
 
     // ==================== 入站：Anthropic Messages → OpenAI Chat ====================
 
+    /**
+     * 入站：system + 文本消息 + 图片块 转 Chat 请求体
+     */
     @Test
     @DisplayName("入站：system + 文本消息 + 图片块 转 Chat 请求体")
     void toChatRequest_basic() {
@@ -80,6 +86,9 @@ class AnthropicConverterTest {
                 userContent.getJSONObject(1).getJSONObject("image_url").getString("url"));
     }
 
+    /**
+     * 入站：纯字符串 content 直接映射
+     */
     @Test
     @DisplayName("入站：纯字符串 content 直接映射")
     void toChatRequest_stringContent() {
@@ -94,6 +103,9 @@ class AnthropicConverterTest {
         assertEquals("hi", m.getString("content"));
     }
 
+    /**
+     * 入站：缺少 max_tokens 抛 400
+     */
     @Test
     @DisplayName("入站：缺少 max_tokens 抛 400")
     void toChatRequest_missingMaxTokens() {
@@ -105,6 +117,9 @@ class AnthropicConverterTest {
         assertTrue(ex.getMessage().contains("max_tokens"));
     }
 
+    /**
+     * 入站：tools 定义 + tool_choice 转换（input_schema→parameters）
+     */
     @Test
     @DisplayName("入站：tools 定义 + tool_choice 转换（input_schema→parameters）")
     void toChatRequest_withTools() {
@@ -139,6 +154,9 @@ class AnthropicConverterTest {
         assertEquals("auto", chat.getString("tool_choice"));
     }
 
+    /**
+     * 入站：tool_choice=any→required, tool=→{type:function,...}
+     */
     @Test
     @DisplayName("入站：tool_choice=any→required, tool=→{type:function,...}")
     void toChatRequest_toolChoiceVariants() {
@@ -162,6 +180,9 @@ class AnthropicConverterTest {
         assertEquals("read_file", tc.getJSONObject("function").getString("name"));
     }
 
+    /**
+     * 入站：assistant tool_use → tool_calls；user tool_result → 独立 tool 消息（拆消息）
+     */
     @Test
     @DisplayName("入站：assistant tool_use → tool_calls；user tool_result → 独立 tool 消息（拆消息）")
     void toChatRequest_withToolUseAndResult() {
@@ -232,6 +253,9 @@ class AnthropicConverterTest {
         assertEquals("继续", userMsg.getJSONArray("content").getJSONObject(0).getString("text"));
     }
 
+    /**
+     * 入站：thinking 块被忽略（不报错）
+     */
     @Test
     @DisplayName("入站：thinking 块被忽略（不报错）")
     void toChatRequest_thinkingIgnored() {
@@ -261,6 +285,9 @@ class AnthropicConverterTest {
 
     // ==================== 出站（非流式）：OpenAI Chat → Anthropic Messages ====================
 
+    /**
+     * 出站：Chat 响应转 Anthropic message（usage/stop_reason 映射）
+     */
     @Test
     @DisplayName("出站：Chat 响应转 Anthropic message（usage/stop_reason 映射）")
     void fromChatResponse_basic() {
@@ -297,6 +324,9 @@ class AnthropicConverterTest {
         assertEquals(8, u.getIntValue("output_tokens"));
     }
 
+    /**
+     * 出站：Chat 响应含 tool_calls → tool_use content blocks
+     */
     @Test
     @DisplayName("出站：Chat 响应含 tool_calls → tool_use content blocks")
     void fromChatResponse_withToolCalls() {
@@ -339,6 +369,9 @@ class AnthropicConverterTest {
         assertEquals("/tmp/a.txt", input.getString("path"));
     }
 
+    /**
+     * 出站：finish_reason=length 映射为 max_tokens
+     */
     @Test
     @DisplayName("出站：finish_reason=length 映射为 max_tokens")
     void fromChatResponse_lengthMapping() {
@@ -357,6 +390,9 @@ class AnthropicConverterTest {
 
     // ==================== 出站（流式）：OpenAI Chat SSE → Anthropic 事件流 ====================
 
+    /**
+     * 流式：完整文本事件序列 message_start → delta×N → stop 收尾
+     */
     @Test
     @DisplayName("流式：完整文本事件序列 message_start → delta×N → stop 收尾")
     void stream_basicSequence() {
@@ -430,6 +466,9 @@ class AnthropicConverterTest {
                 countOccurrences(out, "event: content_block_stop"));
     }
 
+    /**
+     * 流式：上游仅返回 role（无文本）时 finish 仍补全完整事件
+     */
     @Test
     @DisplayName("流式：上游仅返回 role（无文本）时 finish 仍补全完整事件")
     void stream_emptyContent() {
@@ -456,6 +495,9 @@ class AnthropicConverterTest {
                 countOccurrences(out, "event: content_block_stop"));
     }
 
+    /**
+     * 流式：上游 tool_calls 分片 → Anthropic input_json_delta（含 content_block 开闭）
+     */
     @Test
     @DisplayName("流式：上游 tool_calls 分片 → Anthropic input_json_delta（含 content_block 开闭）")
     void stream_withToolCalls() {
@@ -535,6 +577,9 @@ class AnthropicConverterTest {
                 countOccurrences(out, "event: content_block_stop"));
     }
 
+    /**
+     * 流式：先文本后工具调用，验证 content_block 切换（text block 先 stop 再开 tool_use block）
+     */
     @Test
     @DisplayName("流式：先文本后工具调用，验证 content_block 切换（text block 先 stop 再开 tool_use block）")
     void stream_textThenToolCalls() {
@@ -590,6 +635,9 @@ class AnthropicConverterTest {
 
     // ==================== 辅助 ====================
 
+    /**
+     * 构建简单的 user 文本消息
+     */
     private JSONObject buildUserMsg(String text) {
         JSONObject msg = new JSONObject();
         msg.put("role", "user");
@@ -597,7 +645,13 @@ class AnthropicConverterTest {
         return msg;
     }
 
-    /** 提取指定事件名的 data 行内容（第一个） */
+    /**
+     * 提取指定事件名的 data 行内容（第一个）
+     *
+     * @param sse       SSE 原始字符串
+     * @param eventName 事件名
+     * @return 事件 data 行内容；未找到返回 "{}"
+     */
     private String extractEventData(String sse, String eventName) {
         String marker = "event: " + eventName + "\n";
         int idx = sse.indexOf(marker);
@@ -608,7 +662,12 @@ class AnthropicConverterTest {
         return end < 0 ? sse.substring(dataIdx + 6) : sse.substring(dataIdx + 6, end);
     }
 
-    /** 提取所有 content_block_delta 的 text 并拼接 */
+    /**
+     * 提取所有 content_block_delta 的 text 并拼接
+     *
+     * @param sse SSE 原始字符串
+     * @return 拼接后的文本
+     */
     private String extractAllDeltaText(String sse) {
         StringBuilder sb = new StringBuilder();
         int idx = 0;
@@ -627,7 +686,12 @@ class AnthropicConverterTest {
         return sb.toString();
     }
 
-    /** 提取所有 input_json_delta 的 partial_json 并拼接 */
+    /**
+     * 提取所有 input_json_delta 的 partial_json 并拼接
+     *
+     * @param sse SSE 原始字符串
+     * @return 拼接后的工具参数 JSON
+     */
     private String extractAllInputJsonDelta(String sse) {
         StringBuilder sb = new StringBuilder();
         int idx = 0;
@@ -646,6 +710,13 @@ class AnthropicConverterTest {
         return sb.toString();
     }
 
+    /**
+     * 统计子串出现次数
+     *
+     * @param s   原始字符串
+     * @param sub 子串
+     * @return 出现次数
+     */
     private long countOccurrences(String s, String sub) {
         long count = 0;
         int idx = 0;

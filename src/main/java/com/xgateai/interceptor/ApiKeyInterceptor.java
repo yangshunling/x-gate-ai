@@ -37,12 +37,27 @@ public class ApiKeyInterceptor implements HandlerInterceptor {
     private final IModelChannelDao modelChannelDao;
     private final Cache<String, Object> channelCache;
 
+    /**
+     * 构造鉴权拦截器
+     *
+     * @param modelChannelDao 客户数据访问接口
+     * @param channelCache    对客通道本地缓存
+     */
     public ApiKeyInterceptor(IModelChannelDao modelChannelDao,
                              Cache<String, Object> channelCache) {
         this.modelChannelDao = modelChannelDao;
         this.channelCache = channelCache;
     }
 
+    /**
+     * 请求预处理：校验 API Key 有效性，命中后写入对客通道到请求属性并填充 MDC
+     *
+     * @param request  HTTP 请求
+     * @param response HTTP 响应
+     * @param handler  目标处理器
+     * @return true 表示放行；false 表示鉴权失败已写出 401
+     * @throws IOException 写出错误响应时可能抛出
+     */
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response,
                              Object handler) throws IOException {
@@ -91,6 +106,12 @@ public class ApiKeyInterceptor implements HandlerInterceptor {
 
     // ==================== 私有辅助方法 ====================
 
+    /**
+     * 从请求中解析 API Key：优先 Authorization: Bearer 头，其次 x-api-key 头
+     *
+     * @param request HTTP 请求
+     * @return 解析出的 API Key；缺失时返回 null
+     */
     private String resolveApiKey(HttpServletRequest request) {
         // 优先从 Authorization: Bearer xxx 中提取
         String authorization = request.getHeader(CommonConstant.HEADER_AUTHORIZATION);
@@ -138,6 +159,12 @@ public class ApiKeyInterceptor implements HandlerInterceptor {
         response.getWriter().write(errorBody);
     }
 
+    /**
+     * API Key 脱敏：仅保留首 4 位与尾 4 位，用于日志展示
+     *
+     * @param apiKey 原始 API Key
+     * @return 脱敏后的字符串；空白返回空串，长度不足 8 返回原值
+     */
     private String maskApiKey(String apiKey) {
         if (StrUtil.isBlank(apiKey)) return "";
         if (apiKey.length() <= 8) return apiKey;

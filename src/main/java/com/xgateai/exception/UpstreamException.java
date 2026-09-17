@@ -33,8 +33,9 @@ public class UpstreamException extends GatewayException {
     /**
      * 构造上游异常（含原始 cause，上游状态码取 502）
      *
-     * @param message 错误提示信息
-     * @param cause   原始异常根因
+     * @param message            错误提示信息
+     * @param upstreamHttpStatus 上游返回的 HTTP 状态码（cause 重载时仍保留以供排查）
+     * @param cause              原始异常根因
      */
     public UpstreamException(String message, int upstreamHttpStatus, Throwable cause) {
         super(message, cause);

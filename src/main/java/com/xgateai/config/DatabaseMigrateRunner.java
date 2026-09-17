@@ -54,12 +54,23 @@ public class DatabaseMigrateRunner implements ApplicationRunner {
     private final JdbcTemplate jdbcTemplate;
     private final TransactionTemplate txTemplate;
 
+    /**
+     * 构造迁移器
+     *
+     * @param jdbcTemplate        JDBC 模板，用于执行原生 SQL
+     * @param transactionManager  事务管理器，用于包裹存量数据迁移事务
+     */
     public DatabaseMigrateRunner(JdbcTemplate jdbcTemplate,
                                  PlatformTransactionManager transactionManager) {
         this.jdbcTemplate = jdbcTemplate;
         this.txTemplate = new TransactionTemplate(transactionManager);
     }
 
+    /**
+     * 应用启动时执行数据库结构迁移（幂等）：启用 WAL → 历史表重命名 → 旧三表数据搬迁 → 补列补索引
+     *
+     * @param args 启动参数（本组件不消费）
+     */
     @Override
     public void run(ApplicationArguments args) {
         try {
@@ -73,6 +84,9 @@ public class DatabaseMigrateRunner implements ApplicationRunner {
         }
     }
 
+    /**
+     * 启用 SQLite WAL 模式与常规调优参数，失败仅告警不中断启动
+     */
     private void enableWalMode() {
         try {
             jdbcTemplate.execute("PRAGMA journal_mode=WAL");
@@ -158,6 +172,9 @@ public class DatabaseMigrateRunner implements ApplicationRunner {
         log.info("数据库迁移：创建索引 {} ON {}({})", indexName, table, columns);
     }
 
+    /**
+     * 判断是否需要执行旧表迁移（新表存在且存在任一旧表）；已迁移过则仅清理残留旧表
+     */
     private void migrate() {
         // 新表是否已存在（schema.sql 已建）；不存在则异常环境，跳过
         if (!tableExists(T_CHANNEL)) {
@@ -181,6 +198,9 @@ public class DatabaseMigrateRunner implements ApplicationRunner {
         log.info("存量数据迁移完成：旧三表 → 新四表");
     }
 
+    /**
+     * 在单个事务内依次执行：渠道/模型迁移 → 客户迁移 → 日志迁移 → 序列重置
+     */
     private void doMigrate() {
         migrateProvidersAndModels();
         migrateCustomers();
@@ -188,7 +208,9 @@ public class DatabaseMigrateRunner implements ApplicationRunner {
         resetSequences();
     }
 
-    /** upstream_providers → upstream_provider + upstream_model（逗号模型拆行） */
+    /**
+     * 旧表 upstream_providers → 新表 upstream_provider + upstream_model（逗号分隔模型拆行）
+     */
     private void migrateProvidersAndModels() {
         boolean hasOld = tableExists(T_OLD_PROVIDER);
         if (!hasOld) {
@@ -216,7 +238,9 @@ public class DatabaseMigrateRunner implements ApplicationRunner {
         }
     }
 
-    /** model_channels → customer */
+    /**
+     * 旧表 model_channels → 新表 customer（按列复制，兼容老库列差异）
+     */
     private void migrateCustomers() {
         if (!tableExists(T_OLD_CHANNEL)) {
             return;
@@ -227,7 +251,9 @@ public class DatabaseMigrateRunner implements ApplicationRunner {
                 + "COALESCE(created_at, datetime('now', 'localtime')) FROM " + T_OLD_CHANNEL);
     }
 
-    /** call_logs → call_log（按列复制，兼容老库列差异） */
+    /**
+     * 旧表 call_logs → 新表 call_log（按列复制，兼容老库列差异）
+     */
     private void migrateCallLogs() {
         if (!tableExists(T_OLD_CALL_LOG)) {
             return;
@@ -242,6 +268,9 @@ public class DatabaseMigrateRunner implements ApplicationRunner {
                 + "SELECT " + cols + " FROM " + T_OLD_CALL_LOG);
     }
 
+    /**
+     * 重置各新表的 sqlite_sequence 自增序列，避免手工导入数据后主键冲突
+     */
     private void resetSequences() {
         for (String table : List.of(T_CHANNEL, T_MODEL, T_CUSTOMER, T_CALL_LOG)) {
             try {
@@ -257,6 +286,9 @@ public class DatabaseMigrateRunner implements ApplicationRunner {
         }
     }
 
+    /**
+     * 删除旧三表（存在才删），迁移完成后清理残留
+     */
     private void dropOldTables() {
         for (String table : List.of(T_OLD_PROVIDER, T_OLD_CHANNEL, T_OLD_CALL_LOG)) {
             if (tableExists(table)) {
@@ -265,6 +297,12 @@ public class DatabaseMigrateRunner implements ApplicationRunner {
         }
     }
 
+    /**
+     * 拆分逗号分隔的模型名字符串，去空白、去重并保持顺序
+     *
+     * @param models 逗号分隔的模型名
+     * @return 去重后的模型名集合
+     */
     private Set<String> splitModels(String models) {
         Set<String> result = new LinkedHashSet<>();
         if (models == null || models.trim().isEmpty()) {
@@ -279,6 +317,12 @@ public class DatabaseMigrateRunner implements ApplicationRunner {
         return result;
     }
 
+    /**
+     * 判断指定表是否存在
+     *
+     * @param table 表名
+     * @return true 表示表存在
+     */
     private boolean tableExists(String table) {
         Integer cnt = jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?",
@@ -286,6 +330,13 @@ public class DatabaseMigrateRunner implements ApplicationRunner {
         return cnt != null && cnt > 0;
     }
 
+    /**
+     * 判断指定表是否包含某列
+     *
+     * @param table  表名
+     * @param column 列名
+     * @return true 表示列存在
+     */
     private boolean hasColumn(String table, String column) {
         List<Map<String, Object>> cols = jdbcTemplate.queryForList("PRAGMA table_info(" + table + ")");
         for (Map<String, Object> col : cols) {

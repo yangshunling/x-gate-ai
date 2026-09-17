@@ -42,6 +42,14 @@ public class ProxyAdapter {
     private final GatewayLogger gatewayLogger;
     private final EncryptUtil encryptUtil;
 
+    /**
+     * 构造 HTTP 透传适配器
+     *
+     * @param mainClient    主网关 OkHttp 客户端（超时较长）
+     * @param testClient    连通性测试 OkHttp 客户端（超时较短）
+     * @param gatewayLogger 网关日志组件
+     * @param encryptUtil   密钥加解密工具
+     */
     public ProxyAdapter(@Qualifier("mainOkHttpClient") OkHttpClient mainClient,
                         @Qualifier("testOkHttpClient") OkHttpClient testClient,
                         GatewayLogger gatewayLogger,
@@ -185,6 +193,16 @@ public class ProxyAdapter {
 
     // ==================== 私有实现 ====================
 
+    /**
+     * 执行一次流式请求：发起 SSE 请求、逐块回调并捕获 usage，返回是否完整结束
+     *
+     * @param provider    目标上游 Provider
+     * @param requestBody 原始请求体 JSON
+     * @param onChunk     数据块回调
+     * @param result      流式结果容器（写入 complete / usageChunkJson）
+     * @return 是否完整结束（true=正常读至 EOF，false=客户端中断）
+     * @throws IOException 网络异常时抛出
+     */
     private boolean streamOnce(UpstreamProvider provider, String requestBody,
                                 Consumer<byte[]> onChunk, StreamResult result) throws IOException {
         try (Response resp = mainClient.newCall(buildRequest(provider,
@@ -218,6 +236,16 @@ public class ProxyAdapter {
         return result.complete;
     }
 
+    /**
+     * 非流式 POST JSON 请求统一入口，上游返回非 2xx 时抛出 UpstreamException
+     *
+     * @param client   使用的 OkHttp 客户端
+     * @param provider 目标上游 Provider
+     * @param path     上游接口路径
+     * @param jsonBody 请求体 JSON
+     * @return 上游响应体字符串
+     * @throws IOException 网络异常时抛出
+     */
     private String postJson(OkHttpClient client, UpstreamProvider provider,
                             String path, String jsonBody) throws IOException {
         try (Response resp = client.newCall(buildRequest(provider, path, jsonBody, false)).execute()) {
@@ -231,6 +259,15 @@ public class ProxyAdapter {
         }
     }
 
+    /**
+     * 构建上游 HTTP 请求：注入解密后的 Authorization 头，流式时追加 Accept: text/event-stream
+     *
+     * @param provider 目标上游 Provider
+     * @param path     上游接口路径
+     * @param jsonBody 请求体 JSON
+     * @param stream   是否流式请求
+     * @return 构建好的 Request 对象
+     */
     private Request buildRequest(UpstreamProvider provider, String path,
                                   String jsonBody, boolean stream) {
         Request.Builder builder = new Request.Builder()
@@ -266,6 +303,12 @@ public class ProxyAdapter {
         }
     }
 
+    /**
+     * 解析异常链最深层的 message，空白时回退为异常类名
+     *
+     * @param throwable 原始异常
+     * @return 最深根因的提示信息
+     */
     private String resolveMessage(Throwable throwable) {
         Throwable cause = throwable;
         while (cause.getCause() != null && cause.getCause() != cause) {
@@ -275,6 +318,13 @@ public class ProxyAdapter {
         return StrUtil.isBlank(message) ? cause.getClass().getSimpleName() : message;
     }
 
+    /**
+     * 将字符串截断到指定长度，超长部分以 ... 结尾
+     *
+     * @param s   原始字符串
+     * @param max 最大长度
+     * @return 截断后的字符串
+     */
     private String truncateDisplay(String s, int max) {
         if (s == null) return "";
         return s.length() <= max ? s : s.substring(0, max) + "...";

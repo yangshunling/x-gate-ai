@@ -18,6 +18,11 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class MyBatisPlusConfig {
 
+    /**
+     * 注册 MyBatis-Plus 拦截器（SQLite 分页插件）
+     *
+     * @return 已装配分页插件的拦截器实例，单页最大条数限制为 1000
+     */
     @Bean
     public MybatisPlusInterceptor mybatisPlusInterceptor() {
         MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();

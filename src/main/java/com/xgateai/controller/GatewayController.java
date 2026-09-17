@@ -42,6 +42,13 @@ public class GatewayController {
     private final AnthropicConverter anthropicConverter;
     private final OpenAIResponsesConverter responsesConverter;
 
+    /**
+     * 构造网关控制器
+     *
+     * @param gatewayService     网关核心服务
+     * @param anthropicConverter Anthropic Messages 协议转换器
+     * @param responsesConverter OpenAI Responses 协议转换器
+     */
     public GatewayController(GatewayService gatewayService,
                              AnthropicConverter anthropicConverter,
                              OpenAIResponsesConverter responsesConverter) {
@@ -56,6 +63,11 @@ public class GatewayController {
      * 支持流式和非流式两种模式。
      * 流式模式原样透传上游 SSE 数据块。
      * </p>
+     *
+     * @param rawBody 原始请求体 JSON
+     * @param request HTTP 请求（用于取出鉴权后的通道）
+     * @param response HTTP 响应
+     * @throws IOException 写出响应时可能抛出
      */
     @PostMapping("/chat/completions")
     public void chatCompletions(@RequestBody String rawBody,
@@ -109,6 +121,11 @@ public class GatewayController {
      * 请求转换为 OpenAI Chat 格式后走统一网关链路，响应/流式事件再转回
      * Responses 格式。支持流式和非流式两种模式。
      * </p>
+     *
+     * @param rawBody 原始请求体 JSON
+     * @param request HTTP 请求（用于取出鉴权后的通道）
+     * @param response HTTP 响应
+     * @throws IOException 写出响应时可能抛出
      */
     @PostMapping("/responses")
     public void openaiResponses(@RequestBody String rawBody,
@@ -174,6 +191,11 @@ public class GatewayController {
      * 请求转换为 OpenAI Chat 格式后走统一网关链路，响应/流式事件再转回
      * Anthropic Messages 格式。支持流式和非流式两种模式。
      * </p>
+     *
+     * @param rawBody 原始请求体 JSON
+     * @param request HTTP 请求（用于取出鉴权后的通道）
+     * @param response HTTP 响应
+     * @throws IOException 写出响应时可能抛出
      */
     @PostMapping("/messages")
     public void anthropicMessages(@RequestBody String rawBody,
@@ -235,6 +257,11 @@ public class GatewayController {
 
     /**
      * Embeddings：向量化接口
+     * <p>非流式透传上游响应。</p>
+     *
+     * @param rawBody 原始请求体 JSON
+     * @param request HTTP 请求（用于取出鉴权后的通道）
+     * @return 上游响应 JSON
      */
     @PostMapping("/embeddings")
     public ResponseEntity<String> embeddings(@RequestBody String rawBody, HttpServletRequest request) {
@@ -263,6 +290,10 @@ public class GatewayController {
 
     /**
      * Models：返回当前 Key 可用的模型列表
+     * <p>OpenAI 兼容的 list 格式，owned_by 统一为网关品牌名。</p>
+     *
+     * @param request HTTP 请求（用于取出鉴权后的通道）
+     * @return 模型列表 JSON
      */
     @GetMapping("/models")
     public ResponseEntity<String> listModels(HttpServletRequest request) {
@@ -284,11 +315,23 @@ public class GatewayController {
 
     // ==================== 私有辅助方法 ====================
 
+    /**
+     * 从请求属性中取出鉴权拦截器写入的对客通道
+     *
+     * @param request HTTP 请求
+     * @return 对客通道；未鉴权时返回 null
+     */
     private ModelChannel resolveChannel(HttpServletRequest request) {
         Object attr = request.getAttribute(GatewayConstant.ATTR_API_KEY);
         return attr instanceof ModelChannel ch ? ch : null;
     }
 
+    /**
+     * 初始化 SSE 流式响应头
+     *
+     * @param response HTTP 响应
+     * @throws IOException 刷新缓冲区时可能抛出
+     */
     private void initSseResponse(HttpServletResponse response) throws IOException {
         response.setContentType(MediaType.TEXT_EVENT_STREAM_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
@@ -297,6 +340,12 @@ public class GatewayController {
         response.flushBuffer();
     }
 
+    /**
+     * 向输出流写字节并刷新；写出失败抛 ClientDisconnectedException 中断上游读取
+     *
+     * @param out   Servlet 输出流
+     * @param bytes 待写出的字节
+     */
     private void writeBytes(ServletOutputStream out, byte[] bytes) {
         try {
             out.write(bytes);
@@ -306,6 +355,12 @@ public class GatewayController {
         }
     }
 
+    /**
+     * 向 SSE 流写出 OpenAI 兼容的错误事件（data: {error}\n\n）
+     *
+     * @param out     Servlet 输出流
+     * @param message 错误提示信息
+     */
     private void writeSseError(ServletOutputStream out, String message) {
         try {
             out.write(("data: " + buildErrorJson("server_error", message) + "\n\n")
@@ -316,6 +371,15 @@ public class GatewayController {
         }
     }
 
+    /**
+     * 写出 OpenAI 兼容格式的错误响应
+     *
+     * @param response HTTP 响应
+     * @param out      Servlet 输出流
+     * @param status   HTTP 状态码
+     * @param type     错误类型标识
+     * @param message  错误提示信息
+     */
     private void writeError(HttpServletResponse response, ServletOutputStream out,
                             int status, String type, String message) {
         try {
@@ -331,6 +395,12 @@ public class GatewayController {
         }
     }
 
+    /**
+     * 向 SSE 流写出 Anthropic 格式的 error 事件（event: error\ndata: {...}\n\n）
+     *
+     * @param out     Servlet 输出流
+     * @param message 错误提示信息
+     */
     private void writeAnthropicSseError(ServletOutputStream out, String message) {
         try {
             JSONObject error = new JSONObject();
@@ -372,12 +442,27 @@ public class GatewayController {
         }
     }
 
+    /**
+     * 构建错误响应体（含 HTTP 状态码）
+     *
+     * @param status  HTTP 状态码
+     * @param type    错误类型标识
+     * @param message 错误提示信息
+     * @return ResponseEntity 包装的错误响应
+     */
     private ResponseEntity<String> buildErrorResponse(int status, String type, String message) {
         return ResponseEntity.status(status)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(buildErrorJson(type, message));
     }
 
+    /**
+     * 构建错误响应 JSON 字符串（OpenAI 兼容的 {"error":{message,type,code}} 结构）
+     *
+     * @param type    错误类型标识
+     * @param message 错误提示信息
+     * @return 错误体 JSON 字符串
+     */
     private String buildErrorJson(String type, String message) {
         JSONObject error = new JSONObject();
         error.put("message", StrUtil.isBlank(message) ? "未知错误" : message);

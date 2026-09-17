@@ -41,6 +41,14 @@ public class CallLogAnalysisServiceImpl implements CallLogAnalysisService {
     private final IUpstreamProviderDao upstreamProviderDao;
     private final IUpstreamModelDao upstreamModelDao;
 
+    /**
+     * 构造调用日志统计分析服务实现
+     *
+     * @param callLogDao          调用日志数据访问接口
+     * @param modelChannelDao     客户数据访问接口
+     * @param upstreamProviderDao 渠道数据访问接口
+     * @param upstreamModelDao    模型行数据访问接口
+     */
     public CallLogAnalysisServiceImpl(ICallLogDao callLogDao,
                                       IModelChannelDao modelChannelDao,
                                       IUpstreamProviderDao upstreamProviderDao,
@@ -51,6 +59,12 @@ public class CallLogAnalysisServiceImpl implements CallLogAnalysisService {
         this.upstreamModelDao = upstreamModelDao;
     }
 
+    /**
+     * 分页查询调用日志
+     *
+     * @param query 查询过滤条件
+     * @return 分页结果
+     */
     @Override
     public Page<CallLog> queryLogs(LogQueryDTO query) {
         int pageNum = Math.max(ObjectUtil.defaultIfNull(query.getPageNum(), 1), 1);
@@ -68,6 +82,11 @@ public class CallLogAnalysisServiceImpl implements CallLogAnalysisService {
         return callLogDao.selectPage(new Page<>(pageNum, pageSize), wrapper);
     }
 
+    /**
+     * 按上游模型聚合统计（调用次数、成功数、Token、平均耗时）
+     *
+     * @return 统计结果列表
+     */
     @Override
     public List<Map<String, Object>> analyzeByModel() {
         QueryWrapper<CallLog> wrapper = new QueryWrapper<CallLog>()
@@ -94,6 +113,11 @@ public class CallLogAnalysisServiceImpl implements CallLogAnalysisService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 按上游模型聚合失败次数统计（仅启用渠道下启用模型）
+     *
+     * @return 统计结果列表
+     */
     @Override
     public List<Map<String, Object>> analyzeFailuresByModel() {
         // 仅统计启用渠道下启用模型的失败次数
@@ -129,6 +153,11 @@ public class CallLogAnalysisServiceImpl implements CallLogAnalysisService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 按上游渠道聚合调用权重统计
+     *
+     * @return 统计结果列表
+     */
     @Override
     public List<Map<String, Object>> analyzeWeightByProvider() {
         // 仅展示启用渠道下启用模型的权重信息
@@ -159,6 +188,11 @@ public class CallLogAnalysisServiceImpl implements CallLogAnalysisService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 仪表盘汇总统计（历史/今日调用与 Token、客户总数、资源数等）
+     *
+     * @return 汇总统计结果
+     */
     @Override
     public Map<String, Object> dashboardStats() {
         Map<String, Object> stats = new LinkedHashMap<>();
@@ -221,6 +255,11 @@ public class CallLogAnalysisServiceImpl implements CallLogAnalysisService {
         return callLogDao.selectMaps(wrapper).stream().findFirst().orElse(Collections.emptyMap());
     }
 
+    /**
+     * 今日客户调用 Top5 统计
+     *
+     * @return 统计结果列表
+     */
     @Override
     public List<Map<String, Object>> topCustomersToday() {
         String todayStart = DateUtil.format(DateUtil.beginOfDay(new Date()), CommonConstant.DATETIME_FORMAT);
@@ -251,16 +290,34 @@ public class CallLogAnalysisServiceImpl implements CallLogAnalysisService {
 
     // ==================== 私有辅助方法 ====================
 
+    /**
+     * 将任意值转为字符串，null 返回空串
+     *
+     * @param value 值
+     * @return 字符串
+     */
     private String toString(Object value) {
         return value == null ? "" : String.valueOf(value);
     }
 
+    /**
+     * 将任意值转为 long，null 返回 0
+     *
+     * @param value 值
+     * @return long 值
+     */
     private long toLong(Object value) {
         if (value == null) return 0;
         if (value instanceof Number num) return num.longValue();
         return Long.parseLong(String.valueOf(value));
     }
 
+    /**
+     * 将任意值转为 double，null 返回 0.0
+     *
+     * @param value 值
+     * @return double 值
+     */
     private double toDouble(Object value) {
         if (value == null) return 0.0;
         if (value instanceof Number num) return num.doubleValue();
@@ -269,6 +326,10 @@ public class CallLogAnalysisServiceImpl implements CallLogAnalysisService {
 
     /**
      * 若 value 为 null 则返回 defaultValue
+     *
+     * @param value        值
+     * @param defaultValue 默认值
+     * @return 非 null 返回原值，否则返回默认值
      */
     private int defaultIfNull(Integer value, int defaultValue) {
         return value != null ? value : defaultValue;

@@ -26,6 +26,11 @@ public class EncryptUtil {
     private final GatewayConfig gatewayConfig;
     private AES aes;
 
+    /**
+     * 构造加密工具
+     *
+     * @param gatewayConfig 网关配置，用于读取加密密钥
+     */
     public EncryptUtil(GatewayConfig gatewayConfig) {
         this.gatewayConfig = gatewayConfig;
     }
@@ -72,6 +77,12 @@ public class EncryptUtil {
         }
     }
 
+    /**
+     * 密钥脱敏：仅保留首 4 位与尾 4 位，中间以 **** 代替
+     *
+     * @param key 待脱敏的密钥
+     * @return 脱敏后的字符串；空白或长度不足 8 时返回 ***
+     */
     private String maskKey(String key) {
         if (StrUtil.isBlank(key) || key.length() < 8) return "***";
         return key.substring(0, 4) + "****" + key.substring(key.length() - 4);

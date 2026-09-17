@@ -25,6 +25,16 @@ import java.io.IOException;
 @Component
 public class TraceFilter implements Filter {
 
+    /**
+     * 请求链路过滤器：为每个请求生成并写入 traceId / clientIp 到 MDC，
+     * 请求结束后清理上下文防止线程复用串扰
+     *
+     * @param servletRequest  请求
+     * @param servletResponse 响应
+     * @param chain           过滤器链
+     * @throws IOException      过滤链调用时可能抛出
+     * @throws ServletException 过滤链调用时可能抛出
+     */
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse,
                          FilterChain chain) throws IOException, ServletException {

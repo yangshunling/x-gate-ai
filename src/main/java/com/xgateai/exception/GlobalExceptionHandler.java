@@ -26,6 +26,9 @@ public class GlobalExceptionHandler {
 
     /**
      * 处理参数校验异常
+     *
+     * @param ex 参数校验异常
+     * @return 统一错误响应（code=400）
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public HttpResponse handleValidationException(MethodArgumentNotValidException ex) {
@@ -38,6 +41,9 @@ public class GlobalExceptionHandler {
 
     /**
      * 处理业务参数/状态校验异常（400）
+     *
+     * @param ex 参数异常
+     * @return HTTP 400 错误响应
      */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<HttpResponse> handleIllegalArgumentException(IllegalArgumentException ex) {
@@ -49,6 +55,9 @@ public class GlobalExceptionHandler {
 
     /**
      * 处理认证异常（401）
+     *
+     * @param ex 认证异常
+     * @return 携带异常状态码的错误响应
      */
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<HttpResponse> handleAuthenticationException(AuthenticationException ex) {
@@ -60,6 +69,9 @@ public class GlobalExceptionHandler {
 
     /**
      * 处理业务异常
+     *
+     * @param ex 网关业务异常
+     * @return 携带异常状态码的错误响应
      */
     @ExceptionHandler(GatewayException.class)
     public ResponseEntity<HttpResponse> handleGatewayException(GatewayException ex) {
@@ -71,6 +83,9 @@ public class GlobalExceptionHandler {
 
     /**
      * 处理静态资源不存在（如 favicon.ico）：静默返回 404，不打印错误日志
+     *
+     * @param ex 资源不存在异常
+     * @return HTTP 404 空响应
      */
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<Void> handleNoResourceFoundException(NoResourceFoundException ex) {
@@ -79,6 +94,9 @@ public class GlobalExceptionHandler {
 
     /**
      * 处理未知异常（500）
+     *
+     * @param ex 未知异常
+     * @return HTTP 500 错误响应
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<HttpResponse> handleUnknownException(Exception ex) {

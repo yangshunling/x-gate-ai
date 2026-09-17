@@ -26,6 +26,12 @@ public class UpstreamRoute {
      */
     private UpstreamModel model;
 
+    /**
+     * 构造路由目标
+     *
+     * @param provider 所属渠道
+     * @param model    模型行
+     */
     public UpstreamRoute(UpstreamProvider provider, UpstreamModel model) {
         this.provider = provider;
         this.model = model;

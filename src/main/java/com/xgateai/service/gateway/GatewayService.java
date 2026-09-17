@@ -71,6 +71,18 @@ public class GatewayService {
     private final GatewayConfig gatewayConfig;
     private ExecutorService logExecutor;
 
+    /**
+     * 构造网关核心服务
+     *
+     * @param proxyAdapter        HTTP 透传适配器
+     * @param upstreamStrategy    上游路由策略
+     * @param gatewayLogger       网关日志组件
+     * @param callLogDao          调用日志数据访问接口
+     * @param upstreamModelDao    模型行数据访问接口
+     * @param upstreamProviderDao 渠道数据访问接口
+     * @param inflightRegistry    在途并发计数器
+     * @param gatewayConfig       网关配置
+     */
     public GatewayService(ProxyAdapter proxyAdapter,
                           UpstreamStrategy upstreamStrategy,
                           GatewayLogger gatewayLogger,
@@ -425,6 +437,21 @@ public class GatewayService {
         });
     }
 
+    /**
+     * 异步提交单行日志写入任务（传递 traceId 保证链路标识不丢失）
+     *
+     * @param type           调用类型
+     * @param channel        对客通道
+     * @param requestedModel 请求模型
+     * @param rawBody        原始请求体
+     * @param stream         是否流式
+     * @param result         调用结果
+     * @param finalRoute     最终路由目标（ALL_FAILED 时为 null）
+     * @param costMs         总耗时
+     * @param usage          Token 用量
+     * @param chain          故障转移链路
+     * @param clientPath     客户端入口路径
+     */
     private void logCall(String type, ModelChannel channel, String requestedModel,
                          String rawBody, boolean stream, String result,
                          UpstreamRoute finalRoute, long costMs,

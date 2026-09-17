@@ -24,6 +24,12 @@ public class OkHttpConfig {
     @Resource
     private GatewayConfig gatewayConfig;
 
+    /**
+     * 主网关调用 OkHttp 客户端
+     * <p>连接超时 10 秒，读超时取配置的超时分钟数（默认 3 分钟），写超时 1 分钟。</p>
+     *
+     * @return 主网关 OkHttpClient 实例
+     */
     @Bean
     public OkHttpClient mainOkHttpClient() {
         return new OkHttpClient.Builder()
@@ -33,6 +39,12 @@ public class OkHttpConfig {
                 .build();
     }
 
+    /**
+     * 连通性测试专用 OkHttp 客户端
+     * <p>超时较短（连接 5 秒、读写 15 秒），避免测试接口长时间阻塞。</p>
+     *
+     * @return 测试专用 OkHttpClient 实例
+     */
     @Bean
     public OkHttpClient testOkHttpClient() {
         return new OkHttpClient.Builder()

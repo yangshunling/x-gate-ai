@@ -43,6 +43,11 @@ public class AnthropicConverter implements ProtocolConverter {
     private static final String EVENT_PREFIX = "event: ";
     private static final String DATA_PREFIX = "data: ";
 
+    /**
+     * 该转换器服务的客户端协议类型
+     *
+     * @return ANTHROPIC_MESSAGES
+     */
     @Override
     public ProtocolType clientProtocol() {
         return ProtocolType.ANTHROPIC_MESSAGES;
@@ -50,6 +55,12 @@ public class AnthropicConverter implements ProtocolConverter {
 
     // ==================== 入站：Anthropic Messages → OpenAI Chat ====================
 
+    /**
+     * 入站转换：Anthropic Messages 请求体 → OpenAI Chat 请求体
+     *
+     * @param clientRawBody Anthropic 原始请求体 JSON
+     * @return OpenAI Chat 请求体 JSON
+     */
     @Override
     public String toChatRequest(String clientRawBody) {
         JSONObject body = JSON.parseObject(clientRawBody);
@@ -141,6 +152,13 @@ public class AnthropicConverter implements ProtocolConverter {
         return null;
     }
 
+    /**
+     * 构建单条纯文本消息
+     *
+     * @param role    消息角色
+     * @param content 文本内容
+     * @return 消息 JSON 对象
+     */
     private JSONObject buildSimpleMessage(String role, String content) {
         JSONObject msg = new JSONObject();
         msg.put("role", role);
@@ -236,6 +254,12 @@ public class AnthropicConverter implements ProtocolConverter {
         return result;
     }
 
+    /**
+     * 构建 user 角色、content blocks 数组格式的消息
+     *
+     * @param content content blocks 数组
+     * @return 消息 JSON 对象
+     */
     private JSONObject buildContentUserMessage(JSONArray content) {
         JSONObject msg = new JSONObject();
         msg.put("role", "user");
@@ -350,6 +374,12 @@ public class AnthropicConverter implements ProtocolConverter {
 
     // ==================== 出站（非流式）：OpenAI Chat → Anthropic Messages ====================
 
+    /**
+     * 出站转换（非流式）：OpenAI Chat 响应 → Anthropic Messages 响应
+     *
+     * @param chatJson 上游 OpenAI Chat 响应 JSON
+     * @return Anthropic Messages 响应 JSON
+     */
     @Override
     public String fromChatResponse(String chatJson) {
         JSONObject resp = JSON.parseObject(chatJson);
@@ -436,12 +466,23 @@ public class AnthropicConverter implements ProtocolConverter {
         };
     }
 
+    /**
+     * 生成 Anthropic 格式的消息 ID
+     *
+     * @return 形如 msg_xxxxxxxx 的随机 ID
+     */
     private String genMessageId() {
         return "msg_" + UUID.randomUUID().toString().replace("-", "");
     }
 
     // ==================== 出站（流式）：OpenAI Chat SSE → Anthropic 事件流 ====================
 
+    /**
+     * 创建 Anthropic 流式事件转换器
+     *
+     * @param requestedModel 客户端请求的模型名（作为 message_start 的兜底 model 字段）
+     * @return Anthropic 流式转换器实例
+     */
     @Override
     public StreamTransformer createStreamTransformer(String requestedModel) {
         return new AnthropicStreamTransformer(requestedModel);
@@ -488,10 +529,21 @@ public class AnthropicConverter implements ProtocolConverter {
         /** 流结束标记，防止重复补发 */
         private boolean finished;
 
+        /**
+         * 构造流式转换器
+         *
+         * @param fallbackModel 兜底模型名（上游未返回 model 时使用）
+         */
         AnthropicStreamTransformer(String fallbackModel) {
             this.fallbackModel = fallbackModel;
         }
 
+        /**
+         * 转换一个上游 SSE 数据块为 Anthropic 事件字节
+         *
+         * @param upstreamChunk 上游原始 SSE 数据块
+         * @return Anthropic 事件字节；无可输出内容时返回空数组
+         */
         @Override
         public byte[] transform(byte[] upstreamChunk) {
             StringBuilder out = new StringBuilder();
@@ -575,6 +627,11 @@ public class AnthropicConverter implements ProtocolConverter {
             return out.toString().getBytes(StandardCharsets.UTF_8);
         }
 
+        /**
+         * 上游流结束：补发收尾事件（content_block_stop / message_delta / message_stop）
+         *
+         * @return 收尾事件字节；已结束时返回空数组
+         */
         @Override
         public byte[] finish() {
             if (finished) return new byte[0];
@@ -628,6 +685,11 @@ public class AnthropicConverter implements ProtocolConverter {
             }
         }
 
+        /**
+         * 确保已发送 message_start 事件（幂等）
+         *
+         * @param out 事件输出构建器
+         */
         private void ensureMessageStarted(StringBuilder out) {
             if (messageStarted) return;
             messageStarted = true;
@@ -650,6 +712,11 @@ public class AnthropicConverter implements ProtocolConverter {
             appendEvent(out, "message_start", eventData);
         }
 
+        /**
+         * 打开 text 类型 content block 并发送 content_block_start 事件
+         *
+         * @param out 事件输出构建器
+         */
         private void openTextBlock(StringBuilder out) {
             int idx = nextBlockIndex++;
             JSONObject contentBlock = new JSONObject();
@@ -664,6 +731,12 @@ public class AnthropicConverter implements ProtocolConverter {
             anyBlockOpened = true;
         }
 
+        /**
+         * 打开 tool_use 类型 content block 并发送 content_block_start 事件
+         *
+         * @param out            事件输出构建器
+         * @param openaiToolIdx  OpenAI tool_calls index
+         */
         private void openToolUseBlock(StringBuilder out, int openaiToolIdx) {
             ToolCallState state = toolCallStates.get(openaiToolIdx);
             int idx = nextBlockIndex++;
@@ -682,6 +755,13 @@ public class AnthropicConverter implements ProtocolConverter {
             anyBlockOpened = true;
         }
 
+        /**
+         * 构建 content_block_delta 事件（text_delta 类型）
+         *
+         * @param index content block 序号
+         * @param text  文本增量
+         * @return 事件数据对象
+         */
         private JSONObject buildTextDelta(int index, String text) {
             JSONObject delta = new JSONObject();
             delta.put("type", "text_delta");
@@ -693,6 +773,13 @@ public class AnthropicConverter implements ProtocolConverter {
             return eventData;
         }
 
+        /**
+         * 构建 content_block_delta 事件（input_json_delta 类型）
+         *
+         * @param index        content block 序号
+         * @param partialJson 工具参数 JSON 分片
+         * @return 事件数据对象
+         */
         private JSONObject buildInputJsonDelta(int index, String partialJson) {
             JSONObject delta = new JSONObject();
             delta.put("type", "input_json_delta");
@@ -704,6 +791,12 @@ public class AnthropicConverter implements ProtocolConverter {
             return eventData;
         }
 
+        /**
+         * 构建 content_block_stop 事件
+         *
+         * @param index content block 序号
+         * @return 事件数据对象
+         */
         private JSONObject buildContentBlockStop(int index) {
             JSONObject eventData = new JSONObject();
             eventData.put("type", "content_block_stop");
@@ -711,6 +804,11 @@ public class AnthropicConverter implements ProtocolConverter {
             return eventData;
         }
 
+        /**
+         * 构建 message_delta 事件（含 stop_reason 与 output_tokens 用量）
+         *
+         * @return 事件数据对象
+         */
         private JSONObject buildMessageDelta() {
             JSONObject delta = new JSONObject();
             delta.put("stop_reason", mapFinishReason(finishReason));
@@ -748,22 +846,39 @@ public class AnthropicConverter implements ProtocolConverter {
         /** OpenAI tool_calls index（type=tool_use 时有效，text 为 -1） */
         final int openaiToolCallIndex;
 
-        BlockOpen(String type, int anthropicIndex) {
-            this(type, anthropicIndex, -1);
-        }
+    /**
+     * 构造 content block 描述
+     *
+     * @param type           block 类型：text / tool_use
+     * @param anthropicIndex Anthropic content block 序号
+     */
+    BlockOpen(String type, int anthropicIndex) {
+        this(type, anthropicIndex, -1);
+    }
 
-        BlockOpen(String type, int anthropicIndex, int openaiToolCallIndex) {
-            this.type = type;
-            this.anthropicIndex = anthropicIndex;
-            this.openaiToolCallIndex = openaiToolCallIndex;
-        }
+    /**
+     * 构造 content block 描述
+     *
+     * @param type                 block 类型：text / tool_use
+     * @param anthropicIndex       Anthropic content block 序号
+     * @param openaiToolCallIndex  OpenAI tool_calls index（text 类型为 -1）
+     */
+    BlockOpen(String type, int anthropicIndex, int openaiToolCallIndex) {
+        this.type = type;
+        this.anthropicIndex = anthropicIndex;
+        this.openaiToolCallIndex = openaiToolCallIndex;
+    }
     }
 
     /** OpenAI 单个 tool_call 的流式状态 */
     private static class ToolCallState {
+        /** 工具调用 ID */
         String id;
+        /** 工具名称 */
         String name;
+        /** 是否已发送 content_block_start */
         boolean started;
+        /** 分配的 Anthropic content block 序号 */
         int anthropicIndex;
     }
 }
