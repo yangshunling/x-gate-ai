@@ -96,11 +96,13 @@ const XApi = {
   listConcurrencyModels() { return XHttp.get('/admin/concurrency/models'); },
 
   /**
-   * 更新指定模型行的并发上限
+   * 更新指定模型行的并发上限与失败次数
    * @param {number} id - 模型行 ID
    * @param {number} maxConcurrency - 并发上限；0 表示不限制
+   * @param {number} failCount - 累计失败次数；0 表示无失败记录
    */
-  updateConcurrencyLimit(id, maxConcurrency) {
-    return XHttp.request('/admin/concurrency/model/' + id, { method: 'PUT', body: { maxConcurrency } });
+  updateConcurrencyLimit(id, maxConcurrency, failCount) {
+    return XHttp.request('/admin/concurrency/model/' + id,
+      { method: 'PUT', body: { maxConcurrency, fail_count: failCount } });
   },
 };

@@ -101,10 +101,11 @@ public interface AdminManagementService {
     List<Map<String, Object>> listConcurrencyModels();
 
     /**
-     * 更新指定模型行的并发上限
+     * 更新指定模型行的并发上限与失败次数
      *
      * @param modelId        模型行 ID
      * @param maxConcurrency 并发上限；{@code 0} 表示不限制
+     * @param failCount      累计失败次数；{@code 0} 表示无失败记录
      */
-    void updateConcurrencyLimit(Long modelId, int maxConcurrency);
+    void updateConcurrencyLimit(Long modelId, int maxConcurrency, int failCount);
 }

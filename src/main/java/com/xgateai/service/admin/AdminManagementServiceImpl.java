@@ -536,13 +536,14 @@ public class AdminManagementServiceImpl implements AdminManagementService {
     }
 
     /**
-     * 更新指定模型行的并发上限并清空路由缓存
+     * 更新指定模型行的并发上限与失败次数，并清空路由缓存
      *
      * @param modelId        模型行 ID
      * @param maxConcurrency 并发上限；0 表示不限制
+     * @param failCount      累计失败次数；0 表示无失败记录
      */
     @Override
-    public void updateConcurrencyLimit(Long modelId, int maxConcurrency) {
+    public void updateConcurrencyLimit(Long modelId, int maxConcurrency, int failCount) {
         UpstreamModel model = upstreamModelDao.selectById(modelId);
         if (model == null) {
             throw new ResourceNotFoundException("Model", modelId);
@@ -550,8 +551,11 @@ public class AdminManagementServiceImpl implements AdminManagementService {
         UpstreamModel update = new UpstreamModel();
         update.setId(modelId);
         update.setMaxConcurrency(maxConcurrency);
+        update.setFailCount(failCount);
         upstreamModelDao.updateById(update);
-        log.info("更新并发上限: model({}) {} -> {}", modelId, model.getModelName(), maxConcurrency);
+        log.info("更新流控参数: model({}) {} 并发上限 {} -> {}, 失败次数 {} -> {}",
+                modelId, model.getModelName(), model.getMaxConcurrency(), maxConcurrency,
+                model.getFailCount(), failCount);
         routeCache.invalidateAll();
     }
 

@@ -276,16 +276,16 @@ public class AdminController {
     }
 
     /**
-     * 更新指定模型行的并发上限
+     * 更新指定模型行的并发上限与失败次数
      *
      * @param id  模型行 ID
-     * @param dto 并发上限参数
+     * @param dto 流控参数
      * @return 更新成功响应
      */
     @PutMapping("/concurrency/model/{id}")
     public HttpResponse updateConcurrencyLimit(@PathVariable Long id,
                                                @RequestBody @Valid ConcurrencyLimitDTO dto) {
-        adminManagementService.updateConcurrencyLimit(id, dto.getMaxConcurrency());
-        return HttpResponse.successForMessage("并发上限已更新");
+        adminManagementService.updateConcurrencyLimit(id, dto.getMaxConcurrency(), dto.getFailCount());
+        return HttpResponse.successForMessage("流控参数已更新");
     }
 }
